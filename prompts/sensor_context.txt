@@ -1,0 +1,20 @@
+Sensor context template
+
+Inject this block after system prompt and before conversation history.
+Only include sections with available data.
+
+## Current Environment
+{{sensor_summary_lines}}
+
+Formatting rules:
+- One line per location.
+- Human-readable location names.
+- Include units for numeric values.
+- Use concise state labels for binary signals (e.g., motion detected / no motion).
+- Highlight safety-critical states explicitly (e.g., gas HIGH, smoke detected).
+
+Example:
+## Current Environment
+- Bedroom: temperature 23.5C, humidity 45%RH
+- Hallway: motion detected
+- Kitchen: gas 1200ppm (HIGH)
