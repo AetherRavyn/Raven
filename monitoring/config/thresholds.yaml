@@ -1,0 +1,54 @@
+thresholds:
+  person_confidence: 0.6
+  vehicle_confidence: 0.5
+  object_confidence: 0.4
+  pose_keypoint_threshold: 0.3
+  nms_iou_threshold: 0.45
+  
+loitering:
+  min_duration_seconds: 60
+  max_distance_moved_meters: 5
+  zone_aware: true
+  cooldown_seconds: 30
+
+static_object:
+  min_duration_seconds: 300
+  min_area_pixels: 500
+  ignore_vehicles: false
+  cooldown_seconds: 60
+
+abandoned_bag:
+  min_duration_seconds: 120
+  min_area_pixels: 1000
+  requires_person_left: true
+  cooldown_seconds: 60
+
+pose:
+  fall_angle_threshold: 45
+  fall_confidence_threshold: 0.6
+  fight_movement_threshold: 0.8
+  fight_duration_frames: 30
+  weapon_confidence: 0.7
+
+crowd:
+  density_threshold: 0.3
+  area_threshold_pixels: 10000
+  min_person_count: 10
+
+speed:
+  vehicle_speed_threshold_kmh: 80
+  person_run_speed_mps: 5
+
+network:
+  p2p_port: 54321
+  p2p_broadcast_ip: "<broadcast>"
+  
+scheduler:
+  max_cpu_percent: 75.0
+  max_ram_gb: 6.0
+  check_interval_seconds: 5
+
+higher_intelligence:
+  escalate_on_critical: true
+  min_escalation_score: 0.8
+  mcp_server_binding: "stdio"

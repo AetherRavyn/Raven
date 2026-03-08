@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SARAS — Surveillance & Analytics</title>
+  <meta name="description" content="SARAS Central Node — Intelligent Surveillance, Tracking & Analytics Dashboard">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+  <header>
+    <h1>&#9678; SARAS</h1>
+    <span class="badge badge-live" id="status">● LIVE</span>
+    <div class="header-right">
+      <span style="font-size:.68rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace" id="clock"></span>
+    </div>
+  </header>
+
+  <div class="app">
+    <!-- Left Navigation -->
+    <nav class="nav">
+      <button class="nav-btn active" onclick="showPage('live')" title="Live View">&#128249;</button>
+      <button class="nav-btn" onclick="showPage('cameras')" title="Cameras">&#128247;</button>
+      <button class="nav-btn" onclick="showPage('esps')" title="ESP Devices">&#128268;</button>
+      <button class="nav-btn" onclick="showPage('analytics')" title="Vision Analytics">&#129504;</button>
+      <button class="nav-btn" onclick="showPage('identities')" title="Identity Tools">&#128100;</button>
+    </nav>
+
+    <div class="content">
+
+      <!-- ═══ Page: Live View ═══ -->
+      <div class="page active" id="page-live" style="flex-direction:row;">
+        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+          <div class="toolbar">
+            <span class="title">&#127909; Live Surveillance</span>
+            <div class="view-btns">
+              <button class="view-btn active" onclick="setGrid(1, this)">Single</button>
+              <button class="view-btn" onclick="setGrid(2, this)">2×1</button>
+              <button class="view-btn" onclick="setGrid(4, this)">2×2</button>
+            </div>
+          </div>
+          <div class="cam-grid grid-1" id="cam-grid"></div>
+        </div>
+        <div class="sidebar">
+          <div class="sidebar-tabs">
+            <div class="sidebar-tab active" onclick="switchSidebar('events')">&#9889; Events</div>
+            <div class="sidebar-tab" onclick="switchSidebar('visitors')">&#128101; Visitors</div>
+          </div>
+          <div class="sidebar-content active" id="sb-events"></div>
+          <div class="sidebar-content" id="sb-visitors">
+            <button class="btn btn-primary btn-sm" onclick="loadVisitors()" style="align-self:flex-start">&#8635;
+              Refresh</button>
+            <div id="visitor-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Page: Camera Management ═══ -->
+      <div class="page" id="page-cameras" style="flex-direction:column;padding:20px;gap:14px;overflow-y:auto;">
+        <div class="toolbar" style="border:none;padding:0;">
+          <span class="title">&#128247; Camera Management</span>
+        </div>
+        <div class="card">
+          <div class="section-title">Add New Camera</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:8px;">
+            <div class="form-group" style="flex:1;min-width:130px;margin:0">
+              <label>Camera ID</label><input type="text" id="add-cam-id" placeholder="cam_backyard">
+            </div>
+            <div class="form-group" style="flex:2;min-width:220px;margin:0">
+              <label>Stream URL (RTSP or HTTP)</label><input type="text" id="add-cam-url"
+                placeholder="rtsp://192.168.1.x:554/stream">
+            </div>
+            <div class="form-group" style="flex:1;min-width:130px;margin:0">
+              <label>Location</label><input type="text" id="add-cam-loc" placeholder="backyard">
+            </div>
+            <button class="btn btn-primary" onclick="addCamera()">+ Add Camera</button>
+          </div>
+        </div>
+        <div class="section-title">Active Cameras</div>
+        <div id="camera-list"></div>
+        <div id="cam-msg" style="font-size:.78rem;color:var(--green);margin-top:4px;"></div>
+      </div>
+
+      <!-- ═══ Page: ESP Device Management ═══ -->
+      <div class="page" id="page-esps" style="flex-direction:column;padding:20px;gap:14px;overflow-y:auto;">
+        <div class="toolbar" style="border:none;padding:0;"><span class="title">&#128268; IoT Device Management</span>
+        </div>
+        <div class="card">
+          <div class="section-title">Register New ESP Device</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:8px;">
+            <div class="form-group" style="flex:1;min-width:110px;margin:0">
+              <label>ESP ID</label><input type="text" id="add-esp-id" placeholder="esp_door_01">
+            </div>
+            <div class="form-group" style="flex:1;min-width:110px;margin:0">
+              <label>Type</label>
+              <select id="add-esp-type">
+                <option>door_lock</option>
+                <option>motion_sensor</option>
+                <option>light</option>
+                <option>alarm</option>
+                <option>generic</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;min-width:130px;margin:0">
+              <label>IP Address</label><input type="text" id="add-esp-ip" placeholder="192.168.1.50">
+            </div>
+            <div class="form-group" style="flex:1;min-width:110px;margin:0">
+              <label>Location</label><input type="text" id="add-esp-loc" placeholder="main_gate">
+            </div>
+            <button class="btn btn-primary" onclick="addEsp()">+ Register</button>
+          </div>
+        </div>
+        <div class="section-title">Registered Devices</div>
+        <div id="esp-list"></div>
+        <div id="esp-msg" style="font-size:.78rem;color:var(--text-muted);"></div>
+      </div>
+
+      <!-- ═══ Page: Vision Analytics ═══ -->
+      <div class="page" id="page-analytics" style="flex-direction:column;padding:20px;gap:14px;overflow-y:auto;">
+        <div class="toolbar" style="border:none;padding:0;"><span class="title">&#129504; Vision Analytics Engine</span>
+        </div>
+        <p style="font-size:.78rem;color:var(--text-muted)">Enable YOLO-powered overlays on the live feed. Only one tool
+          can be active at a time.</p>
+        <div class="vision-grid">
+          <div class="v-btn" id="vb-blur" onclick="toggleVision('blur')">&#128274; Dynamic Blur</div>
+          <div class="v-btn" id="vb-heatmap" onclick="toggleVision('heatmap')">&#127777; Heatmap</div>
+          <div class="v-btn" id="vb-counter" onclick="toggleVision('counter')">&#128290; Line Counter</div>
+          <div class="v-btn" id="vb-speed" onclick="toggleVision('speed')">&#127937; Speed Tracker</div>
+          <div class="v-btn" id="vb-workout" onclick="toggleVision('workout')">&#127947; AIGym Workout</div>
+        </div>
+        <div id="v-status" style="font-size:.78rem;color:var(--text-muted);margin-top:6px;"></div>
+        <hr>
+        <div class="section-title">Semantic Image Search</div>
+        <div class="card">
+          <div class="form-group"><label>Upload an image to find visually similar events</label><input type="file"
+              id="sem-file" accept="image/*"></div>
+          <button class="btn btn-primary" onclick="semanticSearch()">&#128269; Search</button>
+          <div class="result-box" id="sem-result" style="margin-top:8px;">Results appear here</div>
+        </div>
+      </div>
+
+      <!-- ═══ Page: Identity Tools ═══ -->
+      <div class="page" id="page-identities" style="flex-direction:column;padding:20px;gap:14px;overflow-y:auto;">
+        <div class="toolbar" style="border:none;padding:0;"><span class="title">&#128100; Identity Management</span>
+        </div>
+        <div class="card">
+          <div class="section-title">Identify a Face</div>
+          <div class="form-group"><input type="file" id="id-file" accept="image/*"></div>
+          <button class="btn btn-primary" onclick="identifyFace()">&#128270; Identify</button>
+          <div class="result-box" id="id-result" style="margin-top:6px;">Result appears here</div>
+        </div>
+        <div class="card">
+          <div class="section-title">Register Known Identity</div>
+          <div class="form-group"><label>Name</label><input type="text" id="reg-name" placeholder="John"></div>
+          <div class="form-group"><input type="file" id="reg-file" accept="image/*"></div>
+          <button class="btn btn-primary" onclick="registerFace()">&#10003; Register</button>
+          <div class="result-box" id="reg-result" style="margin-top:6px;">Result appears here</div>
+        </div>
+        <div class="card">
+          <div class="section-title">Promote Unknown &rarr; Named</div>
+          <div class="form-group"><label>Unknown ID</label><input type="text" id="promo-uid" placeholder="unknown_0001">
+          </div>
+          <div class="form-group"><label>Real Name</label><input type="text" id="promo-name" placeholder="Jane"></div>
+          <button class="btn btn-primary" onclick="promoteUnknown()">&#8593; Promote</button>
+          <div class="result-box" id="promo-result" style="margin-top:6px;">Result appears here</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+
+</html>

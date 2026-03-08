@@ -1,0 +1,56 @@
+[Unit]
+Description=Frigate Anomaly Detection Handler for Raspberry Pi
+Documentation=https://github.com/SARAS/monitoring
+After=network.target mosquitto.service
+
+[Service]
+Type=simple
+User=saras
+Group=saras
+WorkingDirectory=/home/saras/monitoring
+
+# Environment configuration
+Environment="FRIGATE_MQTT_HOST=localhost"
+Environment="FRIGATE_MQTT_PORT=1883"
+Environment="FRIGATE_API_URL=http://localhost:5000"
+Environment="FRIGATE_RTSP_URL=rtsp://localhost:8554"
+Environment="POSTGRES_URL=postgresql://saras:PASSWORD@localhost:5432/saras"
+Environment="CLIPS_DIR=/var/lib/saras/anomalies"
+Environment="ANOMALY_WEBHOOK_URL="
+Environment="TELEGRAM_TOKEN="
+Environment="TELEGRAM_CHAT_ID="
+Environment="LOITER_THRESHOLD=30"
+Environment="STATIC_OBJECT_THRESHOLD=120"
+Environment="WEAPON_CONFIDENCE=0.5"
+Environment="ZOOM_FACTOR=2.5"
+Environment="LOG_LEVEL=INFO"
+Environment="FLASK_PORT=8080"
+
+# Python execution
+ExecStart=/usr/bin/python3 /home/saras/monitoring/anomaly_handler.py
+
+# Restart policy - aggressive for production
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Resource limits for Raspberry Pi 5
+MemoryMax=800M
+CPUQuota=80%
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/saras /home/saras/monitoring
+
+# Logging to systemd journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=anomaly-handler
+
+[Install]
+WantedBy=multi-user.target
+Alias=anomaly-handler.service

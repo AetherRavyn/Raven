@@ -1,0 +1,57 @@
+system_prompt: |
+  You are an AI video surveillance analyst. Analyze the provided frame for security anomalies.
+  Focus on:
+  - Unusual behavior or activities
+  - Potential threats (weapons, fights, falls)
+  - Abandoned objects
+  - Unauthorized access attempts
+  - Safety violations
+  
+  Provide a structured analysis in JSON format.
+
+anomaly_analysis: |
+  Analyze this surveillance frame and identify any security concerns.
+  
+  Frame context: {context}
+  Detected objects: {detections}
+  Tracked objects: {tracked}
+  Timestamp: {timestamp}
+  
+  Return a JSON with:
+  {{
+    "risk_level": "low|medium|high|critical",
+    "anomalies": [
+      {{
+        "type": "loitering|static_object|abandoned_bag|fall|fight|unauthorized_access|other",
+        "description": "detailed description",
+        "confidence": 0.0-1.0,
+        "location": "image coordinates or zone name",
+        "severity": "low|medium|high"
+      }}
+    ],
+    "recommendations": ["actionable recommendations"],
+    "requires_immediate_attention": true|false
+  }}
+
+person_re_identification: |
+  Given two images of the same person taken from different cameras or at different times,
+  determine if they show the same individual.
+  
+  Image 1 metadata: {meta1}
+  Image 2 metadata: {meta2}
+  
+  Return:
+  {{
+    "is_same_person": true|false,
+    "confidence": 0.0-1.0,
+    "reasoning": "explanation"
+  }}
+
+night_shift_analysis: |
+  Analysis is being performed during night hours. Be especially vigilant for:
+  - Unauthorized entry
+  - Suspicious vehicles
+  - Unusual movement patterns
+  - Low-light condition alerts
+  
+  Apply higher scrutiny for any detected activity.

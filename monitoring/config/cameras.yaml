@@ -1,0 +1,76 @@
+cameras:
+- id: cam1
+  url: rtsp://192.168.110.10:8080/h264_aac.sdp
+  location: test
+detection:
+  model_path: yolov8n.pt
+  conf_threshold: 0.25
+  iou_threshold: 0.45
+  classes:
+  - person
+  - bicycle
+  - car
+  - motorcycle
+  - bus
+  - truck
+  - cat
+  - dog
+  - backpack
+  - umbrella
+  - handbag
+  - suitcase
+  - bottle
+  - cup
+  - chair
+  - couch
+  - potted plant
+  - bed
+  - dining table
+  - toilet
+  - tv
+  - laptop
+  - mouse
+  - remote
+  - keyboard
+  - cell phone
+  - microwave
+  - oven
+  - toaster
+  - sink
+  - refrigerator
+  - book
+  - clock
+  - vase
+  - teddy bear
+  device: cuda
+  half_precision: true
+tracking:
+  tracker_type: bytetrack
+  track_thresh: 0.45
+  track_buffer: 120
+  match_thresh: 0.90
+  min_box_area: 100
+  max_time_lost: 120
+  min_kalman_interval: 2
+  use_byte: true
+  with_reid: false
+anomaly:
+  loitering:
+    enabled: true
+    time_threshold_seconds: 60
+    zone_strict: true
+  static_object:
+    enabled: true
+    time_threshold_seconds: 300
+    min_object_area: 500
+  abandoned_baggage:
+    enabled: true
+    time_threshold_seconds: 120
+    min_bag_area: 1000
+  pose_estimation:
+    enabled: true
+    model: yolov8n-pose
+    fall_detection: true
+    fight_detection: true
+    weapon_detection: false
+    confidence_threshold: 0.5
