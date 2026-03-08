@@ -1,0 +1,48 @@
+{
+  "google.com": {
+    "ports": [
+      80,
+      443
+    ]
+  },
+  "203.190.13.20": {
+    "geo": {
+      "status": "success",
+      "country": "Bangladesh",
+      "countryCode": "BD",
+      "region": "E",
+      "regionName": "Rajshahi Division",
+      "city": "Naw\u0101bganj",
+      "zip": "6300",
+      "lat": 24.5903,
+      "lon": 88.2744,
+      "timezone": "Asia/Dhaka",
+      "isp": "DAFFODILNET-SUB",
+      "org": "",
+      "as": "AS58768 Daffodil Online Ltd.",
+      "query": "203.190.13.20"
+    },
+    "ports": [],
+    "services": {},
+    "vulnerabilities": [],
+    "time": 1772302631.2841315
+  },
+  "54.159.37.222": {
+    "geo": {
+      "status": "success",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "VA",
+      "regionName": "Virginia",
+      "city": "Ashburn",
+      "zip": "20149",
+      "lat": 39.0438,
+      "lon": -77.4874,
+      "timezone": "America/New_York",
+      "isp": "Amazon.com, Inc.",
+      "org": "AWS EC2 (us-east-1)",
+      "as": "AS14618 Amazon.com, Inc.",
+      "query": "54.159.37.222"
+    }
+  }
+}
