@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SARAS — Web Chat</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d0d0d;
+      color: #e8e8e8;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 12px 20px;
+      background: #111;
+      border-bottom: 1px solid #222;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.04em; }
+
+    #status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #555;
+      flex-shrink: 0;
+    }
+    #status-dot.connected { background: #22c55e; }
+    #status-dot.disconnected { background: #ef4444; }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .msg {
+      max-width: 70%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.9rem;
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: #1d4ed8;
+      color: #fff;
+      border-bottom-right-radius: 3px;
+    }
+
+    .msg.assistant {
+      align-self: flex-start;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-bottom-left-radius: 3px;
+    }
+
+    .msg.thinking {
+      align-self: flex-start;
+      background: transparent;
+      border: none;
+      color: #666;
+      font-style: italic;
+      font-size: 0.8rem;
+      padding: 4px 0;
+    }
+
+    .msg.error {
+      align-self: flex-start;
+      background: #1f0808;
+      border: 1px solid #7f1d1d;
+      color: #fca5a5;
+    }
+
+    #input-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 20px;
+      background: #111;
+      border-top: 1px solid #222;
+    }
+
+    #user-id-input {
+      flex-shrink: 0;
+      width: 120px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #e8e8e8;
+      font-size: 0.85rem;
+    }
+
+    #text-input {
+      flex: 1;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #e8e8e8;
+      font-size: 0.9rem;
+      resize: none;
+      height: 42px;
+    }
+
+    #text-input:focus, #user-id-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    #send-btn {
+      padding: 8px 18px;
+      border-radius: 8px;
+      background: #1d4ed8;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #send-btn:hover:not(:disabled) { background: #2563eb; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div id="status-dot" class="disconnected"></div>
+  <h1>SARAS</h1>
+  <span id="status-label" style="font-size:0.78rem;color:#888;margin-left:4px;">Disconnected</span>
+</header>
+
+<div id="messages"></div>
+
+<div id="input-bar">
+  <input id="user-id-input" type="text" value="web-user" placeholder="user ID" />
+  <textarea id="text-input" placeholder="Type a message…"></textarea>
+  <button id="send-btn">Send</button>
+</div>
+
+<script>
+  const messagesEl = document.getElementById('messages');
+  const textInput  = document.getElementById('text-input');
+  const sendBtn    = document.getElementById('send-btn');
+  const userIdEl   = document.getElementById('user-id-input');
+  const statusDot  = document.getElementById('status-dot');
+  const statusLabel = document.getElementById('status-label');
+
+  let ws = null;
+  let thinkingMsg = null;
+
+  function setStatus(connected) {
+    statusDot.className = connected ? 'connected' : 'disconnected';
+    statusLabel.textContent = connected ? 'Connected' : 'Disconnected';
+    sendBtn.disabled = !connected;
+  }
+
+  function addMessage(text, role) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    div.textContent = text;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  function removeThinking() {
+    if (thinkingMsg) {
+      thinkingMsg.remove();
+      thinkingMsg = null;
+    }
+  }
+
+  function connect() {
+    const userId = userIdEl.value.trim() || 'web-user';
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const url = `${proto}://${location.host}/chat/${encodeURIComponent(userId)}`;
+    ws = new WebSocket(url);
+
+    ws.onopen = () => setStatus(true);
+    ws.onclose = () => {
+      setStatus(false);
+      // Auto-reconnect after 3s
+      setTimeout(connect, 3000);
+    };
+    ws.onerror = () => setStatus(false);
+
+    ws.onmessage = (event) => {
+      let data;
+      try { data = JSON.parse(event.data); } catch { return; }
+
+      if (data.type === 'thinking') {
+        removeThinking();
+        thinkingMsg = addMessage('Thinking…', 'thinking');
+      } else if (data.type === 'chunk') {
+        removeThinking();
+        // Accumulate chunks into the last assistant message
+        const last = messagesEl.querySelector('.msg.assistant:last-of-type');
+        if (last && last.dataset.streaming === '1') {
+          last.textContent += data.text;
+        } else {
+          const m = addMessage(data.text, 'assistant');
+          m.dataset.streaming = '1';
+        }
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      } else if (data.type === 'done') {
+        removeThinking();
+        // Mark the last assistant message as complete
+        const last = messagesEl.querySelector('.msg.assistant:last-of-type');
+        if (last) delete last.dataset.streaming;
+      } else if (data.type === 'error') {
+        removeThinking();
+        addMessage('Error: ' + data.message, 'error');
+      }
+    };
+  }
+
+  function send() {
+    const text = textInput.value.trim();
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+    addMessage(text, 'user');
+    ws.send(JSON.stringify({ text }));
+    textInput.value = '';
+    textInput.style.height = '42px';
+  }
+
+  sendBtn.addEventListener('click', send);
+
+  textInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  });
+
+  // Reconnect when user ID changes
+  userIdEl.addEventListener('change', () => {
+    if (ws) ws.close();
+  });
+
+  connect();
+</script>
+</body>
+</html>
