@@ -6,8 +6,6 @@ from typing import Any, Dict, List, Optional
 from app.tools.base import BaseTool, ToolParameter, ToolSchema
 
 
-
-
 class GitOperationTool(BaseTool):
     def __init__(self, repo_path: str = "."):
         self.repo_path = os.path.abspath(repo_path)
@@ -116,61 +114,76 @@ class GitOperationTool(BaseTool):
         extras = shlex.split(extra_args) if extra_args else []
 
         cmd = []
+        canonical_op = op
+        if op == "branch":
+            canonical_op = "current_branch"
+        elif op == "remotes":
+            canonical_op = "remote_url_all"
+        elif op == "diff_stat":
+            canonical_op = "diff_stat"
+        elif op == "last_commit":
+            canonical_op = "last_commit"
 
         # --- 1. Inspection ---
-        if op == "status":
+        if canonical_op == "status":
             cmd = ["git", "status"]
-        elif op == "log":
+        elif canonical_op == "log":
             # Smart log: concise, graph, last 20
             cmd = ["git", "log", "-n", "20", "--graph", "--oneline", "--decorate"]
-        elif op == "diff":
+        elif canonical_op == "diff":
             cmd = ["git", "diff"] + ([target] if target else [])
-        elif op == "show_file":
+        elif canonical_op == "show_file":
             if not target:
                 return self._error("Target file path required.")
             cmd = ["git", "show", f"HEAD:{target}"]
-        elif op == "blame":
+        elif canonical_op == "blame":
             if not target:
                 return self._error("Target file path required.")
             cmd = ["git", "blame", target]
-        elif op == "ls_files":
+        elif canonical_op == "ls_files":
             cmd = ["git", "ls-files"]
-        elif op == "current_branch":
+        elif canonical_op == "current_branch":
             cmd = ["git", "branch", "--show-current"]
-        elif op == "remote_url":
+        elif canonical_op == "remote_url":
             cmd = ["git", "remote", "get-url", "origin"]
+        elif canonical_op == "remote_url_all":
+            cmd = ["git", "remote", "-v"]
+        elif canonical_op == "diff_stat":
+            cmd = ["git", "diff", "--stat"]
+        elif canonical_op == "last_commit":
+            cmd = ["git", "log", "-n", "1", "--oneline"]
 
         # --- 2. Staging & Committing ---
-        elif op == "add":
+        elif canonical_op == "add":
             if not target:
                 return self._error("Target file (or '.') required.")
             cmd = ["git", "add", target]
-        elif op == "rm":
+        elif canonical_op == "rm":
             if not target:
                 return self._error("Target file required.")
             cmd = ["git", "rm", target]
-        elif op == "commit":
+        elif canonical_op == "commit":
             if not message:
                 return self._error("Message required.")
             cmd = ["git", "commit", "-m", message]
-        elif op == "reset":
+        elif canonical_op == "reset":
             # Soft reset by default if no mode specified, or use extras
             cmd = ["git", "reset"] + extras + ([target] if target else [])
-        elif op == "restore":
+        elif canonical_op == "restore":
             if not target:
                 return self._error("Target file required.")
             cmd = ["git", "restore", target]
 
         # --- 3. Branching & Merging ---
-        elif op == "checkout":
+        elif canonical_op == "checkout":
             if not target:
                 return self._error("Target branch required.")
             cmd = ["git", "checkout", target]
-        elif op == "create_branch":
+        elif canonical_op == "create_branch":
             if not target:
                 return self._error("New branch name required.")
             cmd = ["git", "checkout", "-b", target]
-        elif op == "delete_branch":
+        elif canonical_op == "delete_branch":
             if not target:
                 return self._error("Branch name required.")
             cmd = [
@@ -179,77 +192,98 @@ class GitOperationTool(BaseTool):
                 "-D",
                 target,
             ]  # Force delete to avoid agent stuck loop
-        elif op == "list_branches":
+        elif canonical_op == "list_branches":
             cmd = ["git", "branch", "-a"]
-        elif op == "merge":
+        elif canonical_op == "merge":
             if not target:
                 return self._error("Target branch required.")
             cmd = ["git", "merge", target]
-        elif op == "abort_merge":
+        elif canonical_op == "abort_merge":
             cmd = ["git", "merge", "--abort"]
 
         # --- 4. Conflict Resolution ---
-        elif op == "checkout_ours":
+        elif canonical_op == "checkout_ours":
             if not target:
                 return self._error("Target file required.")
             cmd = ["git", "checkout", "--ours", target]
-        elif op == "checkout_theirs":
+        elif canonical_op == "checkout_theirs":
             if not target:
                 return self._error("Target file required.")
             cmd = ["git", "checkout", "--theirs", target]
 
         # --- 5. Syncing ---
-        elif op == "fetch":
+        elif canonical_op == "fetch":
             cmd = ["git", "fetch", "--all"]
-        elif op == "pull":
+        elif canonical_op == "pull":
             cmd = ["git", "pull"]
-        elif op == "push":
+        elif canonical_op == "push":
             cmd = ["git", "push"]
-        elif op == "push_force":
+        elif canonical_op == "push_force":
             # Dangerous, but sometimes necessary for agents fixing their own history
             cmd = ["git", "push", "--force"]
 
         # --- 6. Advanced History ---
-        elif op == "cherry_pick":
+        elif canonical_op == "cherry_pick":
             if not target:
                 return self._error("Commit hash required.")
             cmd = ["git", "cherry-pick", target]
-        elif op == "revert":
+        elif canonical_op == "revert":
             if not target:
                 return self._error("Commit hash required.")
             cmd = ["git", "revert", target, "--no-edit"]
-        elif op == "reflog":
+        elif canonical_op == "reflog":
             cmd = ["git", "reflog", "-n", "20"]
 
         # --- 7. Stashing ---
-        elif op == "stash":
+        elif canonical_op == "stash":
             cmd = ["git", "stash"]
             if message:
                 cmd.extend(["save", message])
-        elif op == "stash_list":
+        elif canonical_op == "stash_list":
             cmd = ["git", "stash", "list"]
-        elif op == "stash_pop":
+        elif canonical_op == "stash_pop":
             cmd = ["git", "stash", "pop"] + ([target] if target else [])
-        elif op == "stash_apply":
+        elif canonical_op == "stash_apply":
             cmd = ["git", "stash", "apply"] + ([target] if target else [])
-        elif op == "stash_drop":
+        elif canonical_op == "stash_drop":
             cmd = ["git", "stash", "drop"] + ([target] if target else [])
 
         # --- 8. Releases ---
-        elif op == "tag":
+        elif canonical_op == "tag":
             if not target:
                 return self._error("Tag name required.")
             cmd = ["git", "tag", target]
             if message:
                 cmd.extend(["-m", message])
-        elif op == "push_tags":
+        elif canonical_op == "push_tags":
             cmd = ["git", "push", "--tags"]
 
         else:
             return self._error(f"Unknown operation: {op}")
 
         # Execute
-        return await self._run_command(cmd)
+        result = await self._run_command(cmd)
+        result["operation"] = op
+        if not result.get("success"):
+            result["error"] = result.get("output", "git command failed")
+            return result
+
+        out = result.get("output", "")
+        if op == "branch":
+            result["branch"] = out
+        elif op == "status":
+            result["status"] = out
+        elif op == "log":
+            commits = [line for line in out.splitlines() if line.strip()]
+            result["commits"] = commits
+            result["count"] = len(commits)
+        elif op == "remotes":
+            result["remotes"] = [line for line in out.splitlines() if line.strip()]
+        elif op == "diff_stat":
+            result["diff_stat"] = out
+        elif op == "last_commit":
+            result["last_commit"] = out
+        return result
 
     async def _run_command(self, cmd: List[str]) -> Dict[str, Any]:
         try:
@@ -290,4 +324,4 @@ class GitOperationTool(BaseTool):
             return self._error(f"System Error: {str(e)}")
 
     def _error(self, msg: str) -> Dict[str, Any]:
-        return {"success": False, "output": f"Error: {msg}"}
+        return {"success": False, "output": f"Error: {msg}", "error": msg}
