@@ -1,7 +1,10 @@
 import logging
+import os
+import tempfile
 from datetime import datetime
 
 from app.core import IncomingRequest, ReplyTarget
+from app.core.botsignal import BotSignal
 from app.telegram.constants import ORCHESTRATOR_KEY
 from telegram import (
     KeyboardButton,
@@ -76,7 +79,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user_id = str(update.effective_user.id)
     user = update.effective_user
     text = update.message.text or ""
-    logger.info(f"Message from {user.first_name} ({user.id}): {text}")
+    logger.info(
+        "Telegram incoming  user=%s  name=%s  text=%r",
+        user.id,
+        user.first_name,
+        text[:120],
+    )
 
     orchestrator = context.application.bot_data.get(ORCHESTRATOR_KEY)
     if orchestrator is None:
@@ -116,3 +124,66 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle errors in the bot."""
     logger.error(f"Exception while handling an update: {context.error}")
+
+
+async def handle_voice_message(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Transcribe a received voice/audio note and pass it to the orchestrator."""
+    from app.voice.transcribe import transcribe_audio
+
+    orchestrator = context.application.bot_data.get(ORCHESTRATOR_KEY)
+    botsignal: BotSignal | None = context.application.bot_data.get("botsignal")
+    user = update.effective_user
+    chat = update.effective_chat
+    message = update.message
+
+    if not message or not user or not chat:
+        return
+
+    file_obj = message.voice or message.audio
+    if not file_obj:
+        return
+
+    # Download the audio
+    tg_file = await context.bot.get_file(file_obj.file_id)
+    suffix = ".ogg" if message.voice else ".mp3"
+    fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    try:
+        await tg_file.download_to_drive(tmp_path)
+        text = await transcribe_audio(tmp_path)
+    finally:
+        os.unlink(tmp_path)
+
+    if not text:
+        if botsignal:
+            from app.core.models import SignalPayload
+
+            target = ReplyTarget(
+                platform="telegram",
+                chat_id=str(chat.id),
+                reply_to_id=str(message.message_id),
+            )
+            await botsignal.send(
+                target, SignalPayload(text="Sorry, I couldn't transcribe that audio.")
+            )
+        return
+
+    if orchestrator is None:
+        return
+
+    from app.settings.config import Config  # noqa: PLC0415
+
+    platform = "telegram_voice" if Config.VOICE_REPLY_WITH_AUDIO else "telegram"
+    request = IncomingRequest(
+        platform=platform,
+        user_id=str(user.id),
+        text=text,
+        reply_target=ReplyTarget(
+            platform=platform,
+            chat_id=str(chat.id),
+            reply_to_id=str(message.message_id),
+        ),
+    )
+    await orchestrator.handle(request)
