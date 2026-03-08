@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: saras
+    static_configs:
+      - targets: ["saras:8765"]
