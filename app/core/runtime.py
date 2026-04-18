@@ -6,6 +6,11 @@ from typing import Any, Dict, List, Optional
 from app.core.bootstrapper import Bootstrapper
 from app.core.botsignal import BotSignal, get_botsignal
 from app.core.models import IncomingRequest, SignalPayload, ToolTrace
+from app.core.multimodal import MultimodalContextBuilder
+from app.core.proactive import schedule_follow_up
+from app.core.planner import ResultVerifier, TaskPlanner
+from app.core.model_router import ModelRouter
+from app.core.policy import get_policy_engine
 from app.core.session import SessionManager
 from app.provider.factory import create_provider
 from app.tools.base import BaseTool
@@ -28,12 +33,36 @@ class AgentRuntime:
         self.provider = create_provider(provider_name)
         self.model_name = model_name
         self.botsignal = get_botsignal()
+        self.emit_status_messages = True
         self.tools: Dict[str, BaseTool] = {}
+        self.planner = TaskPlanner()
+        self.verifier = ResultVerifier()
+        self.model_router = ModelRouter(self.provider, self.model_name)
+        self.multimodal_builder = MultimodalContextBuilder()
+        self.policy_engine = get_policy_engine()
 
     def register_tool(self, tool: BaseTool):
         self.tools[tool.get_name()] = tool
 
+    def _maybe_schedule_follow_up(self, request: IncomingRequest, content: str) -> None:
+        lower = (request.text + " " + content).lower()
+        if any(
+            phrase in lower for phrase in ("follow up", "get back to you", "remind me")
+        ):
+            try:
+                schedule_follow_up(
+                    platform=request.platform,
+                    user_id=request.user_id,
+                    chat_id=request.reply_target.chat_id,
+                    question=request.text,
+                    hours=24,
+                )
+            except Exception as exc:
+                logger.debug("Failed to schedule follow-up: %s", exc)
+
     def get_session_id(self, request: IncomingRequest) -> str:
+        if request.conversation_id:
+            return f"{request.platform}_{request.conversation_id}"
         return f"{request.platform}_{request.user_id}"
 
     def _build_openai_tools(self) -> List[Dict[str, Any]]:
@@ -73,6 +102,12 @@ class AgentRuntime:
         session_id = self.get_session_id(request)
         source_kind = "command" if request.text.lstrip().startswith("/") else "prompt"
 
+        plan = self.planner.plan(request.text)
+        route_decision = await self.model_router.resolve(request.text)
+        route_kind = route_decision.route_kind
+        self.provider = route_decision.provider
+        self.model_name = route_decision.model_name
+
         messages = self.session_manager.load_session(session_id)
 
         if not messages:
@@ -84,6 +119,18 @@ class AgentRuntime:
             messages.append(system_prompt)
             self.session_manager.append_message(session_id, system_prompt)
 
+        if plan.steps:
+            plan_message = {
+                "role": "system",
+                "content": "Planner: "
+                + " | ".join(
+                    f"{step.step}:{step.action}:{step.description}"
+                    for step in plan.steps
+                ),
+            }
+            messages.append(plan_message)
+            self.session_manager.append_message(session_id, plan_message)
+
         # Build user message (handle True Native Multimodality)
         if request.image_urls:
             content_array = [{"type": "text", "text": request.text}]
@@ -92,6 +139,16 @@ class AgentRuntime:
             user_msg = {"role": "user", "content": content_array}
         else:
             user_msg = {"role": "user", "content": request.text}
+
+        multimodal_context = self.multimodal_builder.from_request(
+            request,
+            memory_snippets=self.bootstrapper._read_and_truncate(
+                "AGENTS.md", max_chars=240
+            ).splitlines()[:5],
+        )
+        # SARAS stays DB-only: monitoring-owned video/semantic fusion stays external.
+        if multimodal_context.has_signal():
+            messages.append({"role": "system", "content": multimodal_context.render()})
 
         messages.append(user_msg)
         self.session_manager.append_message(session_id, user_msg)
@@ -109,11 +166,12 @@ class AgentRuntime:
         traces = []
 
         # Let the user know we're thinking before the first LLM call
-        await self.botsignal.send_text(
-            request.reply_target,
-            "⏳ Thinking...",
-            source_kind="status",
-        )
+        if self.emit_status_messages:
+            await self.botsignal.send_text(
+                request.reply_target,
+                "⏳ Thinking...",
+                source_kind="status",
+            )
         logger.info(
             "AGENT_RUNTIME  begin_react_loop  session=%s  tools=%d",
             session_id,
@@ -249,6 +307,14 @@ class AgentRuntime:
                         source_kind=source_kind,
                         tool_traces=traces,
                     )
+                    verification = self.verifier.verify(plan, content)
+                    if not verification.get("success"):
+                        logger.warning(
+                            "AGENT_RUNTIME  verification_issue  session=%s  findings=%s",
+                            session_id,
+                            verification.get("findings"),
+                        )
+                    self._maybe_schedule_follow_up(request, content)
                     break
 
                 # Execute tools
@@ -302,11 +368,12 @@ class AgentRuntime:
                         args = {}
 
                     # Notify user which tool is running
-                    await self.botsignal.send_text(
-                        request.reply_target,
-                        f"🔧 {function_name}...",
-                        source_kind="status",
-                    )
+                    if self.emit_status_messages:
+                        await self.botsignal.send_text(
+                            request.reply_target,
+                            f"🔧 {function_name}...",
+                            source_kind="status",
+                        )
                     logger.debug(
                         "AGENT_RUNTIME  tool_execute  session=%s  tool=%s",
                         session_id,
@@ -316,6 +383,35 @@ class AgentRuntime:
                     if function_name in self.tools:
                         tool = self.tools[function_name]
                         try:
+                            decision = self.policy_engine.evaluate(
+                                tool,
+                                user_id=request.user_id,
+                                agent_name=getattr(self, "name", None),
+                            )
+                            if not decision.allowed:
+                                traces.append(
+                                    ToolTrace(
+                                        tool_name=function_name,
+                                        action="policy_check",
+                                        success=False,
+                                        detail=decision.reason,
+                                    )
+                                )
+                                if decision.requires_confirmation:
+                                    await self.botsignal.send_confirmation_request(
+                                        request.reply_target,
+                                        f"Confirmation required for {function_name}",
+                                        decision.reason,
+                                        source_kind=source_kind,
+                                    )
+                                else:
+                                    await self.botsignal.send_text(
+                                        request.reply_target,
+                                        f"Action blocked: {decision.reason}",
+                                        source_kind=source_kind,
+                                        tool_traces=traces,
+                                    )
+                                break
                             args["_request"] = request
                             result = await tool.execute(**args)
                             result_str = json.dumps(result, default=str)
@@ -451,5 +547,14 @@ class AgentRuntime:
                 source_kind=source_kind,
                 tool_traces=traces,
             )
+            verification = self.verifier.verify(plan, content)
+            if not verification.get("success"):
+                logger.warning(
+                    "AGENT_RUNTIME  verification_issue  session=%s  findings=%s",
+                    session_id,
+                    verification.get("findings"),
+                )
+            self._maybe_schedule_follow_up(request, content)
 
+        self.session_manager.summarize_session(session_id)
         self.session_manager.prune_session(session_id)

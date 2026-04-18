@@ -72,6 +72,7 @@ class WhatsAppBot:
                 platform="whatsapp",
                 chat_id=chat_id,
             ),
+            conversation_id=chat_id or user_id,
         )
         await self._orchestrator.handle(request)
 

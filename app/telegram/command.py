@@ -100,6 +100,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             chat_id=str(update.effective_chat.id),
             reply_to_id=str(update.message.message_id),
         ),
+        conversation_id=str(update.effective_chat.id),
     )
     await orchestrator.handle(request)
 
@@ -185,5 +186,6 @@ async def handle_voice_message(
             chat_id=str(chat.id),
             reply_to_id=str(message.message_id),
         ),
+        conversation_id=str(chat.id),
     )
     await orchestrator.handle(request)

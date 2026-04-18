@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 async def handle_camera_alert(event_data: dict) -> None:
     """Process a camera alert and notify admin users via BotSignal."""
+    from app.core.event_digest import broadcast_event_digest
     from app.core.botsignal import get_botsignal
     from app.core.models import ReplyTarget, SignalPayload
     from app.settings.config import Config
@@ -54,3 +55,8 @@ async def handle_camera_alert(event_data: dict) -> None:
             await botsignal.send(target, payload)
         except Exception as exc:
             logger.error("Camera alert notification failed for %s: %s", admin_id, exc)
+
+    try:
+        await broadcast_event_digest(event_data)
+    except Exception as exc:
+        logger.debug("Event digest broadcast failed: %s", exc)

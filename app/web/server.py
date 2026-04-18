@@ -125,6 +125,7 @@ class WebDashboard:
                 user_id=req.user_id,
                 text=req.text,
                 reply_target=reply_target,
+                conversation_id=req.user_id,
             )
 
             process_task = asyncio.create_task(
@@ -214,6 +215,7 @@ class WebDashboard:
                         user_id=user_id,
                         text=text,
                         reply_target=reply_target,
+                        conversation_id=user_id,
                     )
                     # handle() will call send_to_target which pushes back to this ws
                     asyncio.create_task(

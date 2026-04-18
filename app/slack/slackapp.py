@@ -155,6 +155,7 @@ class SlackBot:
                 chat_id=channel,
                 reply_to_id=ts,  # used as thread_ts to keep replies threaded
             ),
+            conversation_id=f"{channel}:{ts}" if ts else channel,
         )
         await self._orchestrator.handle(request)
 

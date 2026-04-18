@@ -5,11 +5,13 @@ import signal
 from pathlib import Path
 
 from app.core import BotSignal, MessageOrchestrator, get_botsignal
+from app.core.proactive_bootstrap import register_proactive_routines
 from app.discord import DiscordBot
 from app.settings.config import Config
 from app.slack import SlackBot
 from app.telegram import bind_runtime, create_bot
 from app.core.scheduler import get_scheduler
+from app.core.proactive import schedule_follow_up
 
 logger = logging.getLogger(__name__)
 
@@ -342,22 +344,10 @@ async def _main_async() -> None:
     scheduler.set_botsignal(botsignal)
     await scheduler.start()
 
-    # Register morning briefing routine (if configured)
-    if Config.MORNING_BRIEFING_USERS:
-        from app.routines.morning_briefing import register_morning_briefing
+    register_proactive_routines(scheduler)
 
-        for entry in Config.MORNING_BRIEFING_USERS.split(","):
-            parts = entry.strip().split(":")
-            if len(parts) == 3:
-                plat, uid, cid = parts
-                register_morning_briefing(
-                    scheduler,
-                    uid,
-                    plat,
-                    cid,
-                    cron_hour=Config.MORNING_BRIEFING_HOUR,
-                    cron_minute=Config.MORNING_BRIEFING_MINUTE,
-                )
+    # Keep a callable available for other startup code and future follow-up hooks.
+    _ = schedule_follow_up
 
     telegram_task = asyncio.create_task(
         _run_telegram(stop_event, orchestrator, botsignal), name="telegram-bot"

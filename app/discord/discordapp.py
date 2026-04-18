@@ -163,6 +163,7 @@ class DiscordBot(discord.Client):
                 chat_id=str(message.channel.id),
                 reply_to_id=str(message.id),
             ),
+            conversation_id=f"{message.channel.id}:{message.id}",
         )
         logger.info(
             "Discord incoming  user=%s  channel=%s  text=%r",
@@ -200,6 +201,7 @@ class DiscordBot(discord.Client):
                 chat_id=str(message.channel.id),
                 reply_to_id=str(message.id),
             ),
+            conversation_id=f"{message.channel.id}:{message.id}",
         )
         await self._orchestrator.handle(request)
 
