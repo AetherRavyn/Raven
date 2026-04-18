@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 
+from app.core.audit import AuditEvent, get_action_logger
 from app.core.models import ReplyTarget, SignalPayload, ToolTrace
+from app.core.policy import get_policy_engine
 
 Sender = Callable[[ReplyTarget, SignalPayload], Awaitable[None]]
 
@@ -52,7 +54,32 @@ class BotSignal:
         sender = self._senders.get(target.platform.lower())
         if not sender:
             raise ValueError(f"No sender registered for platform '{target.platform}'")
+        get_action_logger().record(
+            AuditEvent(
+                kind="message",
+                action="send",
+                success=True,
+                metadata={
+                    "platform": target.platform,
+                    "chat_id": target.chat_id,
+                    "source_kind": payload.source_kind,
+                },
+            )
+        )
         await sender(target, self._payload_with_annotations(payload))
+
+    async def send_confirmation_request(
+        self,
+        target: ReplyTarget,
+        title: str,
+        detail: str,
+        source_kind: str | None = None,
+    ) -> None:
+        await self.send_text(
+            target,
+            f"{title}\n{detail}\nReply with YES to continue.",
+            source_kind=source_kind,
+        )
 
     async def send_text(
         self,

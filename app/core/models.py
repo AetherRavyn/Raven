@@ -18,6 +18,7 @@ class IncomingRequest:
     reply_target: ReplyTarget
     image_urls: list[str] | None = None
     voice_reply: bool = False  # if True, botsignal uses telegram_voice sender
+    conversation_id: str | None = None
 
 
 @dataclass(slots=True)

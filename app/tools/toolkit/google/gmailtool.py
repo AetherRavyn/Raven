@@ -13,7 +13,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-from app.tools.base import BaseTool, ToolParameter, ToolSchema
+from app.tools.base import BaseTool, ToolCapability, ToolParameter, ToolSchema
 
 
 class GmailTool(BaseTool):
@@ -148,6 +148,15 @@ class GmailTool(BaseTool):
                     required=False,
                 ),
             ],
+        )
+
+    def get_capabilities(self) -> ToolCapability:
+        return ToolCapability(
+            required_permissions=["mail.read", "mail.send"],
+            risk_level="high",
+            cost_tier="low",
+            confirmation_policy="confirm",
+            readonly=False,
         )
 
     async def execute(

@@ -11,7 +11,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 from app.settings.config import Config
-from app.tools.base import BaseTool, ToolParameter, ToolSchema
+from app.tools.base import BaseTool, ToolCapability, ToolParameter, ToolSchema
 
 
 class GoogleCalendarTool(BaseTool):
@@ -271,6 +271,15 @@ class GoogleCalendarTool(BaseTool):
                     required=False,
                 ),
             ],
+        )
+
+    def get_capabilities(self) -> ToolCapability:
+        return ToolCapability(
+            required_permissions=["calendar.read", "calendar.write"],
+            risk_level="high",
+            cost_tier="low",
+            confirmation_policy="confirm",
+            readonly=False,
         )
 
     # ------------------------------------------------------------------ #

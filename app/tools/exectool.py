@@ -6,7 +6,7 @@ import shutil
 from typing import Any, Dict
 
 from app.core.security import get_security_guard
-from app.tools.base import BaseTool, ToolParameter, ToolSchema
+from app.tools.base import BaseTool, ToolCapability, ToolParameter, ToolSchema
 
 
 class ExecTool(BaseTool):
@@ -71,6 +71,15 @@ class ExecTool(BaseTool):
                     required=False,
                 ),
             ],
+        )
+
+    def get_capabilities(self) -> ToolCapability:
+        return ToolCapability(
+            required_permissions=["shell.exec"],
+            risk_level="high",
+            cost_tier="medium",
+            confirmation_policy="always",
+            readonly=False,
         )
 
     async def execute(self, **kwargs: Any) -> Dict[str, Any]:

@@ -99,6 +99,8 @@ class Config:
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
     DATABASE_URL = os.getenv("DATABASE_URL", "")
     MEMORY_BACKEND = os.getenv("MEMORY_BACKEND", "chroma")  # "chroma" | "pgvector"
+    TOOL_USER_PERMISSIONS = os.getenv("TOOL_USER_PERMISSIONS", "")
+    TOOL_AGENT_PERMISSIONS = os.getenv("TOOL_AGENT_PERMISSIONS", "")
     # MQTT
     MQTT_BROKER_URL = os.getenv("MQTT_BROKER_URL", "")
     MQTT_USERNAME = os.getenv("MQTT_USERNAME", "")

@@ -45,12 +45,10 @@ class SecurityGuard:
     def is_admin(self, user_id: str) -> bool:
         """Check if a user ID is explicitly allowed to perform privileged actions."""
         if not self.admin_users:
-            # If no admins configured, default to restrictive (False) or open (True) based on your posture.
-            # In a secure system, default to False. We'll warn if empty.
             logger.warning(
                 "No ADMIN_USER_IDS configured. All privileged actions will be blocked."
             )
-            return True
+            return False
         return str(user_id) in self.admin_users
 
     def analyze_prompt(self, text: str) -> Tuple[bool, str]:

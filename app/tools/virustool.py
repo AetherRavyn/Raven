@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from app.settings.config import Config
-from app.tools.base import BaseTool, ToolParameter, ToolSchema
+from app.tools.base import BaseTool, ToolCapability, ToolParameter, ToolSchema
 
 
 class VirusTotalTool(BaseTool):
@@ -114,6 +114,15 @@ class VirusTotalTool(BaseTool):
                     required=False,
                 ),
             ],
+        )
+
+    def get_capabilities(self) -> ToolCapability:
+        return ToolCapability(
+            required_permissions=["security.scan"],
+            risk_level="medium",
+            cost_tier="low",
+            confirmation_policy="confirm",
+            readonly=True,
         )
 
     def _require_api_key(self) -> None:

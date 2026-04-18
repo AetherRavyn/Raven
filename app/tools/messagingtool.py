@@ -3,7 +3,7 @@ from typing import Any, Dict
 
 from app.core.botsignal import get_botsignal
 from app.core.models import ReplyTarget, SignalPayload
-from app.tools.base import BaseTool, ToolParameter, ToolSchema
+from app.tools.base import BaseTool, ToolCapability, ToolParameter, ToolSchema
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,15 @@ class PlatformMessagingTool(BaseTool):
                     required=True,
                 ),
             ],
+        )
+
+    def get_capabilities(self) -> ToolCapability:
+        return ToolCapability(
+            required_permissions=["message.send"],
+            risk_level="high",
+            cost_tier="low",
+            confirmation_policy="always",
+            readonly=False,
         )
 
     async def execute(self, **kwargs: Any) -> Dict[str, Any]:

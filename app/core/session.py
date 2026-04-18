@@ -57,3 +57,37 @@ class SessionManager:
                         f.write(json.dumps(msg) + "\n")
             except Exception as e:
                 logger.error(f"Failed to prune session {session_id}: {e}")
+
+    def summarize_session(self, session_id: str, keep_last: int = 12) -> str | None:
+        messages = self.load_session(session_id)
+        if not messages:
+            return None
+
+        head = messages[:-keep_last] if len(messages) > keep_last else []
+        tail = messages[-keep_last:] if keep_last else messages
+
+        summary_parts: list[str] = []
+        for msg in head:
+            role = msg.get("role", "unknown")
+            content = str(msg.get("content", "")).strip().replace("\n", " ")
+            if content:
+                summary_parts.append(f"{role}: {content[:160]}")
+
+        if not summary_parts:
+            return None
+
+        summary = "Session summary:\n" + "\n".join(
+            f"- {line}" for line in summary_parts
+        )
+
+        file_path = self._get_session_file(session_id)
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(json.dumps({"role": "system", "content": summary}) + "\n")
+                for msg in tail:
+                    f.write(json.dumps(msg) + "\n")
+        except Exception as e:
+            logger.error(f"Failed to summarize session {session_id}: {e}")
+            return None
+
+        return summary
