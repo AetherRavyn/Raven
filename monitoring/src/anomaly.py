@@ -21,6 +21,15 @@ async def _notify_saras(event: dict) -> None:
         logger.debug("SARAS webhook notification failed: %s", exc)
 
 
+async def _broadcast_proactive_digest(event: dict) -> None:
+    try:
+        from app.core.event_digest import broadcast_event_digest
+
+        await broadcast_event_digest(event)
+    except Exception as exc:
+        logger.debug("Proactive digest broadcast failed: %s", exc)
+
+
 @dataclass
 class AnomalyEvent:
     event_id: str
@@ -542,7 +551,7 @@ class AnomalyDetector:
 class EventService:
     """Microservice wrapper for AnomalyDetector using Redis MessageBus."""
 
-    def __init__(self, bus, config: Dict = None, thresholds: Dict = None):
+    def __init__(self, bus, config: Dict | None = None, thresholds: Dict | None = None):
         self.bus = bus
         self.anomaly_detector = AnomalyDetector(config or {}, thresholds or {})
         self.bus.subscribe("tracked_objects", self.process_tracked_objects)
@@ -562,6 +571,8 @@ class EventService:
 
     def process_tracked_objects(self, payload):
         try:
+            import time
+
             camera_id = payload.get("camera_id")
             if not camera_id:
                 return
@@ -636,6 +647,34 @@ class EventService:
                                 loop.run_until_complete(_notify_saras(saras_payload))
                         except Exception as exc:
                             logger.debug("SARAS webhook dispatch error: %s", exc)
+
+                        try:
+                            from app.core.event_digest import broadcast_event_digest
+
+                            if loop.is_running():
+                                asyncio.create_task(
+                                    broadcast_event_digest(
+                                        {
+                                            "event_type": event.event_type,
+                                            "camera_id": camera_id,
+                                            "risk_level": event.risk_level,
+                                            "description": event.description,
+                                        }
+                                    )
+                                )
+                            else:
+                                loop.run_until_complete(
+                                    broadcast_event_digest(
+                                        {
+                                            "event_type": event.event_type,
+                                            "camera_id": camera_id,
+                                            "risk_level": event.risk_level,
+                                            "description": event.description,
+                                        }
+                                    )
+                                )
+                        except Exception as exc:
+                            logger.debug("Proactive digest dispatch error: %s", exc)
         except Exception as e:
             logger.error(f"Error processing tracked objects: {e}")
 

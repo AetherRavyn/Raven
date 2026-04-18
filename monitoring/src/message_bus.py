@@ -1,9 +1,12 @@
 import json
 import logging
+import os
 import threading
 import redis
 from typing import Callable, Any, Dict, List
 from collections import defaultdict
+
+from app.settings.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -11,8 +14,9 @@ logger = logging.getLogger(__name__)
 class MessageBus:
     """Redis-backed pub/sub for v4 microservices architecture."""
 
-    def __init__(self, redis_url="rediss://default:AaTQAAIncDExZDJhNDI0ZmNhMWQ0MDdmOTY3MzRjYWJmNjM2MWEwOHAxNDIxOTI@stunning-ringtail-42192.upstash.io:6379"):
-        self.redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
+    def __init__(self, redis_url: str | None = None):
+        self.redis_url = redis_url or os.getenv("REDIS_URL") or Config.REDIS_URL
+        self.redis_client = redis.Redis.from_url(self.redis_url, decode_responses=True)
         self.pubsub = self.redis_client.pubsub()
         self.subscribers: Dict[str, List[Callable]] = defaultdict(list)
         self._stop = threading.Event()
