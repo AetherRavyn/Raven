@@ -476,3 +476,47 @@ class WebFetchOperationTool(BaseTool):
 
     def _error(self, msg: str) -> Dict[str, Any]:
         return {"success": False, "error": msg, "output": f"Error: {msg}"}
+
+
+# Backwards-compatible alias used by older tests/imports.
+class WebFetchTool(WebFetchOperationTool):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def _extract_url_from_prompt(prompt: str) -> str:
+        match = re.search(r"https?://[^\s)\]]+", prompt)
+        return match.group(0).rstrip(".,;!?") if match else ""
+
+    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+        prompt = str(kwargs.get("prompt", "")).strip()
+        url = str(kwargs.get("url", "")).strip()
+
+        if not prompt and not url:
+            return self._error("prompt is required")
+
+        if not url and prompt:
+            url = self._extract_url_from_prompt(prompt)
+            if not url:
+                return self._error("No valid HTTP/HTTPS URLs found in prompt")
+
+        err = self._validate_url(url)
+        if err:
+            return self._error(err)
+
+        fallback = getattr(self, "_fetch_fallback", None)
+        if callable(fallback):
+            result = fallback(url, prompt)
+            if asyncio.iscoroutine(result):
+                result = await result
+            return {
+                "success": True,
+                "operation": kwargs.get("operation", "fetch"),
+                "output": result,
+                "url": url,
+            }
+
+        operation = kwargs.get("operation", "fetch")
+        if operation == "summarize" and prompt:
+            return await super().execute(operation="summarize", url=url, prompt=prompt)
+        return await super().execute(operation="fetch", url=url)

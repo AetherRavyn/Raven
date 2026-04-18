@@ -5,6 +5,7 @@ from app.agents.base import BaseAgent
 from app.settings.config import Config
 from app.tools.base import BaseTool
 from app.tools.browsertool import BrowserOperationTool
+from app.tools.internetinteltool import InternetIntelTool
 from app.tools.webfetch import WebFetchOperationTool
 from app.tools.websearch import WebOperationTool
 
@@ -61,6 +62,7 @@ class ResearcherAgent(BaseAgent):
             WebOperationTool(google_api_key=Config.GEMINI_API_KEY),
             WebFetchOperationTool(google_api_key=Config.GEMINI_API_KEY),
             BrowserOperationTool(),
+            InternetIntelTool(),
         ]
         try:
             from app.tools.searxngtool import SearXNGTool

@@ -4,6 +4,7 @@ from typing import List
 from app.agents.base import BaseAgent
 from app.settings.config import Config
 from app.tools.base import BaseTool
+from app.tools.internetinteltool import InternetIntelTool
 from app.tools.news.hackernews import HackerNewsTool
 from app.tools.websearch import WebOperationTool
 
@@ -59,6 +60,7 @@ class NewsAgent(BaseAgent):
         tool_list: List[BaseTool] = [
             HackerNewsTool(),
             WebOperationTool(google_api_key=Config.GEMINI_API_KEY),
+            InternetIntelTool(),
         ]
         try:
             from app.tools.rssreadertool import RSSReaderTool

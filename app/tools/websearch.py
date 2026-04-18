@@ -544,3 +544,65 @@ class WebOperationTool(BaseTool):
 
     def _error(self, msg: str) -> Dict[str, Any]:
         return {"success": False, "error": msg, "output": f"Error: {msg}"}
+
+
+# Backwards-compatible alias used by older tests/imports.
+class WebSearchTool(WebOperationTool):
+    def __init__(self, *args: Any, model: Any | None = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.model = model
+
+    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+        query = str(kwargs.get("query", "")).strip()
+        if not query:
+            return {
+                "llmContent": "Error: query is required.",
+                "returnDisplay": {"error": "query is required"},
+            }
+
+        if self.model is None:
+            return await super().execute(**kwargs)
+
+        try:
+            response = self.model.generate_content(contents=query, tools=None)
+        except TypeError:
+            response = self.model.generate_content(query)
+
+        if response is None:
+            return {
+                "llmContent": "No search results",
+                "returnDisplay": {"results": []},
+            }
+
+        candidates = getattr(response, "candidates", []) or []
+        if not candidates:
+            return {
+                "llmContent": "No search results",
+                "returnDisplay": {"results": []},
+            }
+
+        content = getattr(candidates[0], "content", None)
+        parts = getattr(content, "parts", []) or []
+        text = "\n".join(
+            getattr(part, "text", "") for part in parts if getattr(part, "text", "")
+        )
+        if not text:
+            text = "No search results"
+
+        grounding = getattr(candidates[0], "grounding_metadata", None)
+        results: list[dict[str, Any]] = []
+        if grounding and getattr(grounding, "grounding_chunks", None):
+            for chunk in getattr(grounding, "grounding_chunks", []) or []:
+                web = getattr(chunk, "web", None)
+                if web:
+                    results.append(
+                        {
+                            "title": getattr(web, "title", ""),
+                            "uri": getattr(web, "uri", ""),
+                        }
+                    )
+
+        return {
+            "llmContent": text,
+            "returnDisplay": {"results": results},
+        }

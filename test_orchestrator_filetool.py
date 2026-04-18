@@ -6,6 +6,35 @@ from app.core.orchestrator import MessageOrchestrator
 
 
 class TestMessageOrchestratorGitTool(unittest.IsolatedAsyncioTestCase):
+    async def test_internet_command_uses_direct_tool(self) -> None:
+        captured: list[SignalPayload] = []
+        botsignal = BotSignal()
+
+        async def sender(_target: ReplyTarget, payload: SignalPayload) -> None:
+            captured.append(payload)
+
+        class StubInternetTool:
+            async def execute(self, **kwargs):
+                return {
+                    "success": True,
+                    "report": "stub report",
+                    "results": [],
+                }
+
+        botsignal.register_sender("telegram", sender)
+        orchestrator = MessageOrchestrator(botsignal)
+        orchestrator._agent_runtime.tools["internet_intel"] = StubInternetTool()
+        request = IncomingRequest(
+            platform="telegram",
+            user_id="u_net",
+            text="/internet status",
+            reply_target=ReplyTarget(platform="telegram", chat_id="7"),
+        )
+        await orchestrator.handle(request)
+
+        self.assertEqual(len(captured), 1)
+        self.assertIn("stub report", captured[0].text or "")
+
     async def test_git_message_returns_git_report_on_telegram(self) -> None:
         captured: list[SignalPayload] = []
         botsignal = BotSignal()
