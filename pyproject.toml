@@ -69,12 +69,14 @@ dependencies = [
     "docker>=7.0.0",
     "feedparser>=6.0.11",
     "pyotp>=2.9.0",
-    "streamlit>=1.45.0",
     "praw>=7.1.0",
     "python-dateutil>=2.9.0",
     "youtube-transcript-api>=0.6.0",
     "dnspython>=2.6.0",
 ]
+
+[project.scripts]
+saras = "app.cli.main:main"
 
 [dependency-groups]
 dev = [
@@ -84,3 +86,7 @@ dev = [
     "pytest-asyncio>=0.26.0",
     "pytest-timeout>=2.4.0",
 ]
+
+[tool.setuptools]
+packages = ["app", "agent_reach"]
+

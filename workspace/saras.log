@@ -8368,3 +8368,1285 @@
 {"t": "2026-03-03T20:42:32", "ms": 18, "lvl": "ERROR", "name": "telegram.ext.Updater", "msg": "Error while calling `get_updates` one more time to mark all fetched updates. Suppressing error to ensure graceful shutdown. When polling for updates is restarted, updates may be fetched again. Please adjust timeouts via `ApplicationBuilder` or the parameter `get_updates_request` of `Bot`.\nTraceback (most recent call last):\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_transports/default.py\", line 101, in map_httpcore_exceptions\n    yield\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_transports/default.py\", line 394, in handle_async_request\n    resp = await self._pool.handle_async_request(req)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_async/connection_pool.py\", line 256, in handle_async_request\n    raise exc from None\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_async/connection_pool.py\", line 232, in handle_async_request\n    connection = await pool_request.wait_for_connection(timeout=timeout)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_async/connection_pool.py\", line 35, in wait_for_connection\n    await self._connection_acquired.wait(timeout=timeout)\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_synchronization.py\", line 149, in wait\n    with map_exceptions(anyio_exc_map):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py\", line 158, in __exit__\n    self.gen.throw(value)\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_exceptions.py\", line 14, in map_exceptions\n    raise to_exc(exc) from exc\nhttpcore.PoolTimeout\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/request/_httpxrequest.py\", line 279, in do_request\n    res = await self._client.request(\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_client.py\", line 1540, in request\n    return await self.send(request, auth=auth, follow_redirects=follow_redirects)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_client.py\", line 1629, in send\n    response = await self._send_handling_auth(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_client.py\", line 1657, in _send_handling_auth\n    response = await self._send_handling_redirects(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_client.py\", line 1694, in _send_handling_redirects\n    response = await self._send_single_request(request)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_client.py\", line 1730, in _send_single_request\n    response = await transport.handle_async_request(request)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_transports/default.py\", line 393, in handle_async_request\n    with map_httpcore_exceptions():\n         ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py\", line 158, in __exit__\n    self.gen.throw(value)\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_transports/default.py\", line 118, in map_httpcore_exceptions\n    raise mapped_exc(message) from exc\nhttpx.PoolTimeout\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/ext/_updater.py\", line 400, in _get_updates_cleanup\n    await self.bot.get_updates(\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/ext/_extbot.py\", line 671, in get_updates\n    updates = await super().get_updates(\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/_bot.py\", line 4860, in get_updates\n    await self._post(\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/_bot.py\", line 703, in _post\n    return await self._do_post(\n           ^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/ext/_extbot.py\", line 369, in _do_post\n    return await super()._do_post(\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/_bot.py\", line 732, in _do_post\n    result = await request.post(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/request/_baserequest.py\", line 198, in post\n    result = await self._request_wrapper(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/request/_baserequest.py\", line 305, in _request_wrapper\n    code, payload = await self.do_request(\n                    ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/request/_httpxrequest.py\", line 289, in do_request\n    raise TimedOut(\ntelegram.error.TimedOut: Pool timeout: All connections in the connection pool are occupied. Request was *not* sent to Telegram. Consider adjusting the connection pool size or the pool timeout."}
 {"t": "2026-03-03T20:42:32", "ms": 20, "lvl": "INFO", "name": "apscheduler.scheduler", "msg": "Scheduler has been shut down"}
 {"t": "2026-03-03T20:42:32", "ms": 31, "lvl": "ERROR", "name": "asyncio", "msg": "Task exception was never retrieved\nfuture: <Task finished name='Task-138' coro=<Updater._start_polling.<locals>.polling_action_cb() done, defined at /home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/ext/_updater.py:338> exception=NetworkError('httpx.ReadError: ')>\nTraceback (most recent call last):\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_transports/default.py\", line 101, in map_httpcore_exceptions\n    yield\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_transports/default.py\", line 394, in handle_async_request\n    resp = await self._pool.handle_async_request(req)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_async/connection_pool.py\", line 256, in handle_async_request\n    raise exc from None\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_async/connection_pool.py\", line 236, in handle_async_request\n    response = await connection.handle_async_request(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_async/connection.py\", line 103, in handle_async_request\n    return await self._connection.handle_async_request(request)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_async/http11.py\", line 136, in handle_async_request\n    raise exc\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_async/http11.py\", line 106, in handle_async_request\n    ) = await self._receive_response_headers(**kwargs)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_async/http11.py\", line 177, in _receive_response_headers\n    event = await self._receive_event(timeout=timeout)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_async/http11.py\", line 217, in _receive_event\n    data = await self._network_stream.read(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_backends/anyio.py\", line 32, in read\n    with map_exceptions(exc_map):\n         ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py\", line 158, in __exit__\n    self.gen.throw(value)\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpcore/_exceptions.py\", line 14, in map_exceptions\n    raise to_exc(exc) from exc\nhttpcore.ReadError\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/request/_httpxrequest.py\", line 279, in do_request\n    res = await self._client.request(\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_client.py\", line 1540, in request\n    return await self.send(request, auth=auth, follow_redirects=follow_redirects)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_client.py\", line 1629, in send\n    response = await self._send_handling_auth(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_client.py\", line 1657, in _send_handling_auth\n    response = await self._send_handling_redirects(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_client.py\", line 1694, in _send_handling_redirects\n    response = await self._send_single_request(request)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_client.py\", line 1730, in _send_single_request\n    response = await transport.handle_async_request(request)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_transports/default.py\", line 393, in handle_async_request\n    with map_httpcore_exceptions():\n         ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py\", line 158, in __exit__\n    self.gen.throw(value)\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/httpx/_transports/default.py\", line 118, in map_httpcore_exceptions\n    raise mapped_exc(message) from exc\nhttpx.ReadError\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/ext/_updater.py\", line 340, in polling_action_cb\n    updates = await self.bot.get_updates(\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/ext/_extbot.py\", line 671, in get_updates\n    updates = await super().get_updates(\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/_bot.py\", line 4860, in get_updates\n    await self._post(\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/_bot.py\", line 703, in _post\n    return await self._do_post(\n           ^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/ext/_extbot.py\", line 369, in _do_post\n    return await super()._do_post(\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/_bot.py\", line 732, in _do_post\n    result = await request.post(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/request/_baserequest.py\", line 198, in post\n    result = await self._request_wrapper(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/request/_baserequest.py\", line 305, in _request_wrapper\n    code, payload = await self.do_request(\n                    ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/telegram/request/_httpxrequest.py\", line 303, in do_request\n    raise NetworkError(f\"httpx.{err.__class__.__name__}: {err}\") from err\ntelegram.error.NetworkError: httpx.ReadError: "}
+2026-04-04 22:19:55,610 app.settings.validate INFO ====================================================
+2026-04-04 22:19:55,610 app.settings.validate INFO SARAS Startup Configuration
+2026-04-04 22:19:55,610 app.settings.validate INFO ====================================================
+2026-04-04 22:19:55,610 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-04 22:19:55,610 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-04 22:19:55,610 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-04 22:19:55,610 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-04 22:19:55,610 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-04 22:19:55,610 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-04 22:19:55,610 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-04 22:19:55,610 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-04 22:19:55,610 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-04 22:19:55,610 app.settings.validate INFO ====================================================
+2026-04-20 01:11:56,961 app.settings.validate INFO ====================================================
+2026-04-20 01:11:56,961 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 01:11:56,961 app.settings.validate INFO ====================================================
+2026-04-20 01:11:56,961 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 01:11:56,961 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 01:11:56,961 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 01:11:56,961 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 01:11:56,961 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 01:11:56,961 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 01:11:56,961 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 01:11:56,961 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 01:11:56,961 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 01:11:56,961 app.settings.validate INFO ====================================================
+2026-04-20 01:11:59,696 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 01:12:23,232 app.settings.validate INFO ====================================================
+2026-04-20 01:12:23,232 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 01:12:23,232 app.settings.validate INFO ====================================================
+2026-04-20 01:12:23,232 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 01:12:23,232 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 01:12:23,232 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 01:12:23,233 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 01:12:23,233 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 01:12:23,233 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 01:12:23,233 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 01:12:23,233 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 01:12:23,233 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 01:12:23,233 app.settings.validate INFO ====================================================
+2026-04-20 01:12:25,932 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 01:18:38,871 app.settings.validate INFO ====================================================
+2026-04-20 01:18:38,872 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 01:18:38,872 app.settings.validate INFO ====================================================
+2026-04-20 01:18:38,872 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 01:18:38,872 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 01:18:38,872 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 01:18:38,873 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 01:18:38,873 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 01:18:38,873 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 01:18:38,873 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 01:18:38,873 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 01:18:38,873 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 01:18:38,873 app.settings.validate INFO ====================================================
+2026-04-20 01:18:41,442 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 01:18:45,827 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 01:18:46,151 app.core.skill_registry WARNING Plugin entrypoint not found: /home/swadhin/SARAS/agent_reach/skill/agent_reach.cli
+2026-04-20 01:18:46,151 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:18:46,151 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 01:18:46,151 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:18:46,151 app.core.kernel INFO Kernel registered tool: file_operations [Risk: low]
+2026-04-20 01:18:46,151 app.core.kernel INFO Kernel registered tool: git_ops [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: knowledge_graph_ops [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: network_tool [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: browser_ops [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: virustotal_scanner [Risk: medium]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: web_ops [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: web_fetch_ops [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: internet_intel [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: finance_ops [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: get_weather [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: manage_reminder [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: smart_home [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: read_sensor [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: generate_image [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: camera_snapshot [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: wolfram_alpha [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: searxng_search [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: google_calendar [Risk: high]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: system_stats [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: docker [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: docker_exec [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: crypto_price [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: rss_reader [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: commute [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: pomodoro [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: todoist [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: totp_generator [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: send_platform_message [Risk: high]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: twitter_ops [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: reddit_ops [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: youtube_ops [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: url_metadata [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: ssl_check [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: db_query [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: scheduler_ops [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: stock_quote [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: crypto_alert [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: dns_lookup [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: haveibeenpwned [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: url_scan [Risk: low]
+2026-04-20 01:18:46,152 app.core.kernel INFO Kernel registered tool: cron_manager [Risk: low]
+2026-04-20 01:18:46,153 app.core.kernel INFO Kernel registered tool: edge_device [Risk: low]
+2026-04-20 01:18:46,153 app.core.kernel INFO Kernel registered tool: computeruse [Risk: high]
+2026-04-20 01:22:18,137 app.core.skill_registry WARNING Plugin entrypoint not found: /home/swadhin/SARAS/agent_reach/skill/agent_reach.cli
+2026-04-20 01:22:18,137 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:22:18,137 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 01:22:18,137 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:22:18,137 app.core.kernel INFO Kernel registered tool: file_operations [Risk: low]
+2026-04-20 01:22:18,137 app.core.kernel INFO Kernel registered tool: git_ops [Risk: low]
+2026-04-20 01:22:18,137 app.core.kernel INFO Kernel registered tool: knowledge_graph_ops [Risk: low]
+2026-04-20 01:22:18,137 app.core.kernel INFO Kernel registered tool: network_tool [Risk: low]
+2026-04-20 01:22:18,137 app.core.kernel INFO Kernel registered tool: browser_ops [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: virustotal_scanner [Risk: medium]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: web_ops [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: web_fetch_ops [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: internet_intel [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: finance_ops [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: get_weather [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: manage_reminder [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: smart_home [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: read_sensor [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: generate_image [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: camera_snapshot [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: wolfram_alpha [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: searxng_search [Risk: low]
+2026-04-20 01:22:18,138 app.core.kernel INFO Kernel registered tool: google_calendar [Risk: high]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: system_stats [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: docker [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: docker_exec [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: crypto_price [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: rss_reader [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: commute [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: pomodoro [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: todoist [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: totp_generator [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: send_platform_message [Risk: high]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: twitter_ops [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: reddit_ops [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: youtube_ops [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: url_metadata [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: ssl_check [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: db_query [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: scheduler_ops [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: stock_quote [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: crypto_alert [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: dns_lookup [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: haveibeenpwned [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: url_scan [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: cron_manager [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: edge_device [Risk: low]
+2026-04-20 01:22:18,139 app.core.kernel INFO Kernel registered tool: computeruse [Risk: high]
+2026-04-20 01:25:24,080 app.api.server INFO WebSocket disconnected for u1
+2026-04-20 01:25:27,790 app.settings.validate INFO ====================================================
+2026-04-20 01:25:27,790 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 01:25:27,791 app.settings.validate INFO ====================================================
+2026-04-20 01:25:27,791 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 01:25:27,791 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 01:25:27,791 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 01:25:27,791 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 01:25:27,791 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 01:25:27,791 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 01:25:27,791 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 01:25:27,791 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 01:25:27,791 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 01:25:27,791 app.settings.validate INFO ====================================================
+2026-04-20 01:25:30,346 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 01:25:30,346 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 01:25:34,968 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 01:25:34,990 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 01:25:35,304 app.core.skill_registry WARNING Plugin entrypoint not found: /home/swadhin/SARAS/agent_reach/skill/agent_reach.cli
+2026-04-20 01:25:35,304 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:25:35,306 app.core.skill_registry WARNING Plugin entrypoint not found: /home/swadhin/SARAS/agent_reach/skill/agent_reach.cli
+2026-04-20 01:25:35,306 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:25:35,306 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 01:25:35,306 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:25:35,306 app.core.kernel INFO Kernel registered tool: file_operations [Risk: low]
+2026-04-20 01:25:35,306 app.core.kernel INFO Kernel registered tool: git_ops [Risk: low]
+2026-04-20 01:25:35,307 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: knowledge_graph_ops [Risk: low]
+2026-04-20 01:25:35,307 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: file_operations [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: network_tool [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: browser_ops [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: git_ops [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: virustotal_scanner [Risk: medium]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: knowledge_graph_ops [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: web_ops [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: network_tool [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: web_fetch_ops [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: browser_ops [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: internet_intel [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: virustotal_scanner [Risk: medium]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: finance_ops [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: web_ops [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: get_weather [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: web_fetch_ops [Risk: low]
+2026-04-20 01:25:35,307 app.core.kernel INFO Kernel registered tool: manage_reminder [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: internet_intel [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: smart_home [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: read_sensor [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: finance_ops [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: generate_image [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: get_weather [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: camera_snapshot [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: manage_reminder [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: wolfram_alpha [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: smart_home [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: searxng_search [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: read_sensor [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: google_calendar [Risk: high]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: system_stats [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: docker [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: generate_image [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: docker_exec [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: camera_snapshot [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: crypto_price [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: wolfram_alpha [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: rss_reader [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: searxng_search [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: commute [Risk: low]
+2026-04-20 01:25:35,308 app.core.kernel INFO Kernel registered tool: pomodoro [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: google_calendar [Risk: high]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: todoist [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: system_stats [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: totp_generator [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: send_platform_message [Risk: high]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: docker [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: twitter_ops [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: reddit_ops [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: docker_exec [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: youtube_ops [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: url_metadata [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: crypto_price [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: ssl_check [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: rss_reader [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: db_query [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: scheduler_ops [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: commute [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: stock_quote [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: pomodoro [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: crypto_alert [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: todoist [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: dns_lookup [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: totp_generator [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: haveibeenpwned [Risk: low]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: send_platform_message [Risk: high]
+2026-04-20 01:25:35,309 app.core.kernel INFO Kernel registered tool: url_scan [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: twitter_ops [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: cron_manager [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: edge_device [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: reddit_ops [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: computeruse [Risk: high]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: youtube_ops [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: url_metadata [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: ssl_check [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: db_query [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: scheduler_ops [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: stock_quote [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: crypto_alert [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: dns_lookup [Risk: low]
+2026-04-20 01:25:35,310 app.core.kernel INFO Kernel registered tool: haveibeenpwned [Risk: low]
+2026-04-20 01:25:35,311 app.core.kernel INFO Kernel registered tool: url_scan [Risk: low]
+2026-04-20 01:25:35,311 app.core.kernel INFO Kernel registered tool: cron_manager [Risk: low]
+2026-04-20 01:25:35,311 app.core.kernel INFO Kernel registered tool: edge_device [Risk: low]
+2026-04-20 01:25:35,311 app.core.kernel INFO Kernel registered tool: computeruse [Risk: high]
+2026-04-20 01:25:35,361 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:25:35,365 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 01:25:35,379 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 01:25:35,380 main INFO Discord message content intent is enabled
+2026-04-20 01:25:35,380 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 01:25:35,380 main WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 01:25:35,381 discord.client INFO logging in using static token
+2026-04-20 01:25:36,413 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:25:36,414 telegram.ext.Application INFO Application started
+2026-04-20 01:25:37,811 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 2400a4e9d1f3ca6d49e48e682e624941).
+2026-04-20 01:25:40,680 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Hi'
+2026-04-20 01:25:40,703 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 01:25:50,071 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='How are you doing?'
+2026-04-20 01:25:50,076 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 01:26:04,208 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Who is your creator?'
+2026-04-20 01:26:04,217 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 01:26:48,954 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Send ping to discord'
+2026-04-20 01:26:48,961 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 01:27:06,993 app.api.server INFO WebSocket disconnected for u1
+2026-04-20 01:41:01,520 app.settings.validate INFO ====================================================
+2026-04-20 01:41:01,520 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 01:41:01,520 app.settings.validate INFO ====================================================
+2026-04-20 01:41:01,520 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 01:41:01,520 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 01:41:01,520 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 01:41:01,520 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 01:41:01,520 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 01:41:01,520 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 01:41:01,520 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 01:41:01,520 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 01:41:01,520 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 01:41:01,520 app.settings.validate INFO ====================================================
+2026-04-20 01:41:04,116 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 01:41:08,516 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 01:41:08,866 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:41:08,867 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 01:41:08,867 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:41:08,873 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:41:08,874 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 01:41:08,883 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 01:41:08,884 __main__ INFO Discord message content intent is enabled
+2026-04-20 01:41:08,884 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 01:41:08,884 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 01:41:08,930 discord.client INFO logging in using static token
+2026-04-20 01:41:09,503 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:41:09,504 telegram.ext.Application INFO Application started
+2026-04-20 01:41:10,911 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: ba6682d232e52e13bfc9bc5dcd9a3340).
+2026-04-20 01:41:15,551 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='hi'
+2026-04-20 01:41:15,586 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 01:42:11,968 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 01:42:11,968 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 01:42:11,979 telegram.ext.Application INFO Application.stop() complete
+2026-04-20 01:42:11,979 __main__ INFO All bot tasks stopped.
+2026-04-20 01:42:11,980 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 01:43:09,935 app.settings.validate INFO ====================================================
+2026-04-20 01:43:09,935 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 01:43:09,935 app.settings.validate INFO ====================================================
+2026-04-20 01:43:09,935 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 01:43:09,935 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 01:43:09,935 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 01:43:09,935 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 01:43:09,935 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 01:43:09,935 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 01:43:09,935 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 01:43:09,935 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 01:43:09,935 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 01:43:09,935 app.settings.validate INFO ====================================================
+2026-04-20 01:43:12,445 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 01:43:16,778 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 01:43:17,114 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:43:17,115 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 01:43:17,115 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:43:17,120 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:43:17,121 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 01:43:17,128 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 01:43:17,128 __main__ INFO Discord message content intent is enabled
+2026-04-20 01:43:17,129 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 01:43:17,129 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 01:43:17,174 discord.client INFO logging in using static token
+2026-04-20 01:43:17,739 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:43:17,739 telegram.ext.Application INFO Application started
+2026-04-20 01:43:19,126 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: a1dfe0d433d4799b7390e01e386f27e5).
+2026-04-20 01:44:06,629 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Who is your creator'
+2026-04-20 01:44:06,651 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 01:48:07,550 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='What is the weather'
+2026-04-20 01:48:07,555 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 01:53:27,014 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 01:53:27,014 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 01:53:27,025 telegram.ext.Application INFO Application.stop() complete
+2026-04-20 01:53:27,025 __main__ INFO All bot tasks stopped.
+2026-04-20 01:53:27,026 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 01:53:40,658 app.settings.validate INFO ====================================================
+2026-04-20 01:53:40,658 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 01:53:40,658 app.settings.validate INFO ====================================================
+2026-04-20 01:53:40,658 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 01:53:40,658 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 01:53:40,658 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 01:53:40,658 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 01:53:40,658 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 01:53:40,658 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 01:53:40,658 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 01:53:40,658 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 01:53:40,658 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 01:53:40,658 app.settings.validate INFO ====================================================
+2026-04-20 01:53:43,153 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 01:53:45,666 app.settings.validate INFO ====================================================
+2026-04-20 01:53:45,666 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 01:53:45,666 app.settings.validate INFO ====================================================
+2026-04-20 01:53:45,666 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 01:53:45,666 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 01:53:45,666 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 01:53:45,666 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 01:53:45,666 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 01:53:45,667 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 01:53:45,667 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 01:53:45,667 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 01:53:45,667 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 01:53:45,667 app.settings.validate INFO ====================================================
+2026-04-20 01:53:47,547 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 01:53:47,877 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:53:47,877 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 01:53:47,877 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:53:47,884 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:53:47,884 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 01:53:47,892 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 01:53:47,892 __main__ INFO Discord message content intent is enabled
+2026-04-20 01:53:47,892 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 01:53:47,892 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 01:53:47,937 discord.client INFO logging in using static token
+2026-04-20 01:53:48,163 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 01:53:48,459 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:53:48,460 telegram.ext.Application INFO Application started
+2026-04-20 01:53:51,833 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 800880f21aaf25d208dbc5511d0f8eff).
+2026-04-20 01:53:52,497 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 01:53:52,834 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:53:52,834 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 01:53:52,834 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:53:52,841 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:53:52,842 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 01:53:52,849 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 01:53:52,849 __main__ INFO Discord message content intent is enabled
+2026-04-20 01:53:52,849 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 01:53:52,849 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 01:53:52,894 discord.client INFO logging in using static token
+2026-04-20 01:53:52,901 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 01:53:53,199 asyncio ERROR Task exception was never retrieved
+future: <Task finished name='Task-15' coro=<run_webhook_server() done, defined at /home/swadhin/SARAS/app/sensors/webhook_server.py:39> exception=SystemExit(1)>
+Traceback (most recent call last):
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 164, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 1584, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('127.0.0.1', 8765): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/swadhin/SARAS/main.py", line 410, in <module>
+    main()
+  File "/home/swadhin/SARAS/main.py", line 406, in main
+    asyncio.run(_main_async())
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 645, in run_forever
+    self._run_once()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 1999, in _run_once
+    handle._run()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/swadhin/SARAS/app/sensors/webhook_server.py", line 43, in run_webhook_server
+    await server.serve()
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 86, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 174, in startup
+    sys.exit(1)
+SystemExit: 1
+2026-04-20 01:53:53,357 asyncio ERROR Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x7fd33518bc50>
+2026-04-20 01:54:25,003 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Who is your creator'
+2026-04-20 01:54:25,039 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 01:55:41,023 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 01:55:41,023 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 01:55:41,033 telegram.ext.Application INFO Application.stop() complete
+2026-04-20 01:55:41,033 __main__ INFO All bot tasks stopped.
+2026-04-20 01:55:41,034 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 01:58:49,796 app.settings.validate INFO ====================================================
+2026-04-20 01:58:49,796 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 01:58:49,796 app.settings.validate INFO ====================================================
+2026-04-20 01:58:49,796 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 01:58:49,796 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 01:58:49,796 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 01:58:49,796 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 01:58:49,796 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 01:58:49,796 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 01:58:49,796 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 01:58:49,796 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 01:58:49,796 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 01:58:49,796 app.settings.validate INFO ====================================================
+2026-04-20 01:58:52,291 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 01:58:54,791 app.settings.validate INFO ====================================================
+2026-04-20 01:58:54,791 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 01:58:54,791 app.settings.validate INFO ====================================================
+2026-04-20 01:58:54,791 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 01:58:54,791 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 01:58:54,791 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 01:58:54,791 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 01:58:54,791 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 01:58:54,791 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 01:58:54,791 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 01:58:54,791 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 01:58:54,791 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 01:58:54,791 app.settings.validate INFO ====================================================
+2026-04-20 01:58:56,696 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 01:58:57,018 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:58:57,018 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 01:58:57,018 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:58:57,024 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:58:57,024 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 01:58:57,032 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 01:58:57,032 __main__ INFO Discord message content intent is enabled
+2026-04-20 01:58:57,032 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 01:58:57,032 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 01:58:57,077 discord.client INFO logging in using static token
+2026-04-20 01:58:57,285 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 01:58:57,638 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:58:57,639 telegram.ext.Application INFO Application started
+2026-04-20 01:58:59,707 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 8642e476778189ff6b0b2b2f0a790809).
+2026-04-20 01:59:02,076 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 01:59:02,412 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:59:02,413 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 01:59:02,413 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 01:59:02,419 apscheduler.scheduler INFO Scheduler started
+2026-04-20 01:59:02,420 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 01:59:02,427 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 01:59:02,427 __main__ INFO Discord message content intent is enabled
+2026-04-20 01:59:02,428 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 01:59:02,428 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 01:59:02,472 discord.client INFO logging in using static token
+2026-04-20 01:59:02,480 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 01:59:02,797 asyncio ERROR Task exception was never retrieved
+future: <Task finished name='Task-15' coro=<run_webhook_server() done, defined at /home/swadhin/SARAS/app/sensors/webhook_server.py:39> exception=SystemExit(1)>
+Traceback (most recent call last):
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 164, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 1584, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('127.0.0.1', 8765): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/swadhin/SARAS/main.py", line 410, in <module>
+    main()
+  File "/home/swadhin/SARAS/main.py", line 406, in main
+    asyncio.run(_main_async())
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 645, in run_forever
+    self._run_once()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 1999, in _run_once
+    handle._run()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/swadhin/SARAS/app/sensors/webhook_server.py", line 43, in run_webhook_server
+    await server.serve()
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 86, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 174, in startup
+    sys.exit(1)
+SystemExit: 1
+2026-04-20 01:59:02,959 asyncio ERROR Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x7f01c50c9370>
+2026-04-20 01:59:07,958 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Hi'
+2026-04-20 01:59:07,991 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 01:59:14,309 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='How are you doing/'
+2026-04-20 01:59:25,114 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Who is your creator'
+2026-04-20 01:59:53,431 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 01:59:53,432 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 01:59:53,442 telegram.ext.Application INFO Application.stop() complete
+2026-04-20 01:59:53,443 __main__ INFO All bot tasks stopped.
+2026-04-20 01:59:53,443 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 01:59:59,114 app.settings.validate INFO ====================================================
+2026-04-20 01:59:59,114 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 01:59:59,114 app.settings.validate INFO ====================================================
+2026-04-20 01:59:59,114 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 01:59:59,114 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 01:59:59,114 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 01:59:59,114 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 01:59:59,114 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 01:59:59,114 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 01:59:59,114 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 01:59:59,114 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 01:59:59,114 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 01:59:59,114 app.settings.validate INFO ====================================================
+2026-04-20 02:00:01,602 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 02:00:05,974 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 02:00:06,307 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 02:00:06,307 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 02:00:06,307 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 02:00:06,313 apscheduler.scheduler INFO Scheduler started
+2026-04-20 02:00:06,314 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 02:00:06,322 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 02:00:06,322 __main__ INFO Discord message content intent is enabled
+2026-04-20 02:00:06,322 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 02:00:06,322 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 02:00:06,367 discord.client INFO logging in using static token
+2026-04-20 02:00:06,907 apscheduler.scheduler INFO Scheduler started
+2026-04-20 02:00:06,907 telegram.ext.Application INFO Application started
+2026-04-20 02:00:08,440 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 157f89147deecc358e03ea3f9ee3733b).
+2026-04-20 02:00:42,702 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Hi'
+2026-04-20 02:00:42,736 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 02:01:10,539 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Who is your creator'
+2026-04-20 02:03:14,353 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 02:03:15,441 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Weather'
+2026-04-20 02:04:55,792 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='??'
+2026-04-20 02:04:59,461 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 02:04:59,471 telegram.ext.Application INFO Application.stop() complete
+2026-04-20 02:04:59,472 __main__ INFO All bot tasks stopped.
+2026-04-20 02:04:59,472 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 14:47:05,283 app.settings.validate INFO ====================================================
+2026-04-20 14:47:05,283 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 14:47:05,283 app.settings.validate INFO ====================================================
+2026-04-20 14:47:05,283 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 14:47:05,283 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 14:47:05,283 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 14:47:05,283 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 14:47:05,283 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 14:47:05,283 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 14:47:05,283 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 14:47:05,283 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 14:47:05,283 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 14:47:05,283 app.settings.validate INFO ====================================================
+2026-04-20 14:47:09,592 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 14:47:14,052 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 14:47:14,442 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 14:47:14,442 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 14:47:14,442 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 14:47:14,449 apscheduler.scheduler INFO Scheduler started
+2026-04-20 14:47:14,450 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 14:47:14,462 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 14:47:14,462 __main__ INFO Discord message content intent is enabled
+2026-04-20 14:47:14,463 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 14:47:14,463 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 14:47:14,519 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-04-20 14:47:14,523 app.core.ambient_loop INFO Self-Improvement: found 43 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'AgencyDelegationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool']
+2026-04-20 14:47:14,524 discord.client INFO logging in using static token
+2026-04-20 14:47:14,569 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 14:47:14,574 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-04-20 14:47:15,154 apscheduler.scheduler INFO Scheduler started
+2026-04-20 14:47:15,154 telegram.ext.Application INFO Application started
+2026-04-20 14:47:16,510 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 61789986cf92fed21dece403a9c80087).
+2026-04-20 14:52:14,563 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1213902756633518181  text='hi'
+2026-04-20 14:52:14,665 app.core.user_identity INFO UserIdentity: created new canonical user u_ff69f412 for discord:1073901749984837662
+2026-04-20 14:52:14,674 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 14:52:14,676 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 14:52:35,937 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1213902756633518181  text='Who is your creator <@1143629134707294339>'
+2026-04-20 14:53:00,809 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 14:53:00,809 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 14:53:00,820 telegram.ext.Application INFO Application.stop() complete
+2026-04-20 15:31:22,261 app.settings.validate INFO ====================================================
+2026-04-20 15:31:22,261 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 15:31:22,261 app.settings.validate INFO ====================================================
+2026-04-20 15:31:22,261 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 15:31:22,261 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 15:31:22,261 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 15:31:22,261 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 15:31:22,261 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 15:31:22,261 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 15:31:22,261 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 15:31:22,261 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 15:31:22,261 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 15:31:22,261 app.settings.validate INFO ====================================================
+2026-04-20 15:31:24,979 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 15:31:29,945 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 15:31:30,316 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 15:31:30,317 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 15:31:30,317 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 15:31:30,323 apscheduler.scheduler INFO Scheduler started
+2026-04-20 15:31:30,324 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 15:31:30,332 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 15:31:30,333 __main__ INFO Discord message content intent is enabled
+2026-04-20 15:31:30,334 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 15:31:30,334 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 15:31:30,384 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-04-20 15:31:30,385 app.core.ambient_loop INFO Self-Improvement: found 43 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'AgencyDelegationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool']
+2026-04-20 15:31:30,386 discord.client INFO logging in using static token
+2026-04-20 15:31:30,571 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 15:31:30,572 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-04-20 15:31:31,125 apscheduler.scheduler INFO Scheduler started
+2026-04-20 15:31:31,125 telegram.ext.Application INFO Application started
+2026-04-20 15:31:34,521 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: bae0e52e42f6bcd1c12c41e1bdabc85e).
+2026-04-20 15:32:35,406 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Hi'
+2026-04-20 15:32:35,437 app.core.user_identity INFO UserIdentity: created new canonical user u_cd2b985d for telegram:6965564999
+2026-04-20 15:32:35,445 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 15:35:50,282 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='how are you'
+2026-04-20 15:36:09,686 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='can you update me all the letest news from hacker news'
+2026-04-20 15:36:10,228 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 15:36:30,583 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 15:37:13,271 app.provider.cli_proxy INFO CLI proxy: opencode returned 20040 chars of clean content
+2026-04-20 15:40:50,830 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 15:40:50,830 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 15:40:50,841 telegram.ext.Application INFO Application.stop() complete
+2026-04-20 15:44:25,005 app.settings.validate INFO ====================================================
+2026-04-20 15:44:25,005 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 15:44:25,005 app.settings.validate INFO ====================================================
+2026-04-20 15:44:25,005 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 15:44:25,005 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 15:44:25,005 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 15:44:25,005 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 15:44:25,005 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 15:44:25,005 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 15:44:25,005 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 15:44:25,005 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 15:44:25,005 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 15:44:25,005 app.settings.validate INFO ====================================================
+2026-04-20 15:44:27,719 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 15:44:32,162 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 15:44:32,502 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 15:44:32,503 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 15:44:32,503 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 15:44:32,508 apscheduler.scheduler INFO Scheduler started
+2026-04-20 15:44:32,509 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 15:44:32,517 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 15:44:32,517 __main__ INFO Discord message content intent is enabled
+2026-04-20 15:44:32,518 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 15:44:32,518 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 15:44:32,573 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-04-20 15:44:32,575 app.core.ambient_loop INFO Self-Improvement: found 43 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'AgencyDelegationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool']
+2026-04-20 15:44:32,575 discord.client INFO logging in using static token
+2026-04-20 15:44:32,740 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 15:44:32,741 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-04-20 15:44:33,274 apscheduler.scheduler INFO Scheduler started
+2026-04-20 15:44:33,274 telegram.ext.Application INFO Application started
+2026-04-20 15:44:34,551 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 06cc6b19eb34d3631a4c0ca474567c86).
+2026-04-20 15:44:41,949 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Hi'
+2026-04-20 15:44:41,982 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 15:44:55,036 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='How are you bro'
+2026-04-20 15:45:22,825 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Okey lets find out the letest news from HN'
+2026-04-20 15:45:23,357 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 15:46:13,343 app.provider.cli_proxy INFO CLI proxy: opencode returned 991 chars of clean content
+2026-04-20 15:46:39,368 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='who is your creators'
+2026-04-20 15:46:39,859 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 15:46:55,774 app.provider.cli_proxy INFO CLI proxy: opencode returned 228 chars of clean content
+2026-04-20 15:47:21,089 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Who is created the SARAS'
+2026-04-20 15:47:21,579 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 15:48:01,852 app.provider.cli_proxy INFO CLI proxy: opencode returned 366 chars of clean content
+2026-04-20 15:48:57,819 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Set schedule to the calendar today for meeting'
+2026-04-20 15:48:58,359 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 15:49:12,820 app.provider.cli_proxy INFO CLI proxy: opencode returned 510 chars of clean content
+2026-04-20 15:49:32,752 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 15:49:47,360 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='2'
+2026-04-20 15:49:47,902 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 15:50:02,915 app.provider.cli_proxy INFO CLI proxy: opencode returned 29 chars of clean content
+2026-04-20 15:50:47,470 __main__ INFO Shutdown signal received
+2026-04-20 15:50:47,470 __main__ INFO Graceful shutdown started
+2026-04-20 15:50:48,012 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 15:50:48,013 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 15:50:48,023 telegram.ext.Application INFO Application.stop() complete
+2026-04-20 15:50:55,473 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-04-20 15:50:55,473 __main__ INFO All bot tasks stopped.
+2026-04-20 15:50:55,474 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 16:06:16,133 app.settings.validate INFO ====================================================
+2026-04-20 16:06:16,134 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 16:06:16,134 app.settings.validate INFO ====================================================
+2026-04-20 16:06:16,134 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 16:06:16,134 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 16:06:16,134 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 16:06:16,134 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 16:06:16,134 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 16:06:16,134 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 16:06:16,134 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 16:06:16,134 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 16:06:16,134 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 16:06:16,134 app.settings.validate INFO ====================================================
+2026-04-20 16:06:18,842 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 16:06:23,293 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 16:06:23,690 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:06:23,691 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 16:06:23,691 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:06:23,702 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:06:23,703 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 16:06:23,714 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 16:06:23,715 __main__ INFO Discord message content intent is enabled
+2026-04-20 16:06:23,715 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 16:06:23,715 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 16:06:23,762 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-04-20 16:06:23,764 app.core.ambient_loop INFO Self-Improvement: found 43 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'AgencyDelegationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool']
+2026-04-20 16:06:23,765 discord.client INFO logging in using static token
+2026-04-20 16:06:23,967 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 16:06:23,972 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-04-20 16:06:24,522 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:06:24,522 telegram.ext.Application INFO Application started
+2026-04-20 16:06:26,317 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 0cc08ec4d67c3320b265c09e303fa94f).
+2026-04-20 16:06:31,502 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='hi'
+2026-04-20 16:06:31,534 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 16:08:59,433 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='can you tell me the weather'
+2026-04-20 16:08:59,963 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 16:09:05,952 app.provider.cli_proxy INFO CLI proxy: opencode returned 120 chars of clean content
+2026-04-20 16:09:32,186 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='can you tell me the weather of my own location'
+2026-04-20 16:09:32,666 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 16:09:39,893 app.provider.cli_proxy INFO CLI proxy: opencode returned 122 chars of clean content
+2026-04-20 16:11:05,160 __main__ INFO Shutdown signal received
+2026-04-20 16:11:05,161 __main__ INFO Graceful shutdown started
+2026-04-20 16:11:05,262 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-04-20 16:11:08,165 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 16:11:08,165 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 16:11:08,176 telegram.ext.Application INFO Application.stop() complete
+2026-04-20 16:11:13,166 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-04-20 16:11:13,166 __main__ INFO All bot tasks stopped.
+2026-04-20 16:11:13,167 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 16:14:03,972 app.settings.validate INFO ====================================================
+2026-04-20 16:14:03,972 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 16:14:03,972 app.settings.validate INFO ====================================================
+2026-04-20 16:14:03,972 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 16:14:03,972 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 16:14:03,972 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 16:14:03,972 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 16:14:03,972 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 16:14:03,972 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 16:14:03,972 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 16:14:03,972 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 16:14:03,972 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 16:14:03,972 app.settings.validate INFO ====================================================
+2026-04-20 16:14:06,574 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 16:14:08,989 app.settings.validate INFO ====================================================
+2026-04-20 16:14:08,990 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 16:14:08,990 app.settings.validate INFO ====================================================
+2026-04-20 16:14:08,990 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 16:14:08,990 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 16:14:08,990 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 16:14:08,990 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 16:14:08,990 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 16:14:08,990 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 16:14:08,990 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 16:14:08,990 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 16:14:08,990 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 16:14:08,990 app.settings.validate INFO ====================================================
+2026-04-20 16:14:10,951 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 16:14:11,281 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:14:11,281 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 16:14:11,282 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:14:11,288 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:14:11,289 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 16:14:11,297 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 16:14:11,297 __main__ INFO Discord message content intent is enabled
+2026-04-20 16:14:11,297 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 16:14:11,297 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 16:14:11,345 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-04-20 16:14:11,348 app.core.ambient_loop INFO Self-Improvement: found 43 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'AgencyDelegationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool']
+2026-04-20 16:14:11,350 discord.client INFO logging in using static token
+2026-04-20 16:14:11,511 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 16:14:11,512 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-04-20 16:14:11,855 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 16:14:12,045 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:14:12,045 telegram.ext.Application INFO Application started
+2026-04-20 16:14:13,472 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: bada51effac0e6e875d274031ea4dc64).
+2026-04-20 16:14:15,796 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='hi'
+2026-04-20 16:14:15,836 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 16:14:16,256 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 16:14:16,611 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:14:16,611 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 16:14:16,611 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:14:16,617 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:14:16,618 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 16:14:16,626 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 16:14:16,626 __main__ INFO Discord message content intent is enabled
+2026-04-20 16:14:16,762 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 16:14:16,763 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 16:14:16,817 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-04-20 16:14:16,821 app.core.ambient_loop INFO Self-Improvement: found 43 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'AgencyDelegationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool']
+2026-04-20 16:14:16,823 discord.client INFO logging in using static token
+2026-04-20 16:14:16,861 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 16:14:16,861 app.core.ambient_loop INFO AmbientLoop stopped
+2026-04-20 16:14:17,152 asyncio ERROR Task exception was never retrieved
+future: <Task finished name='Task-17' coro=<run_webhook_server() done, defined at /home/swadhin/SARAS/app/sensors/webhook_server.py:39> exception=SystemExit(1)>
+Traceback (most recent call last):
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 164, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 1584, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('127.0.0.1', 8765): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/swadhin/SARAS/main.py", line 472, in <module>
+    main()
+  File "/home/swadhin/SARAS/main.py", line 468, in main
+    asyncio.run(_main_async())
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 645, in run_forever
+    self._run_once()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 1999, in _run_once
+    handle._run()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/swadhin/SARAS/app/sensors/webhook_server.py", line 44, in run_webhook_server
+    await server.serve()
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 86, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 174, in startup
+    sys.exit(1)
+SystemExit: 1
+2026-04-20 16:14:17,315 asyncio ERROR Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x7fe5747edd00>
+2026-04-20 16:14:29,891 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='what is the weather today'
+2026-04-20 16:14:29,950 app.core.runtime INFO AGENT_RUNTIME  begin_react_loop  session=telegram_6965564999  tools=48
+2026-04-20 16:14:30,278 app.core.runtime WARNING AGENT_RUNTIME  primary_provider_failed  session=telegram_6965564999 provider=google
+2026-04-20 16:14:30,279 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=telegram_6965564999  fallback_provider=opencode
+2026-04-20 16:14:30,280 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 16:14:44,730 __main__ INFO Shutdown signal received
+2026-04-20 16:14:44,731 __main__ INFO Graceful shutdown started
+2026-04-20 16:14:44,752 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=telegram_6965564999  fallback_provider=qwen_cli
+2026-04-20 16:14:44,753 app.provider.cli_proxy INFO CLI proxy: invoking qwen (tool=qwen)
+2026-04-20 16:14:44,831 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-04-20 16:14:45,294 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 16:14:47,396 app.provider.cli_proxy INFO CLI proxy: qwen returned 445 chars of clean content
+2026-04-20 16:14:47,396 app.core.runtime INFO AGENT_RUNTIME  fallback_success  session=telegram_6965564999  fallback_provider=qwen_cli
+2026-04-20 16:14:47,397 app.core.runtime INFO AGENT_RUNTIME  final_response  session=telegram_6965564999  turn=1  len=495
+2026-04-20 16:14:48,595 app.core.runtime WARNING AGENT_RUNTIME  verification_issue  session=telegram_6965564999  findings=['missing criterion: Objective is explicit.', 'missing criterion: Requested outcome is produced.', 'missing criterion: Output is internally consistent.']
+2026-04-20 16:14:48,598 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:14:52,736 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-04-20 16:14:52,736 __main__ INFO All bot tasks stopped.
+2026-04-20 16:14:52,737 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 16:16:36,781 app.settings.validate INFO ====================================================
+2026-04-20 16:16:36,782 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 16:16:36,782 app.settings.validate INFO ====================================================
+2026-04-20 16:16:36,782 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 16:16:36,782 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 16:16:36,782 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 16:16:36,782 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 16:16:36,782 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 16:16:36,782 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 16:16:36,782 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 16:16:36,782 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 16:16:36,782 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 16:16:36,782 app.settings.validate INFO ====================================================
+2026-04-20 16:16:39,504 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 16:16:41,813 app.settings.validate INFO ====================================================
+2026-04-20 16:16:41,813 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 16:16:41,813 app.settings.validate INFO ====================================================
+2026-04-20 16:16:41,813 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 16:16:41,813 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 16:16:41,813 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 16:16:41,813 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 16:16:41,813 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 16:16:41,813 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 16:16:41,813 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 16:16:41,813 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 16:16:41,813 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 16:16:41,813 app.settings.validate INFO ====================================================
+2026-04-20 16:16:43,936 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 16:16:44,274 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:16:44,275 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 16:16:44,275 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:16:44,281 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:16:44,282 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 16:16:44,290 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 16:16:44,290 __main__ INFO Discord message content intent is enabled
+2026-04-20 16:16:44,290 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 16:16:44,291 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 16:16:44,337 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-04-20 16:16:44,339 app.core.ambient_loop INFO Self-Improvement: found 43 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'AgencyDelegationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool']
+2026-04-20 16:16:44,340 discord.client INFO logging in using static token
+2026-04-20 16:16:44,502 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 16:16:44,503 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-04-20 16:16:44,627 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 16:16:45,068 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:16:45,068 telegram.ext.Application INFO Application started
+2026-04-20 16:16:46,254 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: bf47cd39d8694f40f525ca763791a5dc).
+2026-04-20 16:16:48,973 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 16:16:49,379 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:16:49,379 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 16:16:49,379 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:16:49,388 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:16:49,389 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 16:16:49,400 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 16:16:49,400 __main__ INFO Discord message content intent is enabled
+2026-04-20 16:16:49,401 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 16:16:49,401 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 16:16:49,451 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-04-20 16:16:49,453 app.core.ambient_loop INFO Self-Improvement: found 43 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'AgencyDelegationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool']
+2026-04-20 16:16:49,453 discord.client INFO logging in using static token
+2026-04-20 16:16:49,612 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 16:16:49,612 app.core.ambient_loop INFO AmbientLoop stopped
+2026-04-20 16:16:49,966 asyncio ERROR Task exception was never retrieved
+future: <Task finished name='Task-17' coro=<run_webhook_server() done, defined at /home/swadhin/SARAS/app/sensors/webhook_server.py:39> exception=SystemExit(1)>
+Traceback (most recent call last):
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 164, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 1584, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('127.0.0.1', 8765): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/swadhin/SARAS/main.py", line 472, in <module>
+    main()
+  File "/home/swadhin/SARAS/main.py", line 468, in main
+    asyncio.run(_main_async())
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 645, in run_forever
+    self._run_once()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 1999, in _run_once
+    handle._run()
+  File "/home/swadhin/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/swadhin/SARAS/app/sensors/webhook_server.py", line 44, in run_webhook_server
+    await server.serve()
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 71, in serve
+    await self._serve(sockets)
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 86, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/swadhin/SARAS/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 174, in startup
+    sys.exit(1)
+SystemExit: 1
+2026-04-20 16:16:50,127 asyncio ERROR Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x7f6e8ffae270>
+2026-04-20 16:16:55,680 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='send me as voice what is the weather today'
+2026-04-20 16:16:55,734 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 16:16:55,745 app.core.runtime INFO AGENT_RUNTIME  begin_react_loop  session=telegram_6965564999  tools=48
+2026-04-20 16:16:55,995 app.core.runtime WARNING AGENT_RUNTIME  primary_provider_failed  session=telegram_6965564999 provider=google
+2026-04-20 16:16:55,996 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=telegram_6965564999  fallback_provider=opencode
+2026-04-20 16:16:55,999 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 16:17:16,730 __main__ INFO Shutdown signal received
+2026-04-20 16:17:16,731 __main__ INFO Graceful shutdown started
+2026-04-20 16:17:16,757 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=telegram_6965564999  fallback_provider=qwen_cli
+2026-04-20 16:17:16,757 app.provider.cli_proxy INFO CLI proxy: invoking qwen (tool=qwen)
+2026-04-20 16:17:16,832 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-04-20 16:17:18,244 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=telegram_6965564999  fallback_provider=gemini_cli
+2026-04-20 16:17:18,244 app.provider.cli_proxy INFO CLI proxy: invoking gemini (tool=gemini)
+2026-04-20 16:17:19,732 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 16:17:24,734 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-04-20 16:17:24,734 __main__ INFO All bot tasks stopped.
+2026-04-20 16:17:24,735 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 16:17:26,117 app.settings.validate INFO ====================================================
+2026-04-20 16:17:26,118 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 16:17:26,118 app.settings.validate INFO ====================================================
+2026-04-20 16:17:26,118 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 16:17:26,118 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 16:17:26,118 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 16:17:26,118 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 16:17:26,118 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 16:17:26,118 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 16:17:26,118 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 16:17:26,118 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 16:17:26,118 app.settings.validate INFO   [--]  OpenWeatherMap         missing (optional)
+2026-04-20 16:17:26,118 app.settings.validate INFO ====================================================
+2026-04-20 16:17:28,821 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 16:17:33,173 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 16:17:33,569 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:17:33,569 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 16:17:33,569 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:17:33,575 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:17:33,576 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 16:17:33,592 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 16:17:33,592 __main__ INFO Discord message content intent is enabled
+2026-04-20 16:17:33,592 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 16:17:33,592 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 16:17:33,772 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-04-20 16:17:33,774 app.core.ambient_loop INFO Self-Improvement: found 43 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'AgencyDelegationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool']
+2026-04-20 16:17:33,775 discord.client INFO logging in using static token
+2026-04-20 16:17:33,801 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 16:17:33,802 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-04-20 16:17:34,331 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:17:34,331 telegram.ext.Application INFO Application started
+2026-04-20 16:17:35,739 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: b6421b5eb6e96cd034ee3db829bf932e).
+2026-04-20 16:18:01,167 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='send me as a voice what is the weather today'
+2026-04-20 16:18:01,219 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 16:18:01,226 app.core.runtime INFO AGENT_RUNTIME  begin_react_loop  session=telegram_6965564999  tools=48
+2026-04-20 16:18:01,485 app.core.runtime WARNING AGENT_RUNTIME  primary_provider_failed  session=telegram_6965564999 provider=google
+2026-04-20 16:18:01,489 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=telegram_6965564999  fallback_provider=opencode
+2026-04-20 16:18:01,491 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 16:18:31,782 app.provider.cli_proxy INFO CLI proxy: opencode returned 530 chars of clean content
+2026-04-20 16:18:31,782 app.core.runtime INFO AGENT_RUNTIME  fallback_success  session=telegram_6965564999  fallback_provider=opencode
+2026-04-20 16:18:31,783 app.core.runtime INFO AGENT_RUNTIME  final_response  session=telegram_6965564999  turn=1  len=580
+2026-04-20 16:18:33,081 app.core.runtime WARNING AGENT_RUNTIME  verification_issue  session=telegram_6965564999  findings=['missing criterion: Objective is explicit.', 'missing criterion: Requested outcome is produced.', 'missing criterion: Output is internally consistent.']
+2026-04-20 16:18:33,091 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:22:33,811 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 16:22:59,398 __main__ INFO Shutdown signal received
+2026-04-20 16:22:59,398 __main__ INFO Graceful shutdown started
+2026-04-20 16:22:59,499 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-04-20 16:22:59,959 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 16:22:59,959 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 16:22:59,969 telegram.ext.Application INFO Application.stop() complete
+2026-04-20 16:23:07,406 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-04-20 16:23:07,406 __main__ INFO All bot tasks stopped.
+2026-04-20 16:23:07,407 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 16:23:13,427 app.settings.validate INFO ====================================================
+2026-04-20 16:23:13,427 app.settings.validate INFO SARAS Startup Configuration
+2026-04-20 16:23:13,427 app.settings.validate INFO ====================================================
+2026-04-20 16:23:13,427 app.settings.validate INFO   [OK]  Telegram               ready
+2026-04-20 16:23:13,427 app.settings.validate INFO   [OK]  Discord                ready
+2026-04-20 16:23:13,427 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-04-20 16:23:13,427 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-04-20 16:23:13,427 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-04-20 16:23:13,427 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-04-20 16:23:13,427 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-04-20 16:23:13,427 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-04-20 16:23:13,427 app.settings.validate INFO   [OK]  OpenWeatherMap         ready
+2026-04-20 16:23:13,427 app.settings.validate INFO ====================================================
+2026-04-20 16:23:16,168 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-20 16:23:20,811 app.core.memory INFO MemoryStore: facts=0 tools=0
+2026-04-20 16:23:21,185 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:23:21,186 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-04-20 16:23:21,186 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-04-20 16:23:21,195 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:23:21,198 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-04-20 16:23:21,208 app.telegram.bot INFO Telegram bot configured successfully.
+2026-04-20 16:23:21,208 __main__ INFO Discord message content intent is enabled
+2026-04-20 16:23:21,208 discord.client WARNING PyNaCl is not installed, voice will NOT be supported
+2026-04-20 16:23:21,208 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-04-20 16:23:21,254 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-04-20 16:23:21,256 app.core.ambient_loop INFO Self-Improvement: found 43 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'AgencyDelegationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool']
+2026-04-20 16:23:21,256 discord.client INFO logging in using static token
+2026-04-20 16:23:21,453 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 16:23:21,454 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-04-20 16:23:22,004 apscheduler.scheduler INFO Scheduler started
+2026-04-20 16:23:22,005 telegram.ext.Application INFO Application started
+2026-04-20 16:23:23,476 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 97e74832cb7cb1c9913b7a3eaba350f3).
+2026-04-20 16:23:37,619 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1213902756633518181  text='what is the weather now'
+2026-04-20 16:23:37,670 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-04-20 16:23:37,685 app.core.runtime INFO AGENT_RUNTIME  begin_react_loop  session=discord_1213902756633518181:1495731661445529750  tools=48
+2026-04-20 16:23:38,025 app.core.runtime WARNING AGENT_RUNTIME  primary_provider_failed  session=discord_1213902756633518181:1495731661445529750 provider=google
+2026-04-20 16:23:38,029 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1213902756633518181:1495731661445529750  fallback_provider=opencode
+2026-04-20 16:23:38,038 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 16:24:11,721 app.provider.cli_proxy INFO CLI proxy: opencode returned 465 chars of clean content
+2026-04-20 16:24:11,721 app.core.runtime INFO AGENT_RUNTIME  fallback_success  session=discord_1213902756633518181:1495731661445529750  fallback_provider=opencode
+2026-04-20 16:24:11,722 app.core.runtime INFO AGENT_RUNTIME  final_response  session=discord_1213902756633518181:1495731661445529750  turn=1  len=515
+2026-04-20 16:24:12,209 app.core.runtime WARNING AGENT_RUNTIME  verification_issue  session=discord_1213902756633518181:1495731661445529750  findings=['missing criterion: Objective is explicit.', 'missing criterion: Requested outcome is produced.', 'missing criterion: Output is internally consistent.']
+2026-04-20 16:24:12,222 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:25:18,445 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1213902756633518181  text='what is the weather in dhaka'
+2026-04-20 16:25:18,498 app.core.runtime INFO AGENT_RUNTIME  begin_react_loop  session=discord_1213902756633518181:1495732084206076046  tools=48
+2026-04-20 16:25:18,743 app.core.runtime WARNING AGENT_RUNTIME  primary_provider_failed  session=discord_1213902756633518181:1495732084206076046 provider=google
+2026-04-20 16:25:18,747 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1213902756633518181:1495732084206076046  fallback_provider=opencode
+2026-04-20 16:25:18,748 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 16:25:37,357 app.provider.cli_proxy INFO CLI proxy: opencode returned 476 chars of clean content
+2026-04-20 16:25:37,358 app.core.runtime INFO AGENT_RUNTIME  fallback_success  session=discord_1213902756633518181:1495732084206076046  fallback_provider=opencode
+2026-04-20 16:25:37,359 app.core.runtime INFO AGENT_RUNTIME  final_response  session=discord_1213902756633518181:1495732084206076046  turn=1  len=526
+2026-04-20 16:25:38,105 app.core.runtime WARNING AGENT_RUNTIME  verification_issue  session=discord_1213902756633518181:1495732084206076046  findings=['missing criterion: Objective is explicit.', 'missing criterion: Requested outcome is produced.', 'missing criterion: Output is internally consistent.']
+2026-04-20 16:25:38,113 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:27:19,114 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1213902756633518181  text="can you set fetch data from nasa's new missions apis and make a html site with it make it zip and send to the telegram"
+2026-04-20 16:27:19,155 app.core.runtime INFO AGENT_RUNTIME  begin_react_loop  session=discord_1213902756633518181:1495732590206779392  tools=48
+2026-04-20 16:27:19,404 app.core.runtime WARNING AGENT_RUNTIME  primary_provider_failed  session=discord_1213902756633518181:1495732590206779392 provider=google
+2026-04-20 16:27:19,407 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1213902756633518181:1495732590206779392  fallback_provider=opencode
+2026-04-20 16:27:19,409 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 16:28:01,015 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1213902756633518181  text='send a ping to the telegram'
+2026-04-20 16:28:01,054 app.core.runtime INFO AGENT_RUNTIME  begin_react_loop  session=discord_1213902756633518181:1495732766266884276  tools=48
+2026-04-20 16:28:01,295 app.core.runtime WARNING AGENT_RUNTIME  primary_provider_failed  session=discord_1213902756633518181:1495732766266884276 provider=google
+2026-04-20 16:28:01,300 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1213902756633518181:1495732766266884276  fallback_provider=opencode
+2026-04-20 16:28:01,302 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 16:28:21,466 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 16:28:30,895 app.provider.cli_proxy INFO CLI proxy: opencode returned 553 chars of clean content
+2026-04-20 16:28:30,895 app.core.runtime INFO AGENT_RUNTIME  fallback_success  session=discord_1213902756633518181:1495732590206779392  fallback_provider=opencode
+2026-04-20 16:28:30,896 app.core.runtime INFO AGENT_RUNTIME  final_response  session=discord_1213902756633518181:1495732590206779392  turn=1  len=603
+2026-04-20 16:28:31,475 app.core.runtime WARNING AGENT_RUNTIME  verification_issue  session=discord_1213902756633518181:1495732590206779392  findings=['missing criterion: Objective is explicit.', 'missing criterion: Requested outcome is produced.', 'missing criterion: Output is internally consistent.']
+2026-04-20 16:28:31,479 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:28:41,043 app.provider.cli_proxy INFO CLI proxy: opencode returned 361 chars of clean content
+2026-04-20 16:28:41,043 app.core.runtime INFO AGENT_RUNTIME  fallback_success  session=discord_1213902756633518181:1495732766266884276  fallback_provider=opencode
+2026-04-20 16:28:41,044 app.core.runtime INFO AGENT_RUNTIME  final_response  session=discord_1213902756633518181:1495732766266884276  turn=1  len=411
+2026-04-20 16:28:41,528 app.core.runtime WARNING AGENT_RUNTIME  verification_issue  session=discord_1213902756633518181:1495732766266884276  findings=['missing criterion: Objective is explicit.', 'missing criterion: Requested outcome is produced.', 'missing criterion: Output is internally consistent.']
+2026-04-20 16:28:41,944 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:28:41,945 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:28:41,945 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:28:41,946 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:28:41,946 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:28:41,947 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:28:41,948 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:30:44,302 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='Hi'
+2026-04-20 16:30:48,647 app.telegram.command INFO Telegram incoming  user=6965564999  name=Deleted  text='❤️'
+2026-04-20 16:30:48,678 app.core.runtime INFO AGENT_RUNTIME  begin_react_loop  session=telegram_6965564999  tools=48
+2026-04-20 16:30:48,970 app.core.runtime WARNING AGENT_RUNTIME  primary_provider_failed  session=telegram_6965564999 provider=google
+2026-04-20 16:30:48,973 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=telegram_6965564999  fallback_provider=opencode
+2026-04-20 16:30:48,974 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-04-20 16:31:05,463 app.provider.cli_proxy INFO CLI proxy: opencode returned 100 chars of clean content
+2026-04-20 16:31:05,463 app.core.runtime INFO AGENT_RUNTIME  fallback_success  session=telegram_6965564999  fallback_provider=opencode
+2026-04-20 16:31:05,477 app.core.runtime INFO AGENT_RUNTIME  final_response  session=telegram_6965564999  turn=1  len=150
+2026-04-20 16:31:06,707 app.core.runtime WARNING AGENT_RUNTIME  verification_issue  session=telegram_6965564999  findings=['missing criterion: Objective is explicit.', 'missing criterion: Requested outcome is produced.', 'missing criterion: Output is internally consistent.']
+2026-04-20 16:31:06,735 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-04-20 16:33:21,478 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 16:38:21,491 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-04-20 16:41:23,364 __main__ INFO Shutdown signal received
+2026-04-20 16:41:23,364 __main__ INFO Graceful shutdown started
+2026-04-20 16:41:23,465 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-04-20 16:41:23,927 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-04-20 16:41:23,928 apscheduler.scheduler INFO Scheduler has been shut down
+2026-04-20 16:41:23,938 telegram.ext.Application INFO Application.stop() complete
+2026-04-20 16:41:31,372 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-04-20 16:41:31,372 __main__ INFO All bot tasks stopped.
+2026-04-20 16:41:31,372 apscheduler.scheduler INFO Scheduler has been shut down

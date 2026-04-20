@@ -8,8 +8,12 @@ logger = logging.getLogger(__name__)
 class Bootstrapper:
     """Handles File-Injected Context Strategy for Dynamic System Prompts."""
 
-    def __init__(self, workspace_dir: str):
-        self.workspace_dir = Path(workspace_dir)
+    def __init__(self, workspace_dir: str | None = None):
+        from app.settings.config import Config
+
+        self.workspace_dir = (
+            Path(workspace_dir) if workspace_dir else Path(Config.MEMORY_ROOT)
+        )
         # Create default template files if they don't exist
         self._ensure_file_exists(
             "SOUL.md",
@@ -22,6 +26,10 @@ class Bootstrapper:
         self._ensure_file_exists(
             "TOOLS.md",
             "Tool Guidance:\n- Prefer specific tools for the job.\n- Output tool names precisely.",
+        )
+        self._ensure_file_exists(
+            "standing_orders.md",
+            "Rollback on Failure | If your code changes break tests, use the 'rollback' operation in file_operations or 'git checkout' to restore the file and try again.",
         )
 
     def _ensure_file_exists(self, filename: str, default_content: str):
@@ -78,28 +86,140 @@ class Bootstrapper:
         self, query: str | None = None, user_id: str | None = None
     ) -> str:
         """Injects SOUL, AGENTS, TOOLS, live context, and relevant memories."""
-        soul = self._read_and_truncate("SOUL.md")
-        agents = self._read_and_truncate("AGENTS.md", max_chars=1000)
-        tools = self._read_and_truncate("TOOLS.md", max_chars=1000)
+        try:
+            from app.core.memory_manager import MemoryManager
+
+            manager = MemoryManager()
+            soul_context = manager.retrieve_context(
+                "SARAS core persona instructions", user_id=user_id, top_k=1
+            )
+            agents_context = manager.retrieve_context(
+                "available agents and behavior", user_id=user_id, top_k=1
+            )
+            tools_context = manager.retrieve_context(
+                "available tools and usage", user_id=user_id, top_k=1
+            )
+
+            soul = (
+                "\n".join(soul_context)
+                if soul_context
+                else self._read_and_truncate("SOUL.md", max_chars=1000)
+            )
+            agents = (
+                "\n".join(agents_context)
+                if agents_context
+                else self._read_and_truncate("AGENTS.md", max_chars=500)
+            )
+            tools = (
+                "\n".join(tools_context)
+                if tools_context
+                else self._read_and_truncate("TOOLS.md", max_chars=500)
+            )
+        except Exception:
+            soul = self._read_and_truncate("SOUL.md")
+            agents = self._read_and_truncate("AGENTS.md", max_chars=1000)
+            tools = self._read_and_truncate("TOOLS.md", max_chars=1000)
 
         # Dynamic context — always injected, zero cost
         dynamic = self.build_dynamic_context(user_id)
         dynamic_section = f"\n--- [Current Context] ---\n{dynamic}\n"
 
+        profile_section = ""
+        if user_id:
+            try:
+                from app.core.user_profile import UserProfileStore
+
+                store = UserProfileStore(str(self.workspace_dir))
+                profile = store.load(user_id)
+                rendered = store.render(profile)
+                if rendered.strip() != "--- [User Profile] ---":
+                    profile_section = f"\n{rendered}\n"
+            except Exception as exc:
+                logger.warning("Profile retrieval failed: %s", exc)
+
         memory_section = ""
         if query:
             try:
-                from app.core.memory import get_memory_store
+                from app.core.memory_manager import MemoryManager
 
-                store = get_memory_store()
-                memories = store.retrieve(query, top_k=5, user_id=user_id)
+                manager = MemoryManager()
+                memories = manager.retrieve_context(query, user_id=user_id, top_k=8)
                 if memories:
                     bullets = "\n".join(f"- {m}" for m in memories)
                     memory_section = f"\n--- [Relevant Memories] ---\n{bullets}\n"
             except Exception as exc:
                 logger.warning("Memory retrieval failed: %s", exc)
 
+        profile_summary_section = ""
+        if user_id:
+            try:
+                from app.core.memory_manager import MemoryManager
+
+                manager = MemoryManager()
+                profile = manager.build_profile_summary(user_id)
+                profile_lines = []
+                if profile.get("preferences"):
+                    profile_lines.append("preferences:")
+                    profile_lines.extend(f"- {item}" for item in profile["preferences"])
+                if profile.get("facts"):
+                    profile_lines.append("facts:")
+                    profile_lines.extend(f"- {item}" for item in profile["facts"])
+                if profile_lines:
+                    profile_summary_section = (
+                        "\n--- [User Profile Summary] ---\n"
+                        + "\n".join(profile_lines)
+                        + "\n"
+                    )
+            except Exception as exc:
+                logger.warning("Profile summary retrieval failed: %s", exc)
+
+        graph_section = ""
+        if user_id:
+            try:
+                from app.core.workspace_graph import WorkspaceGraph
+
+                graph = WorkspaceGraph(str(self.workspace_dir))
+                evidence = graph.evidence_for_prompt(user_id, query=query)
+                if evidence:
+                    graph_section = (
+                        "\n--- [Workspace Graph] ---\n"
+                        + "\n".join(f"- {item}" for item in evidence[:10])
+                        + "\n"
+                    )
+            except Exception as exc:
+                logger.warning("Graph evidence retrieval failed: %s", exc)
+
+        standing_orders_section = ""
+        try:
+            from app.core.standing_orders import StandingOrderStore
+
+            store = StandingOrderStore(str(self.workspace_dir))
+            orders = store.parse()
+            if orders:
+                order_lines = [
+                    f"- {order.title}: {order.rule}"
+                    for order in orders[:10]
+                    if order.enabled
+                ]
+                if order_lines:
+                    standing_orders_section = (
+                        "\n--- [Standing Orders] ---\n" + "\n".join(order_lines) + "\n"
+                    )
+        except Exception as exc:
+            logger.warning("Standing order retrieval failed: %s", exc)
+
+        active_skills_section = ""
+        try:
+            from app.core.skill_registry import SkillRegistry
+
+            registry = SkillRegistry()
+            texts = registry.get_active_skill_texts()
+            if texts:
+                active_skills_section = f"\n--- [Active Skills] ---\n{texts}\n"
+        except Exception as exc:
+            logger.warning("Skill text retrieval failed: %s", exc)
+
         return (
             f"System Bootstrapped Context:\n"
-            f"{soul}{dynamic_section}{agents}{tools}{memory_section}"
+            f"{soul}{dynamic_section}{profile_section}{profile_summary_section}{graph_section}{standing_orders_section}{active_skills_section}{agents}{tools}{memory_section}"
         )

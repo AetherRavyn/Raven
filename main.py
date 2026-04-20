@@ -5,6 +5,7 @@ import signal
 from pathlib import Path
 
 from app.core import BotSignal, MessageOrchestrator, get_botsignal
+from app.core.executor import DaemonExecutor
 from app.core.proactive_bootstrap import register_proactive_routines
 from app.discord import DiscordBot
 from app.settings.config import Config
@@ -14,6 +15,7 @@ from app.core.scheduler import get_scheduler
 from app.core.proactive import schedule_follow_up
 
 logger = logging.getLogger(__name__)
+_SHUTDOWN_GRACE_SECONDS = 8.0
 
 
 def _setup_logging() -> None:
@@ -62,9 +64,18 @@ async def _run_telegram(
     try:
         await stop_event.wait()
     finally:
-        await app.updater.stop()
-        await app.stop()
-        await app.shutdown()
+        try:
+            await asyncio.wait_for(app.updater.stop(), timeout=3.0)
+        except Exception:
+            logger.debug("Telegram updater stop timed out or failed", exc_info=True)
+        try:
+            await asyncio.wait_for(app.stop(), timeout=3.0)
+        except Exception:
+            logger.debug("Telegram app stop timed out or failed", exc_info=True)
+        try:
+            await asyncio.wait_for(app.shutdown(), timeout=3.0)
+        except Exception:
+            logger.debug("Telegram app shutdown timed out or failed", exc_info=True)
 
 
 async def _run_discord(
@@ -100,7 +111,7 @@ async def _run_discord(
     finally:
         for task in pending:
             task.cancel()
-        await asyncio.gather(*pending, return_exceptions=True)
+        await asyncio.gather(*pending, return_exceptions=True)  # type: ignore
 
 
 async def _run_slack(
@@ -130,11 +141,11 @@ async def _run_slack(
             await bot_task
         else:
             bot_task.cancel()
-            await asyncio.gather(bot_task, return_exceptions=True)
+            await asyncio.gather(bot_task, return_exceptions=True)  # type: ignore
     finally:
         for task in pending:
             task.cancel()
-        await asyncio.gather(*pending, return_exceptions=True)
+        await asyncio.gather(*pending, return_exceptions=True)  # type: ignore
 
 
 async def _run_web(
@@ -165,7 +176,7 @@ async def _run_web(
     )
     for task in pending:
         task.cancel()
-    await asyncio.gather(*pending, return_exceptions=True)
+    await asyncio.gather(*pending, return_exceptions=True)  # type: ignore
     logger.info("Web dashboard shut down.")
 
 
@@ -194,7 +205,7 @@ async def _run_whatsapp(
     )
     for task in pending:
         task.cancel()
-    await asyncio.gather(*pending, return_exceptions=True)
+    await asyncio.gather(*pending, return_exceptions=True)  # type: ignore
     logger.info("WhatsApp connector shut down.")
 
 
@@ -259,7 +270,7 @@ async def _run_webhook(stop_event: asyncio.Event) -> None:
     webhook_task = asyncio.create_task(run_webhook_server())
     await stop_event.wait()
     webhook_task.cancel()
-    await asyncio.gather(webhook_task, return_exceptions=True)
+    await asyncio.gather(webhook_task, return_exceptions=True)  # type: ignore
 
 
 async def _run_mqtt(stop_event: asyncio.Event) -> None:
@@ -286,7 +297,7 @@ async def _run_mqtt(stop_event: asyncio.Event) -> None:
     )
     await stop_event.wait()
     mqtt_task.cancel()
-    await asyncio.gather(mqtt_task, return_exceptions=True)
+    await asyncio.gather(mqtt_task, return_exceptions=True)  # type: ignore
     logger.info("MQTT listener shut down.")
 
 
@@ -316,7 +327,7 @@ async def _run_voice_pipeline(
     pipeline.stop()
     for task in pending:
         task.cancel()
-    await asyncio.gather(*pending, return_exceptions=True)
+    await asyncio.gather(*pending, return_exceptions=True)  # type: ignore
     logger.info("Voice pipeline shut down.")
 
 
@@ -331,10 +342,16 @@ async def _main_async() -> None:
     botsignal = get_botsignal()
     orchestrator = MessageOrchestrator(botsignal)
     loop = asyncio.get_running_loop()
+    loop.set_default_executor(DaemonExecutor(thread_name_prefix="saras"))
+
+    def _request_shutdown() -> None:
+        if not stop_event.is_set():
+            logger.info("Shutdown signal received")
+            stop_event.set()
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
-            loop.add_signal_handler(sig, stop_event.set)
+            loop.add_signal_handler(sig, _request_shutdown)
         except NotImplementedError:
             # Signal handlers are not supported in some environments.
             pass
@@ -373,30 +390,75 @@ async def _main_async() -> None:
         _run_streamlit(stop_event), name="streamlit-dashboard"
     )
 
+    # ── Ambient Intelligence Loop ──────────────────────────────────────
+    # Always-on background heartbeat: self-improvement, workflow ticks,
+    # sentinel digest, dashboard heartbeats
+    from app.core.ambient_loop import get_ambient_loop
+    ambient = get_ambient_loop()
+    ambient._orchestrator = orchestrator
+    ambient._botsignal = botsignal
+    ambient_task = asyncio.create_task(ambient.run(), name="ambient-loop")
+    stop_waiter = asyncio.create_task(stop_event.wait(), name="shutdown-waiter")
+
+    service_tasks = {
+        telegram_task,
+        discord_task,
+        slack_task,
+        webhook_task,
+        voice_task,
+        mqtt_task,
+        whatsapp_task,
+        web_task,
+        streamlit_task,
+        ambient_task,
+    }
+
     try:
         done, pending = await asyncio.wait(
-            {
-                telegram_task,
-                discord_task,
-                slack_task,
-                webhook_task,
-                voice_task,
-                mqtt_task,
-                whatsapp_task,
-                web_task,
-                streamlit_task,
-            },
-            return_when=asyncio.FIRST_EXCEPTION,
+            service_tasks | {stop_waiter},
+            return_when=asyncio.FIRST_COMPLETED,
         )
 
+        if stop_waiter in done:
+            logger.info("Graceful shutdown started")
+        else:
+            for task in done:
+                if task is stop_waiter:
+                    continue
+                exc = task.exception()
+                if exc is not None:
+                    logger.error("Task %s failed: %s", task.get_name(), exc)
+                    break
         stop_event.set()
-        await asyncio.gather(*pending, return_exceptions=True)
+        ambient.stop()
+
+        to_wait = [task for task in service_tasks if not task.done()]
+        if to_wait:
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*to_wait, return_exceptions=True),
+                    timeout=_SHUTDOWN_GRACE_SECONDS,
+                )
+            except asyncio.TimeoutError:
+                stuck = [task for task in to_wait if not task.done()]
+                logger.warning(
+                    "Forcing shutdown; %d task(s) still running: %s",
+                    len(stuck),
+                    ", ".join(task.get_name() for task in stuck),
+                )
+                for task in stuck:
+                    task.cancel()
+                await asyncio.gather(*stuck, return_exceptions=True)
 
         for task in done:
+            if task is stop_waiter:
+                continue
             exc = task.exception()
             if exc is not None:
                 raise exc
     finally:
+        stop_waiter.cancel()
+        await asyncio.gather(stop_waiter, return_exceptions=True)
         await scheduler.shutdown()
 
     logger.info("All bot tasks stopped.")

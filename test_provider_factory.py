@@ -6,6 +6,7 @@ from app.provider import (
     OpenAIProviderClient,
     create_provider,
 )
+from app.provider.cli_proxy import CLIProxyProvider
 from app.provider.xai import XAIGrpcClient
 from app.providers.killo_provider import KilloProviderClient
 
@@ -26,6 +27,10 @@ class TestProviderFactory(unittest.TestCase):
     def test_killo_factory(self):
         p = create_provider("killo", api_key="x")
         self.assertIsInstance(p, KilloProviderClient)
+
+    def test_opencode_factory(self):
+        p = create_provider("opencode")
+        self.assertIsInstance(p, CLIProxyProvider)
 
     def test_xai_factory(self):
         # Inject proto+stub to avoid grpc import requirements in this test.

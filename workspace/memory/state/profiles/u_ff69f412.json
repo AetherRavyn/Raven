@@ -1,0 +1,20 @@
+{
+  "user_id": "u_ff69f412",
+  "display_name": null,
+  "timezone": null,
+  "locale": null,
+  "preferred_language": null,
+  "communication_style": null,
+  "preferences": [],
+  "facts": [],
+  "tasks": [],
+  "projects": [],
+  "files": [],
+  "devices": [],
+  "decisions": [],
+  "tools": [],
+  "updated_at": "2026-04-20T10:28:41.799984+00:00",
+  "expires_at": null,
+  "confidence": 1.0,
+  "pinned": false
+}

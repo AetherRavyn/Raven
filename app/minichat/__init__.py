@@ -1,3 +1,3 @@
-from app.minichat.minichat import MiniEngine
+from app.minichat.minichat import System1Router
 
-__all__ = ["MiniEngine"]
+__all__ = ["System1Router"]

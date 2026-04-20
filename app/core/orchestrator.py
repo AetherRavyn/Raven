@@ -27,7 +27,7 @@ from app.core.models import IncomingRequest, SignalPayload, ToolTrace
 from app.core.runtime import AgentRuntime
 from app.core.security import get_security_guard
 from app.core.ratelimit import get_rate_limiter
-from app.minichat.minichat import MiniEngine
+from app.minichat.minichat import System1Router
 from app.settings.config import Config
 from app.tools.agencytool import AgencyDelegationTool
 from app.tools.browsertool import BrowserOperationTool
@@ -39,6 +39,7 @@ from app.tools.imagegentool import ImageGenerationTool
 from app.tools.internetinteltool import InternetIntelTool
 from app.tools.kgtool import KnowledgeGraphTool
 from app.tools.messagingtool import PlatformMessagingTool
+from app.tools.deliverfiletool import DeliverFileTool
 from app.tools.music.spotify import SpotifyOperationTool
 from app.tools.network import NetworkTool
 from app.tools.obsidian import ObsidianOperationTool
@@ -50,6 +51,8 @@ from app.tools.toolkit.google.googlecalender import GoogleCalendarTool
 from app.tools.toolkit.notes.notion import NotionTool
 from app.tools.virustool import VirusTotalTool
 from app.tools.weathertool import WeatherTool
+from app.tools.mail import MailTool
+from app.tools.workflowtool import WorkflowTool
 from app.tools.webfetch import WebFetchOperationTool
 from app.tools.websearch import WebOperationTool
 from app.tools.wolframtool import WolframAlphaTool
@@ -76,6 +79,10 @@ from app.tools.financetools import (
     URLVirusScanTool,
     CronManagerTool,
 )
+from app.tools.computeruse import ComputerUseTool
+from app.tools.mobiletool import MobileDeviceTool
+from app.tools.desktoptool import DesktopControlTool
+from app.tools.screenreadertool import ScreenReaderTool
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +94,7 @@ class MessageOrchestrator:
         self, botsignal: BotSignal, output_directory: str = "workspace"
     ) -> None:
         self._botsignal = botsignal
-        self._engine = MiniEngine()
+        self._engine = System1Router()
         self._agent_runtime = AgentRuntime(workspace_dir=output_directory)
         self._agent_runtime.botsignal = botsignal
         self._agent_runtime.emit_status_messages = False
@@ -133,8 +140,9 @@ class MessageOrchestrator:
             TodoListTool(),
             # Security
             TOTPGeneratorTool(),
-            # Messaging
+            # Messaging & User Delivery
             PlatformMessagingTool(),
+            DeliverFileTool(),
             # Social Media
             TwitterTool(),
             RedditTool(),
@@ -154,6 +162,15 @@ class MessageOrchestrator:
             URLVirusScanTool(),
             # System
             CronManagerTool(),
+            # Email
+            MailTool(),
+            # Workflow automation
+            WorkflowTool(),
+            # Device automation — control like a real user
+            ComputerUseTool(),
+            MobileDeviceTool(),
+            DesktopControlTool(),
+            ScreenReaderTool(),
         ]
 
         # Optional tools: register only if their runtime deps are satisfied
@@ -367,6 +384,12 @@ class MessageOrchestrator:
         provider: Any = (
             getattr(self, "_killo_provider", None) or self._agent_runtime.provider
         )
+        provider_name = (
+            provider.__class__.__name__.lower().replace("client", "")
+            if provider
+            else "llm_provider"
+        )
+
         if provider is None:
             await self._botsignal.send_text(
                 request.reply_target,
@@ -374,7 +397,7 @@ class MessageOrchestrator:
                 source_kind=source_kind,
                 tool_traces=[
                     ToolTrace(
-                        tool_name="killo_provider",
+                        tool_name=provider_name,
                         action="chat_completion_resilient",
                         success=False,
                         detail="Provider unavailable",
@@ -383,11 +406,22 @@ class MessageOrchestrator:
             )
             return True
 
-        messages = [{"role": "user", "content": request.text}]
+        from app.core.session import SessionManager
+        session_manager = SessionManager(str(self._agent_runtime.workspace_dir))
+        session_id = request.conversation_id or f"{request.platform}_{request.user_id}"
+
+        # Load session history
+        history = session_manager.load_session(session_id)
+        user_msg = {"role": "user", "content": request.text}
+        messages = history + [user_msg]
+        session_manager.append_message(session_id, user_msg)
+        session_manager.prune_session(session_id)
+
         try:
-            resilient = cast(Any, getattr(provider, "chat_completion_resilient", None))
-            if callable(resilient):
-                result = await resilient(
+            resilient_func = getattr(provider, "chat_completion_resilient", None)
+            if callable(resilient_func):
+                _func: Any = resilient_func
+                result = await _func(
                     messages=messages,
                     preferred_models=[self._agent_runtime.model_name],
                     free_only_guard=True,
@@ -400,15 +434,38 @@ class MessageOrchestrator:
         except Exception as exc:
             result = {"success": False, "error": str(exc)}
 
+        if not result.get("success"):
+            # Resilient fallback across all configured providers
+            from app.core.model_router import AutoModelRouter
+            from app.provider.factory import create_provider
+            
+            fallbacks = AutoModelRouter.get_available_models("agent")
+            for f_prov_name, f_model_name in fallbacks:
+                try:
+                    f_prov = create_provider(f_prov_name)
+                    f_res = await f_prov.chat_completion(model=f_model_name, messages=messages)
+                    if f_res.get("success"):
+                        result = f_res
+                        provider_name = f_prov_name
+                        break
+                except Exception:
+                    continue
+
         if result.get("success"):
             content = result.get("content") or result.get("output") or mini_response
+            
+            # Save assistant reply to memory/session
+            if content:
+                session_manager.append_message(session_id, {"role": "assistant", "content": content})
+                session_manager.prune_session(session_id)
+
             await self._botsignal.send_text(
                 request.reply_target,
                 content,
                 source_kind=source_kind,
                 tool_traces=[
                     ToolTrace(
-                        tool_name="killo_provider",
+                        tool_name=provider_name,
                         action="chat_completion_resilient",
                         success=True,
                         detail=str(result.get("model_used") or "") or None,
@@ -423,7 +480,7 @@ class MessageOrchestrator:
             source_kind=source_kind,
             tool_traces=[
                 ToolTrace(
-                    tool_name="killo_provider",
+                    tool_name=provider_name,
                     action="chat_completion_resilient",
                     success=False,
                     detail=str(result.get("error") or "Unknown error"),
@@ -1008,6 +1065,16 @@ class MessageOrchestrator:
         System 1 (MiniEngine) attempts to resolve the query instantly (e.g. time, basic OS status, greetings).
         If it requires deep reasoning or tools, it escalates to System 2 (AgentRuntime ReAct Loop).
         """
+        # ── Unified Identity Resolution ────────────────────────────────
+        # Map platform-specific user ID to canonical SARAS user for cross-platform continuity
+        try:
+            from app.core.user_identity import get_identity_store
+            identity_store = get_identity_store()
+            canonical_id = identity_store.resolve(request.platform, request.user_id)
+            request.user_id = canonical_id
+        except Exception:
+            pass  # Fall back to raw platform user_id if identity store unavailable
+
         source_kind = "command" if request.text.lstrip().startswith("/") else "prompt"
 
         # Prometheus: count all incoming requests
@@ -1064,7 +1131,7 @@ class MessageOrchestrator:
             return
 
         # System 1: Fast Reflex Check
-        mini_response, escalate_to_prompt = self._engine.route_message(
+        mini_response, escalate_to_prompt = await self._engine.route_message(
             request.user_id, request.text
         )
 
@@ -1077,5 +1144,5 @@ class MessageOrchestrator:
             )
             return
 
-        # System 2: Deep provider-backed response with fallback.
-        await self._handle_escalated_prompt(request, source_kind, mini_response)
+        # System 2: Deep provider-backed response with fallback (AgentRuntime with full tool access).
+        await self._agent_runtime.execute_turn(request)

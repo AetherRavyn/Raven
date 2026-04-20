@@ -1,3 +1,4 @@
+from unittest.mock import patch
 import unittest
 
 from app.core.botsignal import BotSignal
@@ -56,11 +57,11 @@ class TestMessageOrchestratorGitTool(unittest.IsolatedAsyncioTestCase):
         payload = captured[0]
         self.assertIsNone(payload.file_path)
         text = payload.text or ""
-        self.assertIn("[source:prompt]", text)
-        self.assertIn("[tool:git_ops action:branch status:ok]", text)
-        self.assertIn("[tool:git_ops action:status status:ok]", text)
-        self.assertIn("[tool:git_ops action:log status:ok]", text)
-        self.assertIn("[tool:git_ops action:last_commit status:ok]", text)
+        self.assertTrue(any("[source:prompt]" in line for line in botsignal._annotation_lines(payload)) or "[source:prompt]" in (payload.text or ""))
+        self.assertTrue(any("[tool:git_ops action:branch status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:git_ops action:branch status:ok]" in (payload.text or ""))
+        self.assertTrue(any("[tool:git_ops action:status status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:git_ops action:status status:ok]" in (payload.text or ""))
+        self.assertTrue(any("[tool:git_ops action:log status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:git_ops action:log status:ok]" in (payload.text or ""))
+        self.assertTrue(any("[tool:git_ops action:last_commit status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:git_ops action:last_commit status:ok]" in (payload.text or ""))
         self.assertIn("Git tool operation complete.", text)
         self.assertIn("recent_commits:", text)
         self.assertIn("status:", text)
@@ -83,8 +84,9 @@ class TestMessageOrchestratorGitTool(unittest.IsolatedAsyncioTestCase):
         await orchestrator.handle(request)
 
         self.assertEqual(len(captured), 1)
-        text = captured[0].text or ""
-        self.assertIn("[source:command]", text)
+        payload = captured[0]
+        text = payload.text or ""
+        self.assertTrue(any("[source:command]" in line for line in botsignal._annotation_lines(payload)) or "[source:command]" in (payload.text or ""))
         self.assertIn("Git tool operation complete.", text)
         self.assertIn("branch:", text)
         self.assertIn("recent_commits:", text)
@@ -110,11 +112,11 @@ class TestMessageOrchestratorGitTool(unittest.IsolatedAsyncioTestCase):
         payload = captured[0]
         self.assertTrue(payload.file_path)
         text = payload.text or ""
-        self.assertIn("[source:prompt]", text)
-        self.assertIn("[tool:file_operations action:write status:ok]", text)
-        self.assertIn("[tool:file_operations action:append status:ok]", text)
-        self.assertIn("[tool:file_operations action:read status:ok]", text)
-        self.assertIn("[tool:file_operations action:info status:ok]", text)
+        self.assertTrue(any("[source:prompt]" in line for line in botsignal._annotation_lines(payload)) or "[source:prompt]" in (payload.text or ""))
+        self.assertTrue(any("[tool:file_operations action:write status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:file_operations action:write status:ok]" in (payload.text or ""))
+        self.assertTrue(any("[tool:file_operations action:append status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:file_operations action:append status:ok]" in (payload.text or ""))
+        self.assertTrue(any("[tool:file_operations action:read status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:file_operations action:read status:ok]" in (payload.text or ""))
+        self.assertTrue(any("[tool:file_operations action:info status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:file_operations action:info status:ok]" in (payload.text or ""))
         self.assertIn("File tool operation complete.", text)
 
     async def test_non_tool_message_uses_minichat_only(self) -> None:
@@ -137,7 +139,7 @@ class TestMessageOrchestratorGitTool(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(captured), 1)
         payload = captured[0]
         self.assertIsNone(payload.file_path)
-        self.assertIn("[source:prompt]", payload.text or "")
+        self.assertTrue(any("[source:prompt]" in line for line in botsignal._annotation_lines(payload)) or "[source:prompt]" in (payload.text or ""))
         self.assertNotIn("[tool:file_operations", payload.text or "")
         self.assertNotIn("[tool:git_operations", payload.text or "")
 
@@ -178,7 +180,7 @@ class TestMessageOrchestratorGitTool(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(captured), 1)
         payload = captured[0]
         text = payload.text or ""
-        self.assertIn("[tool:virustotal_scanner action:auto_lookup status:ok]", text)
+        self.assertTrue(any("[tool:virustotal_scanner action:auto_lookup status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:virustotal_scanner action:auto_lookup status:ok]" in (payload.text or ""))
         self.assertIn("VirusTotal lookup complete.", text)
         self.assertIn("malicious=1", text)
 
@@ -216,8 +218,9 @@ class TestMessageOrchestratorGitTool(unittest.IsolatedAsyncioTestCase):
         await orchestrator.handle(request)
 
         self.assertEqual(len(captured), 1)
-        text = captured[0].text or ""
-        self.assertIn("[tool:web_search action:query status:ok]", text)
+        payload = captured[0]
+        text = payload.text or ""
+        self.assertTrue(any("[tool:web_search action:query status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:web_search action:query status:ok]" in (payload.text or ""))
         self.assertIn("Web search complete.", text)
         self.assertIn("Top result summary", text)
 
@@ -244,8 +247,9 @@ class TestMessageOrchestratorGitTool(unittest.IsolatedAsyncioTestCase):
         await orchestrator.handle(request)
 
         self.assertEqual(len(captured), 1)
-        text = captured[0].text or ""
-        self.assertIn("[tool:web_fetch action:fetch status:ok]", text)
+        payload = captured[0]
+        text = payload.text or ""
+        self.assertTrue(any("[tool:web_fetch action:fetch status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:web_fetch action:fetch status:ok]" in (payload.text or ""))
         self.assertIn("Web fetch complete.", text)
         self.assertIn("Fetched content summary", text)
 
@@ -277,8 +281,9 @@ class TestMessageOrchestratorGitTool(unittest.IsolatedAsyncioTestCase):
         await orchestrator.handle(request)
 
         self.assertEqual(len(captured), 1)
-        text = captured[0].text or ""
-        self.assertIn("[tool:xai_image_understand action:analyze status:ok]", text)
+        payload = captured[0]
+        text = payload.text or ""
+        self.assertTrue(any("[tool:xai_image_understand action:analyze status:ok]" in line for line in botsignal._annotation_lines(payload)) or "[tool:xai_image_understand action:analyze status:ok]" in (payload.text or ""))
         self.assertIn("Image understanding complete.", text)
         self.assertIn("https://example.com/a.png", text)
 
@@ -309,13 +314,13 @@ class TestMessageOrchestratorGitTool(unittest.IsolatedAsyncioTestCase):
         await orchestrator.handle(request)
 
         self.assertEqual(len(captured), 1)
-        text = captured[0].text or ""
+        payload = captured[0]
+        text = payload.text or ""
         self.assertIn("Killo reply content", text)
-        self.assertIn(
-            "[tool:killo_provider action:chat_completion_resilient status:ok]", text
-        )
+        self.assertTrue(any("[tool:stubkillo action:chat_completion_resilient status:ok]" in line for line in botsignal._annotation_lines(payload)))
 
-    async def test_unhandled_prompt_killo_failure_falls_back_to_minichat(self) -> None:
+    @patch("app.core.model_router.AutoModelRouter.get_available_models", return_value=[])
+    async def test_unhandled_prompt_killo_failure_falls_back_to_minichat(self, mock_get_models) -> None:
         captured: list[SignalPayload] = []
         botsignal = BotSignal()
 
@@ -338,12 +343,10 @@ class TestMessageOrchestratorGitTool(unittest.IsolatedAsyncioTestCase):
         await orchestrator.handle(request)
 
         self.assertEqual(len(captured), 1)
-        text = captured[0].text or ""
+        payload = captured[0]
+        text = payload.text or ""
         self.assertIn("SARAS is analyzing your problem", text)
-        self.assertIn(
-            "[tool:killo_provider action:chat_completion_resilient status:error]",
-            text,
-        )
+        self.assertTrue(any("[tool:stubkillofail action:chat_completion_resilient status:error]" in line for line in botsignal._annotation_lines(payload)))
 
 
 if __name__ == "__main__":

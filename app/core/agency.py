@@ -20,7 +20,7 @@ class WorkerAgent:
         name: str,
         role_prompt: str,
         tools: List[BaseTool],
-        workspace_dir: str = "workspace",
+        workspace_dir: str | None = None,
         provider_name: str = "killo",
         model_name: str = "qwen/qwen3-coder:free",
         system_prompt: Optional[str] = None,
@@ -89,9 +89,7 @@ class WorkerAgent:
                 if not res.get("success"):
                     return f"[Worker {self.name} Error]: {res.get('error')}"
 
-                raw_msg = res.get("raw", {}).get("choices", [{}])[0].get("message", {})
-                content = raw_msg.get("content") or ""
-                tool_calls = raw_msg.get("tool_calls")
+                content, tool_calls = self.runtime._extract_provider_message(res)
 
                 asst_msg = {"role": "assistant", "content": content}
                 if tool_calls:
@@ -142,8 +140,10 @@ class SwarmManager:
     Breaks down Case Studies and delegates to specialized BaseAgents via asyncio.gather.
     """
 
-    def __init__(self, workspace_dir: str = "workspace"):
-        self.workspace_dir = workspace_dir
+    def __init__(self, workspace_dir: str | None = None):
+        from app.settings.config import Config
+
+        self.workspace_dir = workspace_dir if workspace_dir else Config.MEMORY_ROOT
         self.botsignal = get_botsignal()
         self.available_agents: Dict[str, BaseAgent] = {}
 
@@ -186,13 +186,23 @@ class SwarmManager:
                 enhanced = agent_def.get_enhanced_prompt()
 
                 # Wrap the BaseAgent in a WorkerAgent for execution
+                worker_provider = t.get("provider_name") or agent_def.provider_name
+                worker_model = t.get("model") or agent_def.model_name
+
+                from app.core.model_router import AutoModelRouter
+
+                if worker_provider == "killo":
+                    worker_provider, worker_model = AutoModelRouter.get_best_model(
+                        agent_name
+                    )
+
                 worker = WorkerAgent(
                     name=agent_def.name,
                     role_prompt=agent_def.role_prompt,
                     tools=agent_def.tools,
                     workspace_dir=self.workspace_dir,
-                    provider_name=agent_def.provider_name,
-                    model_name=agent_def.model_name,
+                    provider_name=worker_provider,
+                    model_name=worker_model,
                     system_prompt=enhanced,
                 )
                 workers.append(worker)
@@ -230,13 +240,23 @@ class SwarmManager:
             )
             reviewer_def = self.available_agents["ReviewerQA"]
             reviewer_enhanced = reviewer_def.get_enhanced_prompt()
+
+            from app.core.model_router import AutoModelRouter
+
+            rev_provider = reviewer_def.provider_name
+            rev_model = reviewer_def.model_name
+            if rev_provider == "killo":
+                rev_provider, rev_model = AutoModelRouter.get_best_model(
+                    reviewer_def.name
+                )
+
             reviewer_worker = WorkerAgent(
                 name=reviewer_def.name,
                 role_prompt=reviewer_def.role_prompt,
                 tools=reviewer_def.tools,
                 workspace_dir=self.workspace_dir,
-                provider_name=reviewer_def.provider_name,
-                model_name=reviewer_def.model_name,
+                provider_name=rev_provider,
+                model_name=rev_model,
                 system_prompt=reviewer_enhanced,
             )
             final_qa_report = await reviewer_worker.execute_task(

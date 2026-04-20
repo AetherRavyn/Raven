@@ -15,8 +15,10 @@ class MemoryTool(BaseTool):
     learned rules, or topology data into the workspace memory files.
     """
 
-    def __init__(self, workspace_dir: str = "workspace"):
-        self.workspace_dir = Path(workspace_dir)
+    def __init__(self, workspace_dir: str | None = None) -> None:
+        from app.settings.config import Config
+        from app.settings.config import Config
+        self.workspace_dir = Path(workspace_dir) if workspace_dir else Path(Config.MEMORY_ROOT)
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
 
     def get_name(self) -> str:

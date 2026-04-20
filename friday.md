@@ -219,6 +219,74 @@ Use the cheapest reliable compute path for each job.
 6. Monitoring hardening and event standardization.
 7. Evaluation, dashboards, and optimization.
 
+## Next Roadmap
+
+### Phase 6: Personal Workspace Graph
+- Add a graph model for people, projects, tasks, files, decisions, devices, and relations.
+- Sync graph nodes from memory, tools, scheduler, and assistants.
+- Make graph queries available to prompts as concise evidence.
+- Add a graph browser in the dashboard.
+
+### Phase 7: Evidence-Backed Answers
+- Attach source lineage to major answers: memory, file, tool, web, or graph.
+- Add citations and confidence hints to final replies.
+- Require source-backed summaries for important tasks and facts.
+- Expose evidence trails in the dashboard and eval output.
+
+### Phase 8: Task Inbox And Long-Horizon State
+- Add a unified action inbox for pending approvals, reminders, suggestions, and unresolved tasks.
+- Track goals, subtasks, dependencies, deadlines, and follow-up state.
+- Keep tasks alive across platforms until resolved.
+- Auto-promote unfinished items into reminders or follow-ups.
+
+### Phase 9: Workflow Building
+- Add user-defined macros and automations.
+- Support rules like "when X happens, do Y" with dry-run previews.
+- Let workflows trigger from events, schedules, and monitoring alerts.
+- Store workflow versions and execution history.
+
+### Phase 10: Memory Governance
+- Add freshness scoring, expiry, and conflict resolution for memories.
+- Let users edit, delete, and pin learned preferences.
+- Separate facts, preferences, rules, and noisy transient context.
+- Add memory audit views in the dashboard.
+
+### Phase 11: Feedback Learning
+- Add thumbs up/down and correction capture.
+- Store "never do this again" preferences and safety exclusions.
+- Feed feedback into profile memory and routing policy.
+- Track feedback-driven regression improvements over time.
+
+### Phase 12: Broader Integrations
+- Expand email, calendar, docs, notes, contacts, browser history, and file sync.
+- Normalize external data into the graph and task inbox.
+- Keep all integrations optional and lazy-loaded.
+- Prefer event-driven sync over polling.
+
+### Phase 13: Offline And Degraded Modes
+- Add local fallback for core chat, memory lookup, and simple actions.
+- Keep voice and chat usable when network or provider access is limited.
+- Make monitoring emit compact local summaries even when disconnected.
+- Record degraded-mode events for later sync.
+
+### Phase 14: Benchmarking And Drift Control
+- Schedule regression runs for prompts, connectors, tools, and policies.
+- Track model usage, latency, memory growth, and hallucination regressions.
+- Gate changes on benchmark stability.
+- Show trend lines in the dashboard.
+
+### Phase 15: OpenClaw Parity And Presence Layer
+- Add a versioned skill/plugin registry with manifests, health checks, and trust tiers.
+- Normalize channel behavior, confirmations, and identity across chat, voice, and web.
+- Add a central operator UI for tasks, memory, forecasts, conversations, and module state.
+- Add interactive assistant surfaces: cards, canvases, and long-running task views.
+- Split the assistant into a central brain plus lightweight edge companions for always-on presence.
+- Treat onboarding and companion presence as product features, not just backend capabilities.
+
+### UX Remediation Plan
+- See `plan/05-ux-gap-remediation-plan.md` for the user-facing implementation order.
+- Use it as the design source for command center, onboarding, presence, safety, and audit UX.
+
 ## Bottom Line
 SARAS already has strong breadth. The next step is not adding random features, but tightening the architecture so every action is cheaper, safer, and more intentional.
 

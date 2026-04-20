@@ -22,7 +22,9 @@ from typing import Literal
 
 logger = logging.getLogger(__name__)
 
-_CHROMA_PATH = Path("workspace/chroma_db")
+from app.settings.config import Config
+
+_CHROMA_PATH = Path(Config.VECTOR_DB_PATH)
 _EMBEDDING_MODEL = "all-MiniLM-L6-v2"  # 80 MB, fast, good quality
 
 MemoryCategory = Literal["FACT", "RULE", "TOOL_GUIDE"]
@@ -34,14 +36,19 @@ class MemoryStore:
     """ChromaDB-backed persistent semantic memory."""
 
     def __init__(self, db_path: str = str(_CHROMA_PATH)) -> None:
+        import warnings
         import chromadb
         from chromadb.utils import embedding_functions
 
         Path(db_path).mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(path=db_path)
-        self._ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=_EMBEDDING_MODEL
-        )
+        # Suppress harmless 'position_ids UNEXPECTED' warning from newer transformers
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*position_ids.*")
+            warnings.filterwarnings("ignore", message=".*UNEXPECTED.*")
+            self._ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name=_EMBEDDING_MODEL
+            )
         self._facts = self._client.get_or_create_collection(
             "saras_facts", embedding_function=self._ef
         )
@@ -119,9 +126,14 @@ class PgvectorMemoryStore:
     """
 
     def __init__(self) -> None:
+        import warnings
         from sentence_transformers import SentenceTransformer  # type: ignore
 
-        self._model = SentenceTransformer("all-MiniLM-L6-v2")
+        # Suppress harmless 'position_ids UNEXPECTED' warning from newer transformers
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*position_ids.*")
+            warnings.filterwarnings("ignore", message=".*UNEXPECTED.*")
+            self._model = SentenceTransformer("all-MiniLM-L6-v2")
         logger.info("PgvectorMemoryStore initialised (dim=384)")
 
     def _embed(self, text: str) -> list[float]:

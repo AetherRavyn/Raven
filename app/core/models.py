@@ -39,3 +39,4 @@ class SignalPayload:
     video_path: str | None = None
     source_kind: str | None = None
     tool_traces: list[ToolTrace] | None = None
+    evidence: list[str] | None = None

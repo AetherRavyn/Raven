@@ -31,6 +31,8 @@ class ToolCapability:
 
 
 class BaseTool(ABC):
+    group: str = "ungrouped"
+
     @abstractmethod
     def get_name(self) -> str:
         raise NotImplementedError

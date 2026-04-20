@@ -1,0 +1,32 @@
+{
+  "user_id": "u1",
+  "display_name": "Alex",
+  "timezone": null,
+  "locale": null,
+  "preferred_language": null,
+  "communication_style": null,
+  "preferences": [
+    "My name is Alex. I prefer concise answers. I work on SARAS. I use laptop-01. I decided to keep the graph local.",
+    "My name is Alex. I like Telegram. I use notes.md."
+  ],
+  "facts": [
+    "My name is Alex. I prefer concise answers. I work on SARAS. I use laptop-01. I decided to keep the graph local.",
+    "My name is Alex. I like Telegram. I use notes.md."
+  ],
+  "tasks": [],
+  "projects": [],
+  "files": [
+    "notes.md"
+  ],
+  "devices": [
+    "My name is Alex. I prefer concise answers. I work on SARAS. I use laptop-01. I decided to keep the graph local."
+  ],
+  "decisions": [
+    "My name is Alex. I prefer concise answers. I work on SARAS. I use laptop-01. I decided to keep the graph local."
+  ],
+  "tools": [],
+  "updated_at": "2026-04-19T12:15:36.194691+00:00",
+  "expires_at": null,
+  "confidence": 1.0,
+  "pinned": false
+}

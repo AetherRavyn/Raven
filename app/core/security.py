@@ -1,5 +1,7 @@
 import logging
 import re
+import os
+import json
 from typing import List, Tuple
 
 from app.settings.config import Config
@@ -75,6 +77,92 @@ class SecurityGuard:
                     "Catastrophically dangerous shell command detected and blocked.",
                 )
         return True, "Safe"
+
+    def requires_approval(self, tool_name: str, args: dict) -> Tuple[bool, str, str]:
+        """
+        Check if a tool execution requires explicit operator approval based on config.
+        Returns: (needs_approval, risk_level, reason)
+        """
+        config_path = os.path.expanduser("~/.saras/user_config.json")
+        approval_level = "Balanced"
+
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r") as f:
+                    cfg = json.load(f)
+                    approval_level = cfg.get("approval_level", approval_level)
+            except Exception:
+                pass
+
+        high_risk_tools = {
+            "system_execute",
+            "git_ops",
+            "file_operations",
+            "agency_delegation",
+            "virustotal_scanner",
+            "sql_query",
+            "bash_execute",
+        }
+        medium_risk_tools = {
+            "messaging",
+            "spotify_ops",
+            "twitter_ops",
+            "gmail_ops",
+            "calendar_ops",
+        }
+
+        if approval_level.startswith("Autonomous"):
+            # Only ask for strictly destructive actions even in autonomous
+            if tool_name in ("system_execute", "bash_execute") and args.get(
+                "command", ""
+            ).startswith("rm "):
+                return (
+                    True,
+                    "High",
+                    "Destructive system command requires override even in autonomous mode.",
+                )
+            return False, "Low", "Autonomous mode enabled"
+
+        if approval_level.startswith("Strict"):
+            return (
+                True,
+                "High",
+                "Strict approval policy requires manual authorization for all tools.",
+            )
+
+        # Balanced Mode (Default)
+        if tool_name in high_risk_tools:
+            # Exempt safe reads within high-risk tools
+            if tool_name == "file_operations" and args.get("operation") in (
+                "read",
+                "info",
+                "list",
+            ):
+                return False, "Low", "Safe read operation"
+            if tool_name == "git_ops" and args.get("operation") in (
+                "status",
+                "log",
+                "diff",
+                "branch",
+            ):
+                return False, "Low", "Safe read operation"
+            if (
+                tool_name == "sql_query"
+                and "select" in args.get("query", "").lower()
+                and "drop" not in args.get("query", "").lower()
+            ):
+                return False, "Low", "Safe SELECT query"
+
+            return (
+                True,
+                "High",
+                f"{tool_name} is considered high risk in Balanced mode.",
+            )
+
+        if tool_name in medium_risk_tools:
+            return True, "Medium", f"{tool_name} has external side effects."
+
+        return False, "Low", "Safe operation"
 
 
 _GLOBAL_SECURITY_GUARD = SecurityGuard()

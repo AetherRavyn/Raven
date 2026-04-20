@@ -10,13 +10,10 @@ from collections import defaultdict, deque
 from datetime import datetime
 from pathlib import Path
 
-try:
-    from textblob import TextBlob
-except ImportError:
-    TextBlob = None
+from app.provider.factory import create_provider
+from app.settings.config import Config
 
-
-class MiniEngine:
+class System1Router:
     def __init__(self, cache_ttl_seconds: int = 45):
         self.user_memory = defaultdict(dict)
         self.user_message_times = defaultdict(lambda: deque(maxlen=10))
@@ -52,8 +49,27 @@ class MiniEngine:
                 "response": ["I'm your AI assistant 🤖"],
             },
         ]
+        self._provider = None
+        self._provider_health_checked = False
+        self._provider_is_healthy = False
 
-    def route_message(self, user_id, text):
+    async def _get_provider(self):
+        if not self._provider_health_checked:
+            try:
+                # Use the factory to create the Ollama provider
+                self._provider = create_provider("ollama", model=Config.LOCAL_LIGHT_MODEL)
+                # Check health
+                if hasattr(self._provider, "health"):
+                    self._provider_is_healthy = await self._provider.health()
+                else:
+                    self._provider_is_healthy = True
+            except Exception:
+                self._provider = None
+                self._provider_is_healthy = False
+            self._provider_health_checked = True
+        return self._provider if self._provider_is_healthy else None
+
+    async def route_message(self, user_id, text) -> tuple[str, bool]:
         """Routes the incoming message and returns a response."""
         original_text = text
         text_clean = text.lower().strip()
@@ -75,9 +91,8 @@ class MiniEngine:
             self._cache_set(text_clean, builtin_response, False)
             return builtin_response, False
 
-        # Match intent
+        # Try fast intent regex
         intent = self._match_intent(text_clean)
-
         if intent:
             if intent.get("dynamic"):
                 response = self._get_dynamic_response(intent["name"])
@@ -94,13 +109,35 @@ class MiniEngine:
             self._cache_set(text_clean, response, False)
             return response, False
 
-        # Tiny AI analysis using TextBlob when available.
-        if TextBlob is not None:
-            blob = TextBlob(original_text)
-            noun_phrases = blob.noun_phrases
-            if noun_phrases:
-                topics = ", ".join(noun_phrases)
-                return f"SARAS is analyzing your problem: {topics}", True
+        # Semantic routing using Local Light Model
+        provider = await self._get_provider()
+        if provider:
+            system_prompt = (
+                "You are a System 1 router. Determine if the user's query is simple and conversational "
+                "(like a greeting, small talk, or simple question) or if it requires deep reasoning, tools, or search. "
+                "If it's simple, answer it briefly. If it requires System 2 (deep reasoning), reply EXACTLY with 'ESCALATE'."
+            )
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": original_text}
+            ]
+            try:
+                resp = await provider.chat_completion(messages=messages)
+                if resp.get("success"):
+                    # Depending on provider, the content might be in different places
+                    # Handle raw OpenAI-style response from OllamaProvider
+                    raw = resp.get("raw", {})
+                    choices = raw.get("choices", [])
+                    if choices:
+                        content = choices[0].get("message", {}).get("content", "").strip()
+                    else:
+                        content = resp.get("content", "").strip()
+
+                    if content and "ESCALATE" not in content:
+                        self._cache_set(text_clean, content, False)
+                        return content, False
+            except Exception:
+                pass
 
         return f"SARAS is analyzing your problem: {original_text}", True
 

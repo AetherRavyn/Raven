@@ -14,6 +14,8 @@ load_dotenv()
 
 
 class Config:
+    LLM_PROVIDER = (os.getenv("LLM_PROVIDER", "auto") or "auto").strip()
+    LLM_MODEL = (os.getenv("LLM_MODEL", "") or "").strip()
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
     DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID", "1213902756633518181"))
@@ -24,9 +26,18 @@ class Config:
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or GEMINI_API_KEY
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+    NVIDIA_NIM_API_KEY = os.getenv("NVIDIA_NIM_API_KEY")
+    HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+    BYTEZ_API_KEY = os.getenv("BYTEZ_API_KEY")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
     KILLO_API_KEY = os.getenv("KILLO_API_KEY") or os.getenv("KILO_API_KEY")
     KILLO_BASE_URL = os.getenv("KILLO_BASE_URL", "https://api.kilo.ai/api/gateway")
+    OPENCODE_MODEL = os.getenv("OPENCODE_MODEL", "opencode/minimax-m2.5-free")
+    QWEN_CLI_MODEL = os.getenv("QWEN_CLI_MODEL", "qwen3-235b-a22b")
+    GEMINI_CLI_MODEL = os.getenv("GEMINI_CLI_MODEL", "")
+    KILOCODE_MODEL = os.getenv("KILOCODE_MODEL", "qwen/qwen3-coder:free")
+    CLI_PROXY_TIMEOUT = int(os.getenv("CLI_PROXY_TIMEOUT", "120"))
     XAI_API_KEY = os.getenv("XAI_API_KEY")
     XAI_GRPC_HOST = os.getenv("XAI_GRPC_HOST", "api.x.ai:443")
     XAI_VISION_MODEL = os.getenv("XAI_VISION_MODEL", "grok-2-vision-latest")
@@ -63,6 +74,9 @@ class Config:
     # Ollama (local LLM fallback)
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral")
+    LM_STUDIO_BASE_URL = os.getenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    LOCALAI_BASE_URL = os.getenv("LOCALAI_BASE_URL", "http://localhost:8080/v1")
+    VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1")
     # Home Assistant
     HOME_ASSISTANT_URL = os.getenv(
         "HOME_ASSISTANT_URL", "http://homeassistant.local:8123"
@@ -92,13 +106,39 @@ class Config:
     VOICE_WAKE_WORD_THRESHOLD: float = float(
         os.getenv("VOICE_WAKE_WORD_THRESHOLD", "0.5")
     )
+    VOICE_MIC_DEVICE: int | None = (
+        int(os.environ.get("VOICE_MIC_DEVICE", "0"))
+        if os.environ.get("VOICE_MIC_DEVICE")
+        else None
+    )
     VOICE_REPLY_WITH_AUDIO: bool = os.getenv(
         "VOICE_REPLY_WITH_AUDIO", "false"
     ).lower() in {"1", "true", "yes"}
+    # Per-user TTS voice customization: "user_id:voice_name,user_id2:voice_name2"
+    VOICE_TTS_VOICES: str = os.getenv("VOICE_TTS_VOICES", "")
     # Infrastructure
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
     DATABASE_URL = os.getenv("DATABASE_URL", "")
-    MEMORY_BACKEND = os.getenv("MEMORY_BACKEND", "chroma")  # "chroma" | "pgvector"
+    # ---------------------------------------------------------
+    # MEMORY & KNOWLEDGE STORE (Unified Vector/Graph System)
+    # ---------------------------------------------------------
+    MEMORY_ROOT: str = os.getenv("MEMORY_ROOT", "workspace/memory")
+    VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", f"{MEMORY_ROOT}/vector")
+    GRAPH_DB_PATH: str = os.getenv("GRAPH_DB_PATH", f"{MEMORY_ROOT}/graph/saras.sqlite")
+    STATE_DB_PATH: str = os.getenv(
+        "STATE_DB_PATH", f"{MEMORY_ROOT}/state/ledger.sqlite"
+    )
+
+    # ---------------------------------------------------------
+    # HYBRID ROUTING (System 1 vs System 2)
+    # ---------------------------------------------------------
+    LOCAL_LIGHT_MODEL: str = os.getenv(
+        "LOCAL_LIGHT_MODEL", "gemma:7b"
+    )  # Fast reflexes (System 1)
+    CLOUD_HEAVY_MODEL: str = os.getenv(
+        "CLOUD_HEAVY_MODEL", "gpt-4o"
+    )  # Deep reasoning (System 2)
+
     TOOL_USER_PERMISSIONS = os.getenv("TOOL_USER_PERMISSIONS", "")
     TOOL_AGENT_PERMISSIONS = os.getenv("TOOL_AGENT_PERMISSIONS", "")
     # MQTT
@@ -114,10 +154,15 @@ class Config:
     ).lower() in {"1", "true", "yes"}
     WEB_DASHBOARD_PORT: int = int(os.getenv("WEB_DASHBOARD_PORT", "8090"))
     WEB_DASHBOARD_HOST: str = os.getenv("WEB_DASHBOARD_HOST", "0.0.0.0")
-    # Streamlit admin dashboard
+    # Streamlit dashboard
     STREAMLIT_DASHBOARD_ENABLED: bool = os.getenv(
         "STREAMLIT_DASHBOARD_ENABLED", "false"
     ).lower() in {"1", "true", "yes"}
     STREAMLIT_DASHBOARD_PORT: int = int(os.getenv("STREAMLIT_DASHBOARD_PORT", "8501"))
     STREAMLIT_DASHBOARD_HOST: str = os.getenv("STREAMLIT_DASHBOARD_HOST", "0.0.0.0")
+    # Safety & Sandboxing
+    ALLOW_HOST_SHELL_EXECUTION: bool = os.getenv(
+        "ALLOW_HOST_SHELL_EXECUTION", "false"
+    ).lower() in {"1", "true", "yes"}
+
     # Ollama / local LLM (Phase 6.3 — already present above; kept here for completeness)

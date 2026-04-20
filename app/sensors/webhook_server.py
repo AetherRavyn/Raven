@@ -40,4 +40,12 @@ async def run_webhook_server(host: str = "127.0.0.1", port: int = 8765) -> None:
     """Run the webhook server until cancelled."""
     config = uvicorn.Config(app, host=host, port=port, log_level="warning")
     server = uvicorn.Server(config)
-    await server.serve()
+    try:
+        await server.serve()
+    except asyncio.CancelledError:
+        server.should_exit = True
+        try:
+            await server.shutdown()
+        except Exception:
+            pass
+        logger.info("Webhook server cancelled during shutdown")

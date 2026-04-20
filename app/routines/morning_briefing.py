@@ -3,51 +3,170 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 
+from app.core.model_router import AutoModelRouter
 from app.core.proactive import ProactiveDigest, send_proactive_digest
+from app.settings.config import Config
+from app.core.task_ledger import TaskLedger
+from app.provider.factory import create_provider
 
 logger = logging.getLogger(__name__)
 
 
 async def compose_morning_briefing(user_id: str) -> str:
-    """Compose a morning briefing string. Each section is best-effort."""
-    sections = []
+    """Compose a JARVIS-style morning briefing using real context and an LLM."""
     now = datetime.now(timezone.utc)
-    sections.append(f"Good morning! It's {now.strftime('%A, %B %d')}.")
+    date_str = now.strftime("%A, %B %d")
 
-    # Weather (requires OPENWEATHERMAP_API_KEY to be set)
+    memory_root = Path(Config.MEMORY_ROOT)
+
+    # 1. Fetch real context
+    # Active edge nodes
+    devices_path = memory_root / "state" / "devices.json"
+    edge_nodes = []
+    if devices_path.exists():
+        try:
+            with open(devices_path, "r", encoding="utf-8") as f:
+                devices_data = json.load(f)
+                edge_nodes = [d for d in devices_data if d.get("status") == "active"]
+        except Exception as exc:
+            logger.debug("Failed to read devices.json: %s", exc)
+
+    # Task Ledger
+    open_tasks_count = 0
+    pending_approvals = []
+    forecasts = []
+    anomalies = []
+
+    try:
+        ledger = TaskLedger()
+        open_tasks = ledger.list_tasks(status="open")
+
+        for t in open_tasks:
+            t_type = t.get("task_type", "")
+            if t_type == "approval":
+                pending_approvals.append(t.get("title", "Unknown Approval"))
+            elif t_type == "forecast":
+                forecasts.append(t.get("title", "Unknown Forecast"))
+            elif t_type == "anomaly_response":
+                anomalies.append(t.get("title", "Unknown Anomaly"))
+            elif t_type in ("task", "runtime"):
+                open_tasks_count += 1
+    except Exception as exc:
+        logger.debug("Failed to read TaskLedger: %s", exc)
+
+    # Evidence (Internet signals)
+    evidence_path = memory_root / "evidence.jsonl"
+    signals = []
+    if evidence_path.exists():
+        try:
+            with open(evidence_path, "r", encoding="utf-8") as f:
+                lines = [line for line in f if line.strip()]
+                for line in lines[-3:]:
+                    try:
+                        signals.append(json.loads(line))
+                    except Exception:
+                        pass
+        except Exception as exc:
+            logger.debug("Failed to read evidence.jsonl: %s", exc)
+
+    # Weather
+    weather_info = "Weather unavailable."
     try:
         from app.tools.weathertool import WeatherTool
 
         wt = WeatherTool()
         result = await wt.execute(operation="current", location="auto")
         if result.get("success"):
-            sections.append(f"Weather: {result['summary']}")
+            weather_info = result["summary"]
     except Exception as exc:
         logger.debug("Morning briefing: weather unavailable: %s", exc)
 
-    # News — best-effort via HackerNews tool if available
+    # 2. Build Context String
+    context_lines = [
+        f"Date: {date_str}",
+        f"Weather: {weather_info}",
+        f"Active Edge Nodes: {len(edge_nodes)}",
+        f"Open Regular Tasks: {open_tasks_count}",
+    ]
+
+    if pending_approvals:
+        context_lines.append(f"Pending Approvals: {', '.join(pending_approvals)}")
+    else:
+        context_lines.append("Pending Approvals: None")
+
+    if forecasts:
+        context_lines.append(f"Latest Forecast: {forecasts[-1]}")
+
+    if anomalies:
+        context_lines.append(f"Recent Anomalies: {', '.join(anomalies[-2:])}")
+
+    if signals:
+        signal_texts = []
+        for s in signals:
+            txt = s.get("title", "") or s.get("content", "") or str(s)
+            if len(txt) > 100:
+                txt = txt[:100] + "..."
+            signal_texts.append(txt)
+        context_lines.append(f"Latest Internet Signals: {', '.join(signal_texts)}")
+
+    context_str = "\n".join(context_lines)
+
+    # 3. LLM Synthesize
+    prompt = f"""You are a highly capable Executive Operator AI (like JARVIS). 
+Write a concise, sci-fi style morning briefing for your user. 
+Synthesize the following system context into a seamless, spoken-word narrative. 
+Be highly professional, slightly proactive, and keep it under 3 paragraphs. 
+Do not use markdown headers, asterisks, or complex formatting - just plain text suitable for text-to-speech.
+
+System Context:
+{context_str}
+"""
     try:
-        from app.tools.news.hackernews import HackerNewsTool  # type: ignore[import]
+        provider_name, model_name = AutoModelRouter.get_best_model("agent")
+        provider = create_provider(provider_name)
+        resilient = getattr(provider, "chat_completion_resilient", None)
+        messages = [{"role": "user", "content": prompt}]
 
-        hn = HackerNewsTool()
-        result = await hn.execute(operation="top_stories", limit=3)
-        if result.get("stories"):
-            news_lines = "\n".join(f"• {s['title']}" for s in result["stories"][:3])
-            sections.append(f"Top Stories:\n{news_lines}")
+        if resilient:
+            result = await resilient(
+                messages=messages,
+                preferred_models=[
+                    "google/gemini-2.5-flash:free",
+                    "qwen/qwen3-coder:free",
+                ],
+                free_only_guard=True,
+            )
+        else:
+            result = await provider.chat_completion(
+                model=model_name or "default", messages=messages
+            )
+
+        if isinstance(result, dict) and result.get("success"):
+            content = result.get("content", "").strip()
+            if content:
+                return content
     except Exception as exc:
-        logger.debug("Morning briefing: news unavailable: %s", exc)
+        logger.error("LLM generation failed for morning briefing: %s", exc)
 
-    return "\n\n".join(sections)
+    # Fallback text if LLM fails
+    fallback = (
+        f"Good morning. It is {date_str}. {weather_info} "
+        f"System is online with {len(edge_nodes)} active edge nodes. "
+        f"You have {open_tasks_count} open tasks and {len(pending_approvals)} pending approvals."
+    )
+    return fallback
 
 
 async def compose_daily_digest(user_id: str) -> ProactiveDigest:
     text = await compose_morning_briefing(user_id)
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    title = lines[0] if lines else "Good morning."
-    return ProactiveDigest(title=title, items=lines[1:], source="morning_briefing")
+    # Return the full synthesized string in the title property, keeping items empty
+    # so it reads smoothly without bullet points for voice synthesis.
+    return ProactiveDigest(title=text, items=[], source="morning_briefing")
 
 
 def register_morning_briefing(

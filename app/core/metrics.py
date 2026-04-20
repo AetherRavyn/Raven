@@ -21,6 +21,15 @@ llm_duration_seconds = Histogram(
     ["provider", "model"],
 )
 
+llm_calls_total = Counter(
+    "saras_llm_calls_total",
+    "LLM API calls",
+    ["provider", "model"],
+)
+
+# Backwards-compatible alias used by the dashboard page.
+llm_latency_seconds = llm_duration_seconds
+
 tool_calls_total = Counter(
     "saras_tool_calls_total",
     "Tool invocations",

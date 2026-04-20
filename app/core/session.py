@@ -9,9 +9,13 @@ logger = logging.getLogger(__name__)
 class SessionManager:
     """Manages persistent stateful sessions via JSONL files in the workspace."""
 
-    def __init__(self, workspace_dir: str):
-        self.workspace_dir = Path(workspace_dir)
-        self.sessions_dir = self.workspace_dir / "sessions"
+    def __init__(self, workspace_dir: str | None = None):
+        from app.settings.config import Config
+
+        self.workspace_dir = (
+            Path(workspace_dir) if workspace_dir else Path(Config.MEMORY_ROOT)
+        )
+        self.sessions_dir = Path(Config.MEMORY_ROOT) / "sessions"
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_session_file(self, session_id: str) -> Path:

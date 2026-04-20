@@ -25,6 +25,8 @@ class BotSignal:
         lines: list[str] = []
         if payload.source_kind:
             lines.append(f"[source:{payload.source_kind}]")
+        for evidence in payload.evidence or []:
+            lines.append(f"[evidence] {evidence}")
         for trace in payload.tool_traces or []:
             status = "ok" if trace.success else "error"
             base = f"[tool:{trace.tool_name} action:{trace.action} status:{status}]"
@@ -32,23 +34,11 @@ class BotSignal:
         return lines
 
     def _payload_with_annotations(self, payload: SignalPayload) -> SignalPayload:
-        lines = self._annotation_lines(payload)
-        if not lines:
-            return payload
-
-        signature = "\n".join(lines)
-        message = payload.text or payload.caption or ""
-        combined = f"{signature}\n{message}".rstrip()
-        return SignalPayload(
-            text=combined if payload.text is not None or not payload.caption else None,
-            caption=combined if payload.caption is not None else payload.caption,
-            animation_url=payload.animation_url,
-            file_path=payload.file_path,
-            audio_path=payload.audio_path,
-            video_path=payload.video_path,
-            source_kind=payload.source_kind,
-            tool_traces=payload.tool_traces,
-        )
+        # In earlier versions, this appended debug annotations to every message.
+        # This was polluting user chats, so we now just return the clean payload.
+        # Tool traces and evidence are still available on the payload object for
+        # dashboards or custom loggers to use without forcing them into the message text.
+        return payload
 
     async def send(self, target: ReplyTarget, payload: SignalPayload) -> None:
         sender = self._senders.get(target.platform.lower())
@@ -87,10 +77,16 @@ class BotSignal:
         text: str,
         source_kind: str | None = None,
         tool_traces: list[ToolTrace] | None = None,
+        evidence: list[str] | None = None,
     ) -> None:
         await self.send(
             target,
-            SignalPayload(text=text, source_kind=source_kind, tool_traces=tool_traces),
+            SignalPayload(
+                text=text,
+                source_kind=source_kind,
+                tool_traces=tool_traces,
+                evidence=evidence,
+            ),
         )
 
     async def send_tool_text(

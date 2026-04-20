@@ -81,6 +81,7 @@ class RedisRateLimiter:
         self._redis = aioredis.from_url(redis_url, decode_responses=True)
         self._window = window
         self._limit = limit
+        self._redis_down = False
 
     async def is_allowed_async(self, user_key: str) -> tuple[bool, str]:
         """Async variant — use this from async contexts."""
@@ -96,11 +97,18 @@ class RedisRateLimiter:
                 pipe.expire(pipe_key, self._window + 1)
                 results = await pipe.execute()
             count = results[1]
+            if self._redis_down:
+                logger.info("RedisRateLimiter reconnected successfully.")
+                self._redis_down = False
             if count >= self._limit:
                 return False, f"Rate limit: {self._limit} req/{self._window}s"
             return True, ""
         except Exception as exc:
-            logger.warning("RedisRateLimiter error (falling back to allow): %s", exc)
+            if not self._redis_down:
+                logger.warning(
+                    "RedisRateLimiter error (falling back to allow): %s", exc
+                )
+                self._redis_down = True
             return True, ""
 
     def is_allowed(self, user_key: str) -> tuple[bool, str]:

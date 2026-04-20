@@ -114,6 +114,7 @@ class AdvancedFileOperationTool(BaseTool):
                         "base64_decode",
                         "mimetype",
                         "permissions_change",
+                        "rollback",
                     ],
                 ),
                 ToolParameter(
@@ -391,6 +392,12 @@ class AdvancedFileOperationTool(BaseTool):
         except:
             return "error"
 
+    def _backup_file(self, path: Path) -> None:
+        """Create a backup of a file before mutation"""
+        if path.is_file():
+            backup_path = path.parent / f".backup_{path.name}"
+            shutil.copy2(path, backup_path)
+
     async def execute(
         self,
         operation: str,
@@ -423,6 +430,24 @@ class AdvancedFileOperationTool(BaseTool):
         """Execute file operation"""
         try:
             path = self._validate_path(filepath)
+
+            mutating_ops = [
+                "write",
+                "append",
+                "write_json",
+                "find_replace",
+                "insert_at_line",
+                "delete_lines",
+                "merge_files",
+                "deduplicate_lines",
+                "sort_lines",
+                "reverse_lines",
+                "csv_write",
+                "csv_append",
+                "permissions_change",
+            ]
+            if operation in mutating_ops and path.exists():
+                self._backup_file(path)
 
             # ==================== BASIC I/O ====================
             if operation == "read":
@@ -1402,6 +1427,23 @@ class AdvancedFileOperationTool(BaseTool):
                     "operation": operation,
                     "directory": str(path),
                     "tree": "\n".join(tree_lines),
+                }
+
+            elif operation == "rollback":
+                backup_path = path.parent / f".backup_{path.name}"
+                if not backup_path.exists():
+                    return {
+                        "success": False,
+                        "error": f"No backup found for {path.name}",
+                    }
+
+                shutil.copy2(backup_path, path)
+
+                return {
+                    "success": True,
+                    "operation": operation,
+                    "filepath": str(path),
+                    "restored_from": str(backup_path),
                 }
 
             else:

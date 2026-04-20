@@ -1,0 +1,35 @@
+schema_version: "1.0"
+module_id: integration.agent_reach
+display_name: Agent Reach
+version: "1.0.0"
+category: integration
+description: Internet reach and web research skill for reading and searching supported platforms.
+owner: saras
+maintainers:
+  - saras
+tags:
+  - web
+  - search
+  - research
+  - social
+  - retrieval
+subcategory: reach
+stability: beta
+maturity: production_candidate
+homepage: https://github.com/Panniantong/Agent-Reach
+docs: SKILL.md
+source_path: agent_reach/skill
+entrypoint: agent_reach.cli:main
+enabled_by_default: true
+trust_level: external
+capabilities:
+  - web search
+  - platform read
+  - platform search
+  - url reading
+  - research workflow
+dependencies:
+  - name: agent-reach-cli
+    status: required
+    required: true
+    message: Agent Reach CLI and its channel tools must be installed.

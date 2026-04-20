@@ -1,0 +1,35 @@
+schema_version: "1.0"
+module_id: integration.virustotal_scanner
+display_name: VirusTotal Scanner
+version: "1.0.0"
+category: integration
+description: Passive and active VirusTotal reputation checks for URLs, domains, IPs, hashes, and files.
+owner: saras
+maintainers:
+  - saras
+tags:
+  - security
+  - reputation
+  - malware
+  - ioc
+subcategory: threat-intel
+stability: beta
+maturity: production_candidate
+homepage: https://www.virustotal.com/
+docs: SKILL.md
+source_path: skills/virustotal-scanner
+entrypoint: app.tools.virustotal.VirusTotalTool
+license: proprietary
+enabled_by_default: true
+trust_level: external
+capabilities:
+  - url reputation check
+  - domain reputation check
+  - ip reputation check
+  - file hash lookup
+  - file upload scan
+dependencies:
+  - name: virustotal-api
+    status: required
+    required: true
+    message: VirusTotal API v3 access is required for active and passive lookups.
