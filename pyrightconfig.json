@@ -1,0 +1,17 @@
+{
+  "include": [
+    "app/db/helix.py",
+    "app/core/planning/**/*.py",
+    "tests/test_helix.py",
+    "tests/test_planning.py"
+  ],
+  "exclude": ["**/__pycache__", "**/node_modules", "**/.venv"],
+  "reportMissingImports": "error",
+  "reportMissingTypeStubs": false,
+  "pythonVersion": "3.12",
+  "pythonPlatform": "Linux",
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": true,
+  "venvPath": ".",
+  "venv": ".venv"
+}
