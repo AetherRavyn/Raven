@@ -1,5 +1,6 @@
 import json
 import logging
+import time as _time_module
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -22,7 +23,80 @@ from app.core.hooks import HookDispatcher
 from app.core.workflow_engine import WorkflowEngine
 from app.core.standing_orders import StandingOrderStore
 from app.core.feedback import FeedbackStore
+
+
+# ---------------------------------------------------------------------------
+# v2 feature-flag helpers
+# ---------------------------------------------------------------------------
+
+
+def _env_flag(name: str) -> bool:
+    val = __import__("os").environ.get(name, "").strip().lower()
+    return val in {"1", "true", "yes", "on"}
+
+
+def _env_float(name: str) -> float | None:
+    val = __import__("os").environ.get(name, "").strip()
+    if not val:
+        return None
+    try:
+        return float(val)
+    except ValueError:
+        return None
+
+
+def _wrap_ledger_with_budget(per_user_per_day_usd: float | None) -> Any:
+    """Construct a BudgetLedger with a daily cap, or a default if none."""
+    from app.core.cost_router import BudgetConfig, BudgetLedger
+
+    cfg = BudgetConfig(per_user_per_day_usd=per_user_per_day_usd)
+    return BudgetLedger(cfg)
+
+
+def _build_v2_request(*, text: str, user_id: str | None, plan_id: str | None) -> Any:
+    """Build a v2 :class:`RouteRequest` from a runtime text request."""
+    from app.core.cost_router import RouteRequest, TaskType
+
+    kind = _classify_text_for_task(text)
+    return RouteRequest(
+        task=kind,
+        input_tokens=max(1, len(text) // 4),
+        max_output_tokens=1024,
+        user_id=user_id,
+        plan_id=plan_id,
+    )
+
+
+def _classify_text_for_task(text: str) -> Any:
+    """Cheap keyword classifier used to seed the v2 router's task hint."""
+    from app.core.cost_router import TaskType
+
+    t = (text or "").lower()
+    if any(
+        w in t
+        for w in ("code", "function", "implement", "refactor", "debug", "compile")
+    ):
+        return TaskType.CODE
+    if any(w in t for w in ("research", "investigate", "compare", "analyze", "study")):
+        return TaskType.RESEARCH
+    if any(w in t for w in ("summarize", "summary", "tldr", "recap")):
+        return TaskType.SUMMARIZE
+    if any(w in t for w in ("classify", "categorize", "label", "tag")):
+        return TaskType.CLASSIFY
+    if any(w in t for w in ("extract", "find all", "list the")):
+        return TaskType.EXTRACT
+    if any(w in t for w in ("reason", "why", "deduce", "prove")):
+        return TaskType.REASONING
+    return TaskType.CHAT
+
+
 from app.core.session import SessionManager
+from app.core.metacognition import (
+    MetaCognitiveMonitor,
+    ReasoningStrategy,
+    get_metacognitive_monitor,
+)
+from app.core.learner import LearnerAgent, get_learner_agent
 from app.provider.factory import create_provider
 from app.tools.base import BaseTool
 
@@ -43,10 +117,15 @@ class AgentRuntime:
 
         requested_provider = (provider_name or "killo").strip().lower()
         requested_model = (model_name or "").strip()
-        configured_provider = (getattr(Config, "LLM_PROVIDER", "auto") or "auto").strip().lower()
+        configured_provider = (
+            (getattr(Config, "LLM_PROVIDER", "auto") or "auto").strip().lower()
+        )
         configured_model = (getattr(Config, "LLM_MODEL", "") or "").strip()
 
-        if configured_provider not in {"", "auto", "default"} and requested_provider == "killo":
+        if (
+            configured_provider not in {"", "auto", "default"}
+            and requested_provider == "killo"
+        ):
             provider_name = configured_provider
             model_name = configured_model or AutoModelRouter.default_model_for_provider(
                 configured_provider
@@ -55,8 +134,10 @@ class AgentRuntime:
             provider_name, model_name = AutoModelRouter.get_best_model("agent")
         else:
             provider_name = requested_provider
-            model_name = requested_model or configured_model or AutoModelRouter.default_model_for_provider(
-                requested_provider
+            model_name = (
+                requested_model
+                or configured_model
+                or AutoModelRouter.default_model_for_provider(requested_provider)
             )
 
         self.workspace_dir = (
@@ -72,6 +153,12 @@ class AgentRuntime:
         self.planner = TaskPlanner()
         self.verifier = ResultVerifier()
         self.model_router = ModelRouter(self.provider, self.model_name)
+        # v2 engines (A2 cost router + A3 verifier).  Opt-in via env
+        # vars so the legacy path stays the default.
+        self.cost_router = self._build_cost_router()
+        self.verifier_v2 = self._build_verifier_v2()
+        self._use_cost_router_v2 = _env_flag("SARAS_COST_ROUTER_V2")
+        self._use_verifier_v2 = _env_flag("SARAS_VERIFIER_V2")
         self.multimodal_builder = MultimodalContextBuilder()
         self.policy_engine = get_policy_engine()
         self.memory_manager = MemoryManager()
@@ -84,6 +171,12 @@ class AgentRuntime:
         self.standing_orders = StandingOrderStore(workspace_dir)
         self.feedback_store = FeedbackStore(workspace_dir)
 
+        # Meta-cognitive monitoring and cross-training
+        self.metacognition = get_metacognitive_monitor()
+        self.learner = get_learner_agent()
+        self._agent_name = "AssistantAgent"  # Default, can be overridden
+        self._current_strategy = ReasoningStrategy.ANALYTICAL
+
     def _provider_name(self) -> str:
         return (
             getattr(self.provider, "name", None)
@@ -91,8 +184,94 @@ class AgentRuntime:
             or self.provider.__class__.__name__.lower()
         )
 
+    def _build_cost_router(self) -> Any:
+        """Construct a v2 CostRouter.  Imports are lazy so the dep is
+        optional for callers that only use the legacy path."""
+        try:
+            from app.core.cost_router import CostRouter
+
+            return CostRouter(
+                ledger=_wrap_ledger_with_budget(_env_float("SARAS_DAILY_BUDGET_USD"))
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.debug("cost router unavailable: %s", e)
+            return None
+
+    def _build_verifier_v2(self) -> Any:
+        try:
+            from app.core.verifier import Verifier
+
+            return Verifier()
+        except Exception as e:  # noqa: BLE001
+            logger.debug("verifier v2 unavailable: %s", e)
+            return None
+
+    async def _route_request(self, request: Any) -> Any:
+        """Pick a model for the current request.
+
+        When ``SARAS_COST_ROUTER_V2`` is set and the v2 router is
+        available, we use the budget-aware :class:`CostRouter`.  The
+        returned :class:`RouteDecision` is converted to the legacy
+        :class:`RouteDecision` shape so the rest of the runtime doesn't
+        need to change.
+        """
+        if self._use_cost_router_v2 and self.cost_router is not None:
+            try:
+                from app.core.cost_router import TaskType
+
+                decision = await self.cost_router.route(
+                    _build_v2_request(
+                        text=request.text,
+                        user_id=request.user_id,
+                        plan_id=getattr(request, "request_id", None),
+                    )
+                )
+                # Lazy-import the legacy type to avoid a hard dep cycle.
+                from app.core.model_router import RouteDecision
+
+                provider = create_provider(decision.provider)
+                return RouteDecision(
+                    provider=provider,
+                    model_name=decision.model,
+                    route_kind=decision.tier.value,
+                    rationale=decision.rationale,
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.debug("cost router v2 failed, falling back: %s", e)
+        return await self.model_router.resolve(request.text)
+
+    async def _verify_step(self, plan: Any, step: Any, content: str) -> dict[str, Any]:
+        """Verify a step's output.
+
+        When ``SARAS_VERIFIER_V2`` is set, the structured v2 verifier
+        produces a :class:`VerificationReport`; the legacy path stays
+        unchanged.
+        """
+        if self._use_verifier_v2 and self.verifier_v2 is not None:
+            try:
+                from app.core.verifier import StepContext
+
+                ctx = StepContext(
+                    plan_id=getattr(plan, "goal", ""),
+                    step_id=str(getattr(step, "step", "")),
+                    action="llm",
+                    tool_name=None,
+                    prompt=None,
+                    output=content,
+                    metadata={
+                        "success_criteria": getattr(step, "success_criteria", "")
+                    },
+                )
+                report = await self.verifier_v2.verify(ctx)
+                return report.to_dict()
+            except Exception as e:  # noqa: BLE001
+                logger.debug("verifier v2 failed, falling back: %s", e)
+        return self.verifier.verify(plan, content)
+
     @staticmethod
-    def _extract_provider_message(res: dict[str, Any]) -> tuple[str, list[dict[str, Any]] | None]:
+    def _extract_provider_message(
+        res: dict[str, Any],
+    ) -> tuple[str, list[dict[str, Any]] | None]:
         raw = res.get("raw") or {}
         raw_msg: dict[str, Any] = {}
         if isinstance(raw, dict):
@@ -120,6 +299,15 @@ class AgentRuntime:
 
     def register_tool(self, tool: BaseTool):
         self.tools[tool.get_name()] = tool
+
+    def deregister_tool(self, name: str) -> bool:
+        """Remove a registered tool from the runtime tool layer by name.
+
+        Idempotent: removing an absent tool is a no-op. Returns ``True`` if a
+        tool was removed, ``False`` otherwise. Used by the Module_Platform to
+        reverse a hot-load during rollback (A2, Req 10.7).
+        """
+        return self.tools.pop(name, None) is not None
 
     def _approval_tool_result(self, task_id: str) -> str:
         return json.dumps(
@@ -285,6 +473,192 @@ class AgentRuntime:
                 )
             except Exception as exc:
                 logger.debug("Failed to schedule follow-up: %s", exc)
+
+    def _classify_task(self, text: str) -> str:
+        """Classify a user query into a task category for meta-cognitive tracking."""
+        text_lower = text.lower()
+
+        # Code-related tasks
+        if any(
+            phrase in text_lower
+            for phrase in (
+                "code",
+                "function",
+                "class",
+                "debug",
+                "fix",
+                "implement",
+                "refactor",
+                "test",
+                "python",
+                "javascript",
+                "bug",
+                "error",
+                "compile",
+                "syntax",
+                "variable",
+                "loop",
+                "array",
+                "dict",
+            )
+        ):
+            return "coding"
+
+        # Research tasks
+        if any(
+            phrase in text_lower
+            for phrase in (
+                "research",
+                "find",
+                "search",
+                "look up",
+                "what is",
+                "who is",
+                "explain",
+                "tell me about",
+                "history of",
+                "compare",
+            )
+        ):
+            return "research"
+
+        # Analysis tasks
+        if any(
+            phrase in text_lower
+            for phrase in (
+                "analyze",
+                "analysis",
+                "review",
+                "evaluate",
+                "assess",
+                "pros and cons",
+                "advantages",
+                "disadvantages",
+            )
+        ):
+            return "analysis"
+
+        # Creative tasks
+        if any(
+            phrase in text_lower
+            for phrase in (
+                "write",
+                "create",
+                "generate",
+                "compose",
+                "draft",
+                "story",
+                "poem",
+                "essay",
+                "article",
+                "blog",
+            )
+        ):
+            return "creative"
+
+        # Planning tasks
+        if any(
+            phrase in text_lower
+            for phrase in (
+                "plan",
+                "strategy",
+                "roadmap",
+                "schedule",
+                "organize",
+                "todo",
+                "task",
+                "project",
+                "steps to",
+            )
+        ):
+            return "planning"
+
+        # System/DevOps tasks
+        if any(
+            phrase in text_lower
+            for phrase in (
+                "deploy",
+                "server",
+                "docker",
+                "kubernetes",
+                "install",
+                "configure",
+                "setup",
+                "monitor",
+                "log",
+                "system",
+            )
+        ):
+            return "devops"
+
+        # Math/calculation tasks
+        if any(
+            phrase in text_lower
+            for phrase in (
+                "calculate",
+                "math",
+                "equation",
+                "formula",
+                "compute",
+                "sum",
+                "average",
+                "percentage",
+                "convert",
+            )
+        ):
+            return "math"
+
+        # Communication tasks
+        if any(
+            phrase in text_lower
+            for phrase in (
+                "email",
+                "message",
+                "reply",
+                "respond",
+                "draft email",
+                "write to",
+                "send",
+                "communicate",
+            )
+        ):
+            return "communication"
+
+        # Finance tasks
+        if any(
+            phrase in text_lower
+            for phrase in (
+                "stock",
+                "crypto",
+                "finance",
+                "money",
+                "budget",
+                "invest",
+                "portfolio",
+                "price",
+                "market",
+            )
+        ):
+            return "finance"
+
+        # Security tasks
+        if any(
+            phrase in text_lower
+            for phrase in (
+                "security",
+                "vulnerability",
+                "scan",
+                "audit",
+                "hack",
+                "exploit",
+                "patch",
+                "firewall",
+                "encrypt",
+            )
+        ):
+            return "security"
+
+        return "general"
 
     def _learn_from_turn(
         self, request: IncomingRequest, content: str, session_id: str
@@ -453,12 +827,38 @@ class AgentRuntime:
 
     async def execute_turn(
         self, request: IncomingRequest, streaming: bool = False
-    ) -> None:
+    ) -> dict[str, Any]:
+        """Execute a full ReAct loop turn.
+
+        Returns a dict with execution summary:
+            - tool_calls: list of tool execution dicts
+            - success: whether the turn completed successfully
+            - response: the final response text (if available)
+            - latency_ms: total execution time
+        """
+        import time as _time_module
+
+        _turn_start = _time_module.time()
+        _tool_call_records: list[dict[str, Any]] = []
+        _final_response: str = ""
+        _turn_success: bool = True
+
         session_id = self.get_session_id(request)
         source_kind = "command" if request.text.lstrip().startswith("/") else "prompt"
 
+        # Meta-cognitive strategy selection
+        task_category = self._classify_task(request.text)
+        self._current_strategy = self.metacognition.select_strategy(
+            request.text, task_category
+        )
+        logger.debug(
+            "Meta-cognition: selected strategy '%s' for category '%s'",
+            self._current_strategy,
+            task_category,
+        )
+
         plan = self.planner.plan(request.text)
-        route_decision = await self.model_router.resolve(request.text)
+        route_decision = await self._route_request(request)
         route_kind = route_decision.route_kind
         self.provider = route_decision.provider
         self.model_name = route_decision.model_name
@@ -621,29 +1021,48 @@ class AgentRuntime:
 
                 if not res.get("success"):
                     # Try resilient fallback across all configured providers [CLI, API, Local, etc]
-                    logger.warning("AGENT_RUNTIME  primary_provider_failed  session=%s provider=%s", session_id, provider_name)
+                    logger.warning(
+                        "AGENT_RUNTIME  primary_provider_failed  session=%s provider=%s",
+                        session_id,
+                        provider_name,
+                    )
                     try:
                         from app.core.model_router import AutoModelRouter  # noqa: PLC0415
                         from app.provider.factory import create_provider  # noqa: PLC0415
-                        
+
                         fallbacks = AutoModelRouter.get_available_models("agent")
                         for f_prov_name, f_model_name in fallbacks:
-                            if f_prov_name == provider_name and f_model_name == self.model_name:
-                                continue # Skip the one that just failed
-                            
+                            if (
+                                f_prov_name == provider_name
+                                and f_model_name == self.model_name
+                            ):
+                                continue  # Skip the one that just failed
+
                             try:
-                                logger.info("AGENT_RUNTIME  trying_fallback  session=%s  fallback_provider=%s", session_id, f_prov_name)
+                                logger.info(
+                                    "AGENT_RUNTIME  trying_fallback  session=%s  fallback_provider=%s",
+                                    session_id,
+                                    f_prov_name,
+                                )
                                 f_prov = create_provider(f_prov_name)
-                                f_res = await f_prov.chat_completion(model=f_model_name, messages=messages, **kwargs)
+                                f_res = await f_prov.chat_completion(
+                                    model=f_model_name, messages=messages, **kwargs
+                                )
                                 if f_res.get("success"):
-                                    logger.info("AGENT_RUNTIME  fallback_success  session=%s  fallback_provider=%s", session_id, f_prov_name)
+                                    logger.info(
+                                        "AGENT_RUNTIME  fallback_success  session=%s  fallback_provider=%s",
+                                        session_id,
+                                        f_prov_name,
+                                    )
                                     res = f_res
                                     # Update current provider for remainder of session/turn
                                     self.provider = f_prov
                                     self.model_name = f_model_name
                                     break
                             except Exception as _f_exc:
-                                logger.debug("Fallback %s failed: %s", f_prov_name, _f_exc)
+                                logger.debug(
+                                    "Fallback %s failed: %s", f_prov_name, _f_exc
+                                )
                     except Exception as _routing_exc:
                         logger.debug("Fallback routing failed: %s", _routing_exc)
 
@@ -790,14 +1209,16 @@ class AgentRuntime:
                                     )
                                 )
                                 if decision.requires_confirmation:
-                                    approval_queued = await self._queue_approval_request(
-                                        function_name=function_name,
-                                        args=args,
-                                        request=request,
-                                        session_id=session_id,
-                                        tool_call_id=tc.get("id", ""),
-                                        source_kind=source_kind,
-                                        messages=messages,
+                                    approval_queued = (
+                                        await self._queue_approval_request(
+                                            function_name=function_name,
+                                            args=args,
+                                            request=request,
+                                            session_id=session_id,
+                                            tool_call_id=tc.get("id", ""),
+                                            source_kind=source_kind,
+                                            messages=messages,
+                                        )
                                     )
                                     if approval_queued:
                                         continue
@@ -824,14 +1245,16 @@ class AgentRuntime:
                                 )
 
                                 if needs_approval:
-                                    approval_queued = await self._queue_approval_request(
-                                        function_name=function_name,
-                                        args=args,
-                                        request=request,
-                                        session_id=session_id,
-                                        tool_call_id=tc.get("id", ""),
-                                        source_kind=source_kind,
-                                        messages=messages,
+                                    approval_queued = (
+                                        await self._queue_approval_request(
+                                            function_name=function_name,
+                                            args=args,
+                                            request=request,
+                                            session_id=session_id,
+                                            tool_call_id=tc.get("id", ""),
+                                            source_kind=source_kind,
+                                            messages=messages,
+                                        )
                                     )
                                     if approval_queued:
                                         continue
@@ -843,7 +1266,11 @@ class AgentRuntime:
 
                             _tool_start = time.time()
                             result = await tool.execute(**args)
-                            _tool_latency_ms = (time.time() - _tool_start) * 1000 if '_tool_start' in dir() else 0
+                            _tool_latency_ms = (
+                                (time.time() - _tool_start) * 1000
+                                if "_tool_start" in dir()
+                                else 0
+                            )
                             tool_calls_total.labels(
                                 tool_name=function_name, success="true"
                             ).inc()
@@ -862,9 +1289,21 @@ class AgentRuntime:
                                     detail=str(args),
                                 )
                             )
+                            _tool_call_records.append(
+                                {
+                                    "tool": function_name,
+                                    "action": "execute",
+                                    "args": args,
+                                    "success": True,
+                                    "latency_ms": _tool_latency_ms,
+                                }
+                            )
                             # ── Self-improvement feedback ──────────────
                             try:
-                                from app.core.self_improvement import get_feedback_tracker
+                                from app.core.self_improvement import (
+                                    get_feedback_tracker,
+                                )
+
                                 get_feedback_tracker().record(
                                     interaction_id=session_id,
                                     tool_name=function_name,
@@ -982,11 +1421,16 @@ class AgentRuntime:
                 if not res.get("success"):
                     from app.core.model_router import AutoModelRouter  # noqa: PLC0415
                     from app.provider.factory import create_provider  # noqa: PLC0415
-                    
-                    for f_prov_name, f_model_name in AutoModelRouter.get_available_models("agent"):
+
+                    for (
+                        f_prov_name,
+                        f_model_name,
+                    ) in AutoModelRouter.get_available_models("agent"):
                         try:
                             f_prov = create_provider(f_prov_name)
-                            f_res = await f_prov.chat_completion(model=f_model_name, messages=messages)
+                            f_res = await f_prov.chat_completion(
+                                model=f_model_name, messages=messages
+                            )
                             if f_res.get("success"):
                                 res = f_res
                                 break
@@ -1028,6 +1472,41 @@ class AgentRuntime:
                 self.session_manager.append_message(session_id, msg)
             self._learn_from_turn(request, content, session_id)
             self._maybe_schedule_follow_up(request, content)
+            _final_response = content
 
         self.session_manager.summarize_session(session_id)
         self.session_manager.prune_session(session_id)
+
+        _turn_latency_ms = (_time_module.time() - _turn_start) * 1000
+
+        # Meta-cognitive performance recording
+        tools_used = [
+            tc.get("tool", "") for tc in _tool_call_records if tc.get("success")
+        ]
+        self.metacognition.record(
+            query=request.text,
+            category=task_category,
+            strategy=self._current_strategy,
+            tools_used=tools_used,
+            success=_turn_success,
+            confidence=self.metacognition.get_confidence(),
+            duration_ms=_turn_latency_ms,
+        )
+
+        # Learner agent performance recording
+        self.learner.record(
+            agent_name=self._agent_name,
+            task_category=task_category,
+            success=_turn_success,
+            duration_ms=_turn_latency_ms,
+            tools_used=tools_used,
+        )
+
+        return {
+            "tool_calls": _tool_call_records,
+            "success": _turn_success,
+            "response": _final_response,
+            "latency_ms": _turn_latency_ms,
+            "session_id": session_id,
+            "turns": turn_count,
+        }
