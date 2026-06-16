@@ -163,6 +163,21 @@ def _build_policy_v2(
         return None
 
 
+def _build_conversation_manager() -> Any:
+    """Build the per-session conversation manager (Phase D).
+
+    Imports are lazy so the dependency is optional for
+    callers that only use the legacy path.
+    """
+    try:
+        from app.core.conversation import ConversationManager
+
+        return ConversationManager()
+    except Exception as e:  # noqa: BLE001
+        logger.debug("conversation manager unavailable: %s", e)
+        return None
+
+
 class AgentRuntime:
     """The embedded execution environment that manages the lifecycle of an agent's turn with a ReAct loop."""
 
@@ -219,6 +234,10 @@ class AgentRuntime:
         self._use_vault_v2 = _env_flag("SARAS_VAULT_ENABLED")
         self._use_audit_v2 = _env_flag("SARAS_AUDIT_V2")
         self._use_policy_v2 = _env_flag("SARAS_POLICY_V2")
+        # Phase D: working memory + compression + reference resolution
+        # per session.  Opt-in via env var.
+        self._use_conversation_v2 = _env_flag("SARAS_CONVERSATION_V2")
+        self.conversation_manager = self._build_conversation_manager()
         self.security_guard = get_security_guard()
         self.multimodal_builder = MultimodalContextBuilder()
         self.policy_engine = get_policy_engine()
@@ -275,6 +294,9 @@ class AgentRuntime:
 
     def _build_policy_v2(self) -> Any:
         return _build_policy_v2(audit_log=self.audit_log_v2)
+
+    def _build_conversation_manager(self) -> Any:
+        return _build_conversation_manager()
 
     # ------------------------------------------------------------------
     # A4 audit + policy helpers
@@ -1030,6 +1052,18 @@ class AgentRuntime:
 
         messages = self.session_manager.load_session(session_id)
 
+        # Phase D: prepend a "memory" block to the system
+        # prompt when the conversation manager is enabled.
+        # This is what gives the LLM a long-memory across
+        # turns: facts the user has stated, the current
+        # topic, and a rolling summary of older turns.
+        conversation_memory_block = ""
+        if self._use_conversation_v2 and self.conversation_manager is not None:
+            try:
+                conversation_memory_block = self.conversation_manager.context_for_prompt(session_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("conversation context_for_prompt failed: %s", exc)
+
         if not messages:
             system_content = self.bootstrapper.build_system_prompt(
                 query=request.text,
@@ -1042,9 +1076,17 @@ class AgentRuntime:
             persona = get_persona_engine()
             system_content = persona.generate_system_prompt(system_content, request.user_id)
 
+            if conversation_memory_block:
+                system_content = system_content + "\n\n" + conversation_memory_block
+
             system_prompt = {"role": "system", "content": system_content}
             messages.append(system_prompt)
             self.session_manager.append_message(session_id, system_prompt)
+        elif conversation_memory_block:
+            # Session already has a system prompt — append the
+            # memory block as a follow-up system message so we
+            # don't mutate the persisted prompt in place.
+            messages.append({"role": "system", "content": conversation_memory_block})
 
         if plan.steps:
             plan_message = {
@@ -1075,6 +1117,22 @@ class AgentRuntime:
         # SARAS stays DB-only: monitoring-owned video/semantic fusion stays external.
         if multimodal_context.has_signal():
             messages.append({"role": "system", "content": multimodal_context.render()})
+
+        # Phase D: ingest the user turn into the conversation
+        # manager (extracted facts, entities, current topic).
+        # This is best-effort: when the manager is disabled or
+        # unavailable we silently skip — the legacy message
+        # flow still works.
+        if self._use_conversation_v2 and self.conversation_manager is not None:
+            try:
+                self.conversation_manager.ingest_turn(
+                    session_id,
+                    "user",
+                    request.text,
+                    user_id=request.user_id or "",
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("conversation ingest (user) failed: %s", exc)
 
         messages.append(user_msg)
         self.session_manager.append_message(session_id, user_msg)
@@ -1275,6 +1333,23 @@ class AgentRuntime:
                         self.session_manager.append_message(session_id, msg)
                     self._learn_from_turn(request, content, session_id)
                     self._maybe_schedule_follow_up(request, content)
+                    # Phase D: ingest the assistant's final turn
+                    # into the conversation manager.  Only the
+                    # final response is captured — intermediate
+                    # tool-call messages are noisy.
+                    if self._use_conversation_v2 and self.conversation_manager is not None:
+                        try:
+                            self.conversation_manager.ingest_turn(
+                                session_id,
+                                "assistant",
+                                content,
+                                user_id=request.user_id or "",
+                            )
+                        except Exception as exc:  # noqa: BLE001
+                            logger.debug(
+                                "conversation ingest (assistant) failed: %s",
+                                exc,
+                            )
                     break
 
                 # Execute tools

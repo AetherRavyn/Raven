@@ -21,6 +21,10 @@ from app.core.conversation.compression import (
     apply_to_working_memory,
     deterministic_summary,
 )
+from app.core.conversation.manager import (
+    ConversationManager,
+    SummaryFn,
+)
 from app.core.conversation.memory import (
     Turn,
     WorkingMemory,
@@ -37,8 +41,10 @@ from app.core.conversation.resolver import (
 __all__ = [
     "Compressed",
     "Compressor",
+    "ConversationManager",
     "FollowUpResolver",
     "Resolved",
+    "SummaryFn",
     "Turn",
     "WorkingMemory",
     "apply_to_working_memory",
