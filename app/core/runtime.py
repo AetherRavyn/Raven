@@ -1024,7 +1024,29 @@ class AgentRuntime:
         _final_response: str = ""
         _turn_success: bool = True
 
+        # A5 observability: bind request context so every log line
+        # carries user_id / session_id / platform for the duration
+        # of the turn.  Cleared at the end of the turn.
+        def _noop_bind(**_kw):  # type: ignore[no-untyped-def]
+            return None
+
+        def _noop_clear():  # type: ignore[no-untyped-def]
+            return None
+
+        try:
+            from app.observability import bind_context as _obs_bind
+            from app.observability import clear_context as _obs_clear
+        except ImportError:  # pragma: no cover - observability is core
+            _obs_bind = _noop_bind
+            _obs_clear = _noop_clear
+
+        _obs_bind(
+            platform=request.platform,
+            user_id=request.user_id,
+        )
+
         session_id = self.get_session_id(request)
+        _obs_bind(session_id=session_id)
         source_kind = "command" if request.text.lstrip().startswith("/") else "prompt"
 
         # Meta-cognitive strategy selection
@@ -1380,7 +1402,9 @@ class AgentRuntime:
                                 kind="tool_call",
                                 actor=request.user_id,
                                 action=function_name,
-                                target=str(args.get("path") or args.get("command") or ""),
+                                target=str(
+                                    args.get("path") or args.get("command") or ""
+                                ),
                                 success=True,
                                 detail="attempt",
                                 context={
@@ -1470,8 +1494,10 @@ class AgentRuntime:
                             # ---------------------------------
 
                             # ── A4 policy v2 check (if enabled) ─────────
-                            allowed_v2, reason_v2, approval_id_v2 = self._policy_v2_check(
-                                function_name, args, request.user_id
+                            allowed_v2, reason_v2, approval_id_v2 = (
+                                self._policy_v2_check(
+                                    function_name, args, request.user_id
+                                )
                             )
                             if not allowed_v2 and approval_id_v2 is not None:
                                 # ASK: enqueue using legacy queue (which
@@ -1529,7 +1555,34 @@ class AgentRuntime:
                             # ── end A4 policy v2 check ────────────────
 
                             _tool_start = time.time()
-                            result = await tool.execute(**args)
+                            # A5 observability: wrap the tool call
+                            # in a span so traces show the latency
+                            # and any error.
+                            _obs_span_obj: Any = None
+                            _obs_span_cm: Any = None
+                            try:
+                                from app.observability.tracing import (
+                                    get_tracer as _obs_get_tracer,
+                                )
+
+                                _obs_span_cm = _obs_get_tracer(
+                                    "saras.runtime"
+                                ).start_as_current_span(
+                                    f"tool.{function_name}",
+                                    attributes={"tool": function_name},
+                                )
+                                _obs_span_obj = _obs_span_cm.__enter__()
+                            except Exception:  # noqa: BLE001
+                                _obs_span_obj = None
+                                _obs_span_cm = None
+                            try:
+                                result = await tool.execute(**args)
+                            finally:
+                                if _obs_span_cm is not None:
+                                    try:
+                                        _obs_span_cm.__exit__(None, None, None)
+                                    except Exception:  # noqa: BLE001
+                                        pass
                             _tool_latency_ms = (
                                 (time.time() - _tool_start) * 1000
                                 if "_tool_start" in dir()
@@ -1577,6 +1630,20 @@ class AgentRuntime:
                             except Exception:
                                 pass
                         except Exception as e:
+                            # A5 observability: record the exception
+                            # on the span (if it was opened).
+                            if _obs_span_obj is not None and hasattr(
+                                _obs_span_obj, "record_exception"
+                            ):
+                                try:
+                                    _obs_span_obj.record_exception(e)
+                                except Exception:  # noqa: BLE001
+                                    pass
+                            if _obs_span_cm is not None:
+                                try:
+                                    _obs_span_cm.__exit__(type(e), e, e.__traceback__)
+                                except Exception:  # noqa: BLE001
+                                    pass
                             result_str = json.dumps({"error": str(e)})
                             tool_calls_total.labels(
                                 tool_name=function_name, success="false"
@@ -1765,6 +1832,13 @@ class AgentRuntime:
             duration_ms=_turn_latency_ms,
             tools_used=tools_used,
         )
+
+        # A5 observability: clear bound context now that the turn
+        # is finished.
+        try:
+            _obs_clear()
+        except NameError:  # pragma: no cover
+            pass
 
         return {
             "tool_calls": _tool_call_records,
