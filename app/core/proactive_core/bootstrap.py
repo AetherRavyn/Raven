@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.core.botsignal import BotSignal, get_botsignal
 from app.settings.config import Config
@@ -42,6 +42,7 @@ class UserProactiveContext:
     channel: str
     engine: "ProactiveEngine"
     adapter: "DeliveryAdapter"
+    target_resolver: Any = None
 
 
 _REGISTRY: dict[str, UserProactiveContext] = {}
@@ -70,6 +71,10 @@ class ProactiveBootstrapConfig:
     # first, this dict is the override layer.
     channel_overrides: dict[str, str] = field(default_factory=dict)
     engine_config: EngineConfig | None = None
+    # When True, the bootstrap builds a composite resolver
+    # (continuity first, default as last resort).  Set False
+    # to skip continuity lookups entirely.
+    use_continuity: bool = True
 
 
 def _parse_user_entry(entry: str) -> tuple[str, str, str] | None:
@@ -91,6 +96,7 @@ def register_proactive_core(
     context.  Returns the new contexts.
     """
     # Imports deferred to avoid a circular import at module load.
+    from app.core.continuity.integration import build_default_resolver
     from app.core.proactive_core import configure_default_engine
     from app.core.proactive_core.delivery import DeliveryAdapter
 
@@ -115,13 +121,21 @@ def register_proactive_core(
             channel=channel,
             quiet_window=cfg.quiet_window,
         )
-        adapter = DeliveryAdapter(engine, botsignal=bs)
+        # Build the resolver chain.  Per-user (so each
+        # user can be on a different bootstrap channel).
+        resolver = build_default_resolver(
+            platform=channel,
+            chat_id=chat_id,
+            use_continuity=cfg.use_continuity,
+        )
+        adapter = DeliveryAdapter(engine, botsignal=bs, target_resolver=resolver)
         ctx = UserProactiveContext(
             user_id=user_id,
             chat_id=chat_id,
             channel=channel,
             engine=engine,
             adapter=adapter,
+            target_resolver=resolver,
         )
         _REGISTRY[user_id] = ctx
         contexts.append(ctx)

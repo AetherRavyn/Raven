@@ -81,42 +81,46 @@ class ChannelDispatcher:
     def evaluate(self, signal: ProactiveSignal) -> ProactiveDecision | None:
         """Pick (channel, target) and produce a SPEAK decision.
 
-        Returns None if no target is registered for the chosen
-        channel (caller should treat as SILENCE).
+        When no target is registered for the chosen channel
+        (or the default fallback), the dispatcher returns a
+        SPEAK decision with ``target=None`` and the engine
+        propagates it.  The delivery adapter is responsible
+        for resolving a real target — that's where the
+        continuity resolver plugs in.  This split lets a user
+        receive proactive messages on whatever device they
+        happen to be using, not just the device that
+        registered the engine.
         """
         from app.core.models import ReplyTarget
 
         channel = self._pick_channel(signal)
         target_pair = self._target_for(signal.user_id, channel)
-        if target_pair is None:
-            # Try the default channel.
-            if channel != self._config.default_channel:
-                fallback = self._target_for(signal.user_id, self._config.default_channel)
-                if fallback is not None:
-                    channel, chat_id = fallback
-                else:
-                    return ProactiveDecision(
-                        signal=signal,
-                        verdict=DecisionVerdict.SILENCE,
-                        stage="dispatch",
-                        reason=f"no_target_for_channel:{channel}",
-                    )
-            else:
-                return ProactiveDecision(
-                    signal=signal,
-                    verdict=DecisionVerdict.SILENCE,
-                    stage="dispatch",
-                    reason=f"no_target_for_channel:{channel}",
-                )
-        else:
-            channel, chat_id = target_pair
+        if target_pair is None and channel != self._config.default_channel:
+            # Try the default channel as a fallback.
+            fallback = self._target_for(signal.user_id, self._config.default_channel)
+            if fallback is not None:
+                target_pair = fallback
 
+        if target_pair is None:
+            # No target registered anywhere.  Return SPEAK
+            # with no target — adapter's resolver will fill
+            # it in (or downgrade to SILENCE if it can't).
+            return ProactiveDecision(
+                signal=signal,
+                verdict=DecisionVerdict.SPEAK,
+                stage="dispatch",
+                channel=channel,
+                target=None,
+                reason="no_target_registered",
+            )
+
+        resolved_channel, chat_id = target_pair
         return ProactiveDecision(
             signal=signal,
             verdict=DecisionVerdict.SPEAK,
             stage="dispatch",
-            channel=channel,
-            target=ReplyTarget(platform=channel, chat_id=chat_id),
+            channel=resolved_channel,
+            target=ReplyTarget(platform=resolved_channel, chat_id=chat_id),
         )
 
     def explain(self) -> dict[str, Any]:

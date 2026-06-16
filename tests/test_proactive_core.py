@@ -367,13 +367,18 @@ class TestDispatcher:
         assert decision is not None
         assert decision.channel == "voice"
 
-    def test_no_target_silences(self) -> None:
+    def test_no_target_returns_speak_without_target(self) -> None:
+        # The dispatcher no longer decides SILENCE on a missing
+        # target.  It returns SPEAK with target=None so the
+        # delivery adapter (with its continuity resolver) can
+        # fill in a real target — or downgrade to SILENCE.
         d = ChannelDispatcher(config=DispatcherConfig())
         s = _signal()
         decision = d.evaluate(s)
         assert decision is not None
-        assert decision.verdict == DecisionVerdict.SILENCE
-        assert "no_target_for_channel" in decision.reason
+        assert decision.verdict == DecisionVerdict.SPEAK
+        assert decision.target is None
+        assert "no_target" in decision.reason
 
     def test_fallback_to_default(self) -> None:
         pref = ChannelPreference(kind=SignalKind.ANOMALY, channel="discord")
@@ -479,12 +484,22 @@ class TestEngine:
         assert d.verdict == DecisionVerdict.SPEAK
 
     @pytest.mark.asyncio
-    async def test_no_target_silences(self) -> None:
+    async def test_no_target_returns_speak_with_none_target(self) -> None:
+        # Engine propagates the dispatcher's "no target" decision
+        # as SPEAK with target=None (then "accepted" stage after
+        # silence-engine bookkeeping).  The delivery adapter is
+        # responsible for resolving a real target (or downgrading
+        # to SILENCE if no resolver is configured).
         engine = ProactiveEngine.for_user("u1")
         s = _signal(value=0.9, confidence=0.9)
         d = await engine.evaluate(s)
-        assert d.verdict == DecisionVerdict.SILENCE
-        assert d.stage == "dispatch"
+        assert d.verdict == DecisionVerdict.SPEAK
+        assert d.target is None
+        # The engine re-stages SPEAK as "accepted" after
+        # silence-engine bookkeeping.  The original dispatch
+        # stage reason is preserved on the signal flow, but
+        # the final stage here is "accepted".
+        assert d.stage in ("dispatch", "accepted")
 
     @pytest.mark.asyncio
     async def test_user_feedback_silences_subsequent(self) -> None:

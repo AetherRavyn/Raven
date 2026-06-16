@@ -28,6 +28,14 @@ from app.core.continuity.identity import (
     derive_device_id,
     derive_user_id,
 )
+from app.core.continuity.integration import (
+    CompositeTargetResolver,
+    ContinuityTargetResolver,
+    DefaultTargetResolver,
+    TargetResolver,
+    build_default_resolver,
+    resolve_user_channels,
+)
 from app.core.continuity.orchestrator import (
     Continuity,
     continuity,
@@ -46,7 +54,10 @@ from app.core.continuity.store import (
 
 __all__ = [
     "Channel",
+    "CompositeTargetResolver",
     "Continuity",
+    "ContinuityTargetResolver",
+    "DefaultTargetResolver",
     "Device",
     "HandoffLog",
     "HandoffReceipt",
@@ -55,13 +66,16 @@ __all__ = [
     "Session",
     "SessionEvent",
     "SessionManager",
+    "TargetResolver",
     "UserIdentity",
+    "build_default_resolver",
     "continuity",
     "derive_device_id",
     "derive_user_id",
     "handoff_session",
     "load_sessions",
     "reset_continuity",
+    "resolve_user_channels",
     "snapshot",
     "summarise_for_handoff",
 ]

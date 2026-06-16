@@ -23,9 +23,14 @@ from typing import TYPE_CHECKING, Any
 
 from app.core.audit import AuditEvent, get_action_logger
 from app.core.botsignal import BotSignal, get_botsignal
-from app.core.models import SignalPayload
+from app.core.continuity.integration import (
+    DefaultTargetResolver,
+    TargetResolver,
+)
+from app.core.models import ReplyTarget, SignalPayload
 
 if TYPE_CHECKING:
+    from app.core.continuity.integration import TargetResolver as _TR
     from app.core.proactive_core import (
         DecisionVerdict,
         ProactiveDecision,
@@ -56,10 +61,12 @@ class DeliveryAdapter:
         *,
         botsignal: BotSignal | None = None,
         sender: DeliverySender | None = None,
+        target_resolver: "_TR | None" = None,
     ) -> None:
         self._engine = engine
         self._botsignal = botsignal
         self._custom_sender = sender
+        self._target_resolver: TargetResolver | None = target_resolver
         self._logger = get_action_logger()
 
     async def dispatch(
@@ -72,6 +79,15 @@ class DeliveryAdapter:
 
         ``sender`` overrides the constructor's sender for this call
         only — used in tests to assert on a single signal.
+
+        Target resolution: when the engine returns a SPEAK
+        decision with no concrete target (the dispatcher
+        could not find a registered chat), this method asks
+        the configured ``target_resolver`` for one.  The
+        resolver is the seam where continuity plugs in: a
+        user active on voice can get proactive messages
+        there even when the engine was registered for
+        telegram.
         """
         decision = await self._engine.evaluate(signal)
         self._record_decision(decision)
@@ -85,6 +101,40 @@ class DeliveryAdapter:
             await effective_sender(decision)
             return decision
 
+        # Resolve the (platform, chat_id) target.  If the
+        # dispatcher already supplied one, use it.  Otherwise
+        # ask the resolver.
+        target = decision.target
+        if target is None and self._target_resolver is not None:
+            try:
+                pair = self._target_resolver.resolve(signal.user_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Target resolver raised: id=%s user_id=%s err=%s",
+                    signal.id,
+                    signal.user_id,
+                    exc,
+                )
+                pair = None
+            if pair is not None:
+                platform, chat_id = pair
+                target = ReplyTarget(platform=platform, chat_id=chat_id)
+                decision.target = target
+                decision.channel = platform
+
+        if target is None:
+            logger.warning(
+                "SPEAK decision with no resolvable target: id=%s kind=%s user_id=%s",
+                signal.id,
+                signal.kind.value,
+                signal.user_id,
+            )
+            decision.verdict = DecisionVerdict.SILENCE
+            decision.stage = "dispatch"
+            decision.reason = "no_target_resolved"
+            self._record_decision(decision)
+            return decision
+
         if self._botsignal is None:
             logger.warning(
                 "SPEAK decision with no sender configured: id=%s kind=%s",
@@ -93,10 +143,7 @@ class DeliveryAdapter:
             )
             return decision
 
-        await self._botsignal.send(
-            decision.target,  # type: ignore[arg-type]
-            self._build_payload(decision),
-        )
+        await self._botsignal.send(target, self._build_payload(decision))
         return decision
 
     def _build_payload(self, decision: ProactiveDecision) -> SignalPayload:
@@ -161,9 +208,17 @@ def build_default_adapter(
     chat_id: str,
     channel: str = "telegram",
     botsignal: BotSignal | None = None,
+    target_resolver: TargetResolver | None = None,
 ) -> DeliveryAdapter:
-    """One-call helper: build an engine + adapter for a user."""
+    """One-call helper: build an engine + adapter for a user.
+
+    If no ``target_resolver`` is given, falls back to a
+    :class:`DefaultTargetResolver` for the bootstrap channel.
+    Use :func:`app.core.continuity.integration.build_default_resolver`
+    to get a continuity-aware chain.
+    """
     from app.core.proactive_core import configure_default_engine
 
     engine = configure_default_engine(user_id, chat_id=chat_id, channel=channel)
-    return DeliveryAdapter(engine, botsignal=botsignal or get_botsignal())
+    resolver = target_resolver or DefaultTargetResolver(platform=channel, chat_id=chat_id)
+    return DeliveryAdapter(engine, botsignal=botsignal or get_botsignal(), target_resolver=resolver)
