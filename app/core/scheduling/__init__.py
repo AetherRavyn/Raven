@@ -61,7 +61,16 @@ from app.core.scheduling.signal import (
     reset_default_signal_router,
     set_default_signal_router,
 )
+from app.core.scheduling.signal_bridge import (
+    ProactiveSignalBridge,
+    get_default_proactive_signal_bridge,
+    reset_default_proactive_signal_bridge,
+    set_default_proactive_signal_bridge,
+    signal_to_proactive,
+)
 from app.core.scheduling.signal_delivery import (
+    CHAT_ID_KEY,
+    PLATFORM_KEY,
     SignalDeliveryAdapter,
     get_default_signal_delivery_adapter,
     reset_default_signal_delivery_adapter,
@@ -87,6 +96,7 @@ __all__ = [
     "IntervalTrigger",
     "OneShotTrigger",
     "PLATFORM_KEY",
+    "ProactiveSignalBridge",
     "Routine",
     "RoutineFn",
     "RoutineRegistry",
@@ -103,14 +113,18 @@ __all__ = [
     "TimeOfDayTrigger",
     "Trigger",
     "generate_signals",
+    "get_default_proactive_signal_bridge",
     "get_default_scheduler",
     "get_default_signal_delivery_adapter",
     "get_default_signal_router",
     "make_schedule_id",
+    "reset_default_proactive_signal_bridge",
     "reset_default_scheduler",
     "reset_default_signal_delivery_adapter",
     "reset_default_signal_router",
     "set_default_scheduler",
     "set_default_signal_delivery_adapter",
+    "set_default_proactive_signal_bridge",
     "set_default_signal_router",
+    "signal_to_proactive",
 ]

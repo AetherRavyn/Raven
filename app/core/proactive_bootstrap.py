@@ -43,6 +43,15 @@ def register_proactive_routines(scheduler: SarasScheduler) -> None:
     # value-gate filtering is a future Day 24 enhancement).
     _ensure_signal_delivery_adapter(scheduler)
 
+    # Day 24: wire the :class:`ProactiveSignalBridge` so v2
+    # signals also pass through the proactive engine (DND,
+    # value-gate, silence stages).  One bridge is created per
+    # registered user context (each context has its own
+    # :class:`DeliveryAdapter`).  When the proactive engine
+    # is wired, the bridge is the preferred delivery path;
+    # the D23 direct adapter still works as a fallback.
+    _ensure_proactive_signal_bridges()
+
     # Day 21: build a v2 :class:`Scheduler` (one per process) and
     # use it for the new flexible trigger model.  The legacy
     # ``SarasScheduler`` is kept running so the original cron
@@ -156,6 +165,76 @@ def _ensure_v2_scheduler(legacy: SarasScheduler) -> Any:
     if legacy is not None and getattr(legacy, "_botsignal", None) is not None:
         sched.metadata.setdefault("botsignal", legacy._botsignal)
     return sched
+
+
+def _ensure_proactive_signal_bridges() -> None:
+    """Wire one :class:`ProactiveSignalBridge` per registered user.
+
+    Reads the per-user contexts created by
+    :func:`app.core.proactive_core.register_proactive_core`
+    and creates a bridge for each.  Each bridge subscribes
+    to the process-wide :class:`SignalRouter`, converts
+    incoming :class:`Signal` objects to
+    :class:`ProactiveSignal`, and dispatches through that
+    user's :class:`DeliveryAdapter` (which runs the
+    four-stage pipeline: DND -> value gate -> silence ->
+    dispatch).
+
+    Idempotent: a second call is a no-op when a bridge is
+    already wired for every registered user.  When no
+    proactive contexts exist (engine not registered yet),
+    the function is a no-op — the D23 direct adapter still
+    works for raw delivery.
+    """
+    from app.core.scheduling import (
+        ProactiveSignalBridge,
+        get_default_proactive_signal_bridge,
+        get_default_signal_router,
+        set_default_proactive_signal_bridge,
+    )
+
+    try:
+        from app.core.proactive_core.bootstrap import all_contexts
+    except Exception as exc:  # noqa: BLE001
+        logger.info("ProactiveSignalBridge skipped: %s", exc)
+        return
+
+    contexts = all_contexts()
+    if not contexts:
+        logger.debug(
+            "ProactiveSignalBridge skipped: no proactive contexts registered"
+        )
+        return
+
+    # Skip when the first context is already bridged.
+    existing = get_default_proactive_signal_bridge()
+    if existing is not None and existing.is_running:
+        return
+
+    router = get_default_signal_router()
+    bridges: list[ProactiveSignalBridge] = []
+    for ctx in contexts:
+        try:
+            bridge = ProactiveSignalBridge(router, ctx.adapter)
+            bridge.start()
+            bridges.append(bridge)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "ProactiveSignalBridge wiring failed for user %s: %s",
+                ctx.user_id,
+                exc,
+            )
+    if bridges:
+        # The first bridge is the "default" reference; the
+        # others are tracked in the list but accessible via
+        # their own subscriptions.  Tests that need to stop
+        # all bridges should hold their own list.
+        set_default_proactive_signal_bridge(bridges[0])
+        logger.info(
+            "ProactiveSignalBridge wired: %d bridge(s) across %d user(s)",
+            len(bridges),
+            len(contexts),
+        )
 
 
 def _ensure_signal_delivery_adapter(legacy: SarasScheduler | None) -> None:
