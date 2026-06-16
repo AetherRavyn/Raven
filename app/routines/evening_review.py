@@ -142,7 +142,28 @@ def register_evening_review(
     cron_hour: int = 21,
     cron_minute: int = 0,
 ) -> None:
-    """Register the evening review cron job for a user."""
+    """Register the evening review cron job for a user.
+
+    When ``scheduler`` is a v2 :class:`Scheduler` the new
+    :class:`CronTrigger` API is used; the legacy path is
+    preserved for the original APScheduler wrapper.
+    """
+    from app.core.scheduling import (
+        CronTrigger,
+        Scheduler,
+    )
+
+    if isinstance(scheduler, Scheduler):
+        register_evening_review_v2(
+            scheduler,
+            user_id=user_id,
+            platform=platform,
+            chat_id=chat_id,
+            cron_hour=cron_hour,
+            cron_minute=cron_minute,
+        )
+        return
+
     from app.core.models import ReplyTarget
 
     async def _fire():
@@ -169,3 +190,49 @@ def register_evening_review(
         cron_hour,
         cron_minute,
     )
+
+
+def register_evening_review_v2(
+    scheduler: "Scheduler",
+    *,
+    user_id: str,
+    platform: str,
+    chat_id: str,
+    cron_hour: int = 21,
+    cron_minute: int = 0,
+    schedule_id: str | None = None,
+) -> str:
+    """Register the evening review on a v2 :class:`Scheduler`."""
+    from app.core.scheduling import CronTrigger
+    from app.core.models import ReplyTarget
+
+    async def _fire(user_id_arg: str, *, triggered_at, **_: object) -> None:
+        if await _send_via_engine(user_id_arg, platform, chat_id):
+            return
+        text = await compose_evening_review(user_id_arg)
+        target = ReplyTarget(platform=platform, chat_id=chat_id)
+        digest = ProactiveDigest(title=text, items=[], source="evening_review")
+        await send_proactive_digest(target, digest)
+
+    routine_id = f"evening_review::{user_id}"
+    scheduler.routine_registry.register_fn(
+        routine_id,
+        _fire,
+        name=f"Evening review for {user_id}",
+        kind="evening_review",
+    )
+    sched = scheduler.add(
+        routine_id,
+        CronTrigger(expression=f"{cron_minute} {cron_hour} * * *"),
+        user_id=user_id,
+        schedule_id=schedule_id or f"evening_review_{user_id}",
+        metadata={"platform": platform, "chat_id": chat_id},
+    )
+    logger.info(
+        "evening_review v2 registered: user=%s at %02d:%02d schedule_id=%s",
+        user_id,
+        cron_hour,
+        cron_minute,
+        sched.id,
+    )
+    return sched.id

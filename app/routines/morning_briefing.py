@@ -239,7 +239,31 @@ def register_morning_briefing(
     cron_hour: int = 8,
     cron_minute: int = 0,
 ) -> None:
-    """Register the morning briefing cron job for a user."""
+    """Register the morning briefing cron job for a user.
+
+    When ``scheduler`` is a v2 :class:`Scheduler` (from
+    :mod:`app.core.scheduling`), the routine is registered via
+    the new :class:`CronTrigger` and routed through the
+    scheduler's fire callback.  When it's the legacy
+    :class:`SarasScheduler`, falls back to the previous
+    APScheduler-based registration.
+    """
+    from app.core.scheduling import (
+        CronTrigger,
+        Scheduler,
+    )
+
+    if isinstance(scheduler, Scheduler):
+        register_morning_briefing_v2(
+            scheduler,
+            user_id=user_id,
+            platform=platform,
+            chat_id=chat_id,
+            cron_hour=cron_hour,
+            cron_minute=cron_minute,
+        )
+        return
+
     from app.core.botsignal import get_botsignal
     from app.core.models import ReplyTarget
 
@@ -268,3 +292,58 @@ def register_morning_briefing(
         cron_hour,
         cron_minute,
     )
+
+
+def register_morning_briefing_v2(
+    scheduler: "Scheduler",
+    *,
+    user_id: str,
+    platform: str,
+    chat_id: str,
+    cron_hour: int = 8,
+    cron_minute: int = 0,
+    schedule_id: str | None = None,
+) -> str:
+    """Register the morning briefing on a v2 :class:`Scheduler`.
+
+    The routine looks up the user in
+    :func:`app.core.continuity.identity.identity_registry` so the
+    scheduler knows where to deliver.  A :class:`CronTrigger`
+    drives the daily cadence.
+    """
+    from app.core.scheduling import CronTrigger
+    from app.core.models import ReplyTarget
+
+    async def _fire(user_id_arg: str, *, triggered_at, **_: object) -> None:
+        # Prefer the proactive engine when registered.
+        if await _fire_via_engine(user_id_arg, platform, chat_id):
+            return
+        # Legacy path — direct send.
+        digest = await compose_daily_digest(user_id_arg)
+        target = ReplyTarget(platform=platform, chat_id=chat_id)
+        await send_proactive_digest(target, digest)
+
+    routine_id = f"morning_briefing::{user_id}"
+    scheduler.routine_registry.register_fn(
+        routine_id,
+        _fire,
+        name=f"Morning briefing for {user_id}",
+        kind="morning_briefing",
+    )
+    sched = scheduler.add(
+        routine_id,
+        CronTrigger(
+            expression=f"{cron_minute} {cron_hour} * * *",
+        ),
+        user_id=user_id,
+        schedule_id=schedule_id or f"morning_briefing_{user_id}",
+        metadata={"platform": platform, "chat_id": chat_id},
+    )
+    logger.info(
+        "morning_briefing v2 registered: user=%s at %02d:%02d schedule_id=%s",
+        user_id,
+        cron_hour,
+        cron_minute,
+        sched.id,
+    )
+    return sched.id

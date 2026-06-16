@@ -11,6 +11,7 @@ from app.routines.autonomy_worker import register_autonomy_worker
 from app.routines.memory_consolidation import register_memory_consolidator
 from app.routines.calendar_watcher import register_calendar_watcher
 from app.routines.morning_briefing import register_morning_briefing
+from app.routines.registry import register_default_routines
 from app.routines.weekly_digest import register_weekly_digest
 from app.settings.config import Config
 
@@ -34,10 +35,34 @@ def register_proactive_routines(scheduler: SarasScheduler) -> None:
     except Exception as exc:  # noqa: BLE001
         logger.info("Proactive core bootstrap skipped: %s", exc)
 
+    # Day 21: build a v2 :class:`Scheduler` (one per process) and
+    # use it for the new flexible trigger model.  The legacy
+    # ``SarasScheduler`` is kept running so the original cron
+    # jobs continue to fire even before every routine has been
+    # migrated to the v2 path.  When a routine detects the v2
+    # scheduler, it takes the v2 path; otherwise it falls back.
+    v2_scheduler = _ensure_v2_scheduler(scheduler)
+
     for entry in Config.MORNING_BRIEFING_USERS.split(","):
         parts = entry.strip().split(":")
         if len(parts) == 3:
             platform, uid, cid = parts
+            # v2 registration — every built-in routine in one call.
+            try:
+                register_default_routines(
+                    v2_scheduler,
+                    uid,
+                    platform,
+                    cid,
+                    morning_hour=Config.MORNING_BRIEFING_HOUR,
+                    morning_minute=Config.MORNING_BRIEFING_MINUTE,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.info("v2 default routines skipped: %s", exc)
+
+            # Legacy registrations (still useful for routines that
+            # haven't been ported yet — forecast, internet watcher,
+            # autonomy worker, memory consolidator, calendar watcher).
             register_morning_briefing(
                 scheduler,
                 uid,
@@ -46,15 +71,10 @@ def register_proactive_routines(scheduler: SarasScheduler) -> None:
                 cron_hour=Config.MORNING_BRIEFING_HOUR,
                 cron_minute=Config.MORNING_BRIEFING_MINUTE,
             )
-            # Register background prediction engine
             register_forecast_routine(scheduler, uid, interval_hours=4)
-            # Register internet watcher
             register_internet_watcher(scheduler, uid, platform, cid, interval_hours=6)
-            # Register True Autonomy Engine
             register_autonomy_worker(scheduler, uid, platform, cid, interval_minutes=15)
-            # Register Memory Consolidator
             register_memory_consolidator(scheduler, uid, interval_hours=12)
-            # Register Calendar Watcher (proactive meeting alerts)
             register_calendar_watcher(scheduler, uid, platform, cid, interval_minutes=5)
             # Phase C3: end-of-day review (default 21:00 UTC)
             try:
@@ -86,6 +106,27 @@ def register_proactive_routines(scheduler: SarasScheduler) -> None:
 
     # ── Start Sentinel Bridge (HomeSentinel → SARAS) ───────────────
     _start_sentinel_bridge(scheduler)
+
+
+def _ensure_v2_scheduler(legacy: SarasScheduler) -> Any:
+    """Return the v2 :class:`Scheduler` singleton, wiring in the
+    legacy ``botsignal`` if available.
+
+    The default fire callback falls back to the legacy
+    scheduler's ``botsignal`` so routines that still need
+    direct-send get a path.  A no-op callback is used when no
+    signal is available.
+    """
+    from app.core.scheduling import Scheduler, get_default_scheduler
+
+    sched = get_default_scheduler()
+    if sched.fire_callback is None:
+        # Default fire callback: ask the scheduler's own
+        # :meth:`fire` method to call the registered routine.
+        sched.fire_callback = sched.fire
+    if legacy is not None and getattr(legacy, "_botsignal", None) is not None:
+        sched.metadata.setdefault("botsignal", legacy._botsignal)
+    return sched
 
 
 def _start_sentinel_bridge(scheduler: SarasScheduler) -> None:

@@ -155,7 +155,28 @@ def register_weekly_digest(
     ``cron_day_of_week`` uses APScheduler's 3-letter codes
     (``mon``, ``tue``, ``wed``, ``thu``, ``fri``, ``sat``,
     ``sun``).  Default is Sunday evening.
+
+    On a v2 :class:`Scheduler` the same DOW codes are
+    supported by the new cron parser, so we pass them
+    through unchanged.
     """
+    from app.core.scheduling import (
+        CronTrigger,
+        Scheduler,
+    )
+
+    if isinstance(scheduler, Scheduler):
+        register_weekly_digest_v2(
+            scheduler,
+            user_id=user_id,
+            platform=platform,
+            chat_id=chat_id,
+            cron_day_of_week=cron_day_of_week,
+            cron_hour=cron_hour,
+            cron_minute=cron_minute,
+        )
+        return
+
     from app.core.models import ReplyTarget
 
     async def _fire():
@@ -183,3 +204,53 @@ def register_weekly_digest(
         cron_hour,
         cron_minute,
     )
+
+
+def register_weekly_digest_v2(
+    scheduler: "Scheduler",
+    *,
+    user_id: str,
+    platform: str,
+    chat_id: str,
+    cron_day_of_week: str = "sun",
+    cron_hour: int = 19,
+    cron_minute: int = 0,
+    schedule_id: str | None = None,
+) -> str:
+    """Register the weekly digest on a v2 :class:`Scheduler`."""
+    from app.core.scheduling import CronTrigger
+    from app.core.models import ReplyTarget
+
+    async def _fire(user_id_arg: str, *, triggered_at, **_: object) -> None:
+        if await _send_via_engine(user_id_arg, platform, chat_id):
+            return
+        text = await compose_weekly_digest(user_id_arg)
+        target = ReplyTarget(platform=platform, chat_id=chat_id)
+        digest = ProactiveDigest(title=text, items=[], source="weekly_digest")
+        await send_proactive_digest(target, digest)
+
+    routine_id = f"weekly_digest::{user_id}"
+    scheduler.routine_registry.register_fn(
+        routine_id,
+        _fire,
+        name=f"Weekly digest for {user_id}",
+        kind="weekly_digest",
+    )
+    sched = scheduler.add(
+        routine_id,
+        CronTrigger(
+            expression=f"{cron_minute} {cron_hour} * * {cron_day_of_week}",
+        ),
+        user_id=user_id,
+        schedule_id=schedule_id or f"weekly_digest_{user_id}",
+        metadata={"platform": platform, "chat_id": chat_id},
+    )
+    logger.info(
+        "weekly_digest v2 registered: user=%s at %s %02d:%02d schedule_id=%s",
+        user_id,
+        cron_day_of_week,
+        cron_hour,
+        cron_minute,
+        sched.id,
+    )
+    return sched.id
