@@ -3,12 +3,15 @@ from __future__ import annotations
 import logging
 
 from app.core.scheduler import SarasScheduler
-from app.routines.morning_briefing import register_morning_briefing
+from app.routines.anomaly_digest import register_anomaly_digest
+from app.routines.evening_review import register_evening_review
 from app.routines.forecast_routine import register_forecast_routine
 from app.routines.internet_watcher import register_internet_watcher
 from app.routines.autonomy_worker import register_autonomy_worker
 from app.routines.memory_consolidation import register_memory_consolidator
 from app.routines.calendar_watcher import register_calendar_watcher
+from app.routines.morning_briefing import register_morning_briefing
+from app.routines.weekly_digest import register_weekly_digest
 from app.settings.config import Config
 
 logger = logging.getLogger(__name__)
@@ -53,6 +56,33 @@ def register_proactive_routines(scheduler: SarasScheduler) -> None:
             register_memory_consolidator(scheduler, uid, interval_hours=12)
             # Register Calendar Watcher (proactive meeting alerts)
             register_calendar_watcher(scheduler, uid, platform, cid, interval_minutes=5)
+            # Phase C3: end-of-day review (default 21:00 UTC)
+            try:
+                register_evening_review(
+                    scheduler, uid, platform, cid, cron_hour=21, cron_minute=0
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.info("evening_review skipped: %s", exc)
+            # Phase C3: weekly digest (Sunday 19:00 UTC)
+            try:
+                register_weekly_digest(
+                    scheduler,
+                    uid,
+                    platform,
+                    cid,
+                    cron_day_of_week="sun",
+                    cron_hour=19,
+                    cron_minute=0,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.info("weekly_digest skipped: %s", exc)
+            # Phase C3: anomaly digest (default 09:30 UTC)
+            try:
+                register_anomaly_digest(
+                    scheduler, uid, platform, cid, cron_hour=9, cron_minute=30
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.info("anomaly_digest skipped: %s", exc)
 
     # ── Start Sentinel Bridge (HomeSentinel → SARAS) ───────────────
     _start_sentinel_bridge(scheduler)
