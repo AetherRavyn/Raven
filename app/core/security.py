@@ -153,9 +153,7 @@ class SecurityGuard:
     def is_admin(self, user_id: str) -> bool:
         """Check if a user ID is explicitly allowed to perform privileged actions."""
         if not self.admin_users:
-            logger.warning(
-                "No ADMIN_USER_IDS configured. All privileged actions will be blocked."
-            )
+            logger.warning("No ADMIN_USER_IDS configured. All privileged actions will be blocked.")
             return False
         return str(user_id) in self.admin_users
 
@@ -197,7 +195,7 @@ class SecurityGuard:
                 with open(config_path, "r") as f:
                     cfg = json.load(f)
                     approval_level = cfg.get("approval_level", approval_level)
-            except Exception:
+            except Exception:  # nosec  # fallback to defaults on bad config
                 pass
 
         high_risk_tools = {
@@ -274,9 +272,7 @@ class SecurityGuard:
     # Per-Channel Tool Permissions (Phase 3 Enhancement)
     # ------------------------------------------------------------------
 
-    def get_channel_permissions(
-        self, platform: str, channel_id: str
-    ) -> set[str] | None:
+    def get_channel_permissions(self, platform: str, channel_id: str) -> set[str] | None:
         """Return allowed tool names for a specific channel.
 
         Returns None if no restrictions are set (all tools allowed).
@@ -305,14 +301,15 @@ class SecurityGuard:
         config[key] = {
             "allowed_tools": allowed_tools,
             "label": label or key,
-            "updated_at": __import__("datetime").datetime.now(
-                __import__("datetime").timezone.utc
-            ).isoformat(),
+            "updated_at": __import__("datetime")
+            .datetime.now(__import__("datetime").timezone.utc)
+            .isoformat(),
         }
         self._save_channel_config(config)
         logger.info(
             "Set channel permissions for %s: %d tools allowed",
-            key, len(allowed_tools),
+            key,
+            len(allowed_tools),
         )
 
     def is_tool_allowed(
@@ -337,15 +334,15 @@ class SecurityGuard:
 
         return True, "Allowed"
 
-    def check_dm_pairing(
-        self, user_id: str, platform: str
-    ) -> tuple[bool, str]:
+    def check_dm_pairing(self, user_id: str, platform: str) -> tuple[bool, str]:
         """Check if a DM user is paired. Returns (is_paired, message).
 
         If DM pairing is disabled, always returns True.
         """
         dm_enabled = os.getenv("DM_PAIRING_ENABLED", "true").lower() in {
-            "1", "true", "yes",
+            "1",
+            "true",
+            "yes",
         }
         if not dm_enabled:
             return True, "DM pairing disabled"
@@ -381,7 +378,7 @@ class SecurityGuard:
             try:
                 with open(config_path, "r") as f:
                     return json.load(f)
-            except Exception:
+            except Exception:  # nosec  # fallback to defaults
                 pass
         return {}
 

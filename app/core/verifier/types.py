@@ -66,9 +66,7 @@ class CheckResult:
             "passed": self.passed,
             "severity": self.severity.value,
             "message": self.message,
-            "actual": self.actual
-            if _safe_to_serialize(self.actual)
-            else str(self.actual),
+            "actual": self.actual if _safe_to_serialize(self.actual) else str(self.actual),
             "expected": self.expected,
             "confidence": self.confidence,
             "duration_ms": self.duration_ms,
@@ -92,12 +90,8 @@ class VerificationReport:
     def from_checks(
         cls, plan_id: str, step_id: str, checks: list[CheckResult]
     ) -> "VerificationReport":
-        blocking = sum(
-            1 for c in checks if not c.passed and c.severity == Severity.BLOCKING
-        )
-        warns = sum(
-            1 for c in checks if not c.passed and c.severity == Severity.WARNING
-        )
+        blocking = sum(1 for c in checks if not c.passed and c.severity == Severity.BLOCKING)
+        warns = sum(1 for c in checks if not c.passed and c.severity == Severity.WARNING)
         passed = blocking == 0
         return cls(
             plan_id=plan_id,
@@ -134,9 +128,7 @@ def _safe_to_serialize(value: Any) -> bool:
     if isinstance(value, (list, tuple)):
         return all(_safe_to_serialize(v) for v in value)
     if isinstance(value, dict):
-        return all(
-            isinstance(k, str) and _safe_to_serialize(v) for k, v in value.items()
-        )
+        return all(isinstance(k, str) and _safe_to_serialize(v) for k, v in value.items())
     return False
 
 

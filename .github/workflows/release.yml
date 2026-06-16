@@ -1,0 +1,167 @@
+name: release
+
+# Auto-tag, build, and publish on push to main (or manual trigger).
+# Generates a changelog from conventional-commits and bumps the
+# version in pyproject.toml.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: "Version bump (major, minor, patch)"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine bump type
+        id: bump
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BUMP="auto"
+          else
+            BUMP="${{ github.event.inputs.version_bump }}"
+          fi
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install release tools
+        run: |
+          pip install --upgrade python-semantic-release
+
+      - name: Compute next version
+        id: version
+        run: |
+          CURRENT=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          NEXT=$(python -c "
+          import sys
+          v = sys.argv[1].split('.')
+          bump = sys.argv[2]
+          major, minor, patch = int(v[0]), int(v[1]), int(v[2])
+          if bump == 'major':
+              major += 1; minor = 0; patch = 0
+          elif bump == 'minor':
+              minor += 1; patch = 0
+          else:
+              patch += 1
+          print(f'{major}.{minor}.{patch}')
+          " "$CURRENT" "${{ steps.bump.outputs.bump == 'auto' && 'patch' || steps.bump.outputs.bump }}")
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Update version in pyproject.toml
+        run: |
+          python -c "
+          import re
+          with open('pyproject.toml') as f:
+              content = f.read()
+          content = re.sub(
+              r'(version = )\"[^\"]+\"',
+              r'\1\"${{ steps.version.outputs.next }}\"',
+              content,
+              count=1,
+          )
+          with open('pyproject.toml', 'w') as f:
+              f.write(content)
+          "
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          python -c "
+          import subprocess
+          # Conventional-commits-style changelog from last tag.
+          try:
+              last_tag = subprocess.check_output(
+                  ['git', 'describe', '--tags', '--abbrev=0'],
+                  stderr=subprocess.DEVNULL,
+              ).decode().strip()
+          except subprocess.CalledProcessError:
+              last_tag = None
+
+          if last_tag:
+              log = subprocess.check_output(
+                  ['git', 'log', f'{last_tag}..HEAD', '--pretty=format:%s']
+              ).decode()
+          else:
+              log = subprocess.check_output(
+                  ['git', 'log', '--pretty=format:%s']
+              ).decode()
+
+          with open('CHANGELOG_FRAGMENT.md', 'w') as f:
+              f.write('## ${{ steps.version.outputs.next }} (${{ github.event.head_commit.timestamp }})\n\n')
+              f.write(log)
+          print('--- CHANGELOG ---')
+          with open('CHANGELOG_FRAGMENT.md') as f:
+              print(f.read())
+          "
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml CHANGELOG_FRAGMENT.md
+          git commit -m "chore(release): v${{ steps.version.outputs.next }}" || echo "No changes to commit"
+          git tag "v${{ steps.version.outputs.next }}"
+
+      - name: Build sdist + wheel
+        run: |
+          pip install --upgrade build
+          python -m build
+
+      - name: Push tag
+        run: git push origin "v${{ steps.version.outputs.next }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.next }}
+          name: "v${{ steps.version.outputs.next }}"
+          body_path: CHANGELOG_FRAGMENT.md
+          draft: false
+          prerelease: false
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+
+      - name: Build docker image
+        run: |
+          docker build -t ghcr.io/saras/saras:${{ steps.version.outputs.next }} -t ghcr.io/saras/saras:latest .
+
+      - name: Login to ghcr.io
+        if: success()
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push docker image
+        if: success()
+        run: |
+          docker push ghcr.io/saras/saras:${{ steps.version.outputs.next }}
+          docker push ghcr.io/saras/saras:latest

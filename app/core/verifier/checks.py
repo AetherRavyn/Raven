@@ -58,9 +58,7 @@ def check_non_empty(value: Any, *, name: str = "non_empty") -> CheckResult:
             kind=CheckKind.NON_EMPTY,
             passed=passed,
             message=("" if passed else "value is empty"),
-            actual=value
-            if isinstance(value, (str, int, float, bool, type(None)))
-            else str(value),
+            actual=value if isinstance(value, (str, int, float, bool, type(None))) else str(value),
         )
 
     return _measure(_run)
@@ -156,9 +154,7 @@ def check_json_valid(text: str, *, name: str = "json_valid") -> CheckResult:
     return _measure(_run)
 
 
-def check_markdown_well_formed(
-    text: str, *, name: str = "markdown_well_formed"
-) -> CheckResult:
+def check_markdown_well_formed(text: str, *, name: str = "markdown_well_formed") -> CheckResult:
     """Heuristic: balanced code fences and no unclosed links."""
 
     def _run() -> CheckResult:
@@ -213,9 +209,7 @@ def check_file_exists(path: str, *, name: str | None = None) -> CheckResult:
     return _measure(_run)
 
 
-def check_file_written(
-    path: str, *, min_bytes: int = 1, name: str | None = None
-) -> CheckResult:
+def check_file_written(path: str, *, min_bytes: int = 1, name: str | None = None) -> CheckResult:
     def _run() -> CheckResult:
         p = Path(path)
         if not p.exists():
@@ -231,9 +225,7 @@ def check_file_written(
             name=name or f"file_written({path})",
             kind=CheckKind.FILE_WRITTEN,
             passed=passed,
-            message=(
-                "" if passed else f"file is {size} bytes, expected >= {min_bytes}"
-            ),
+            message=("" if passed else f"file is {size} bytes, expected >= {min_bytes}"),
             actual=size,
             expected=min_bytes,
         )
@@ -241,9 +233,7 @@ def check_file_written(
     return _measure(_run)
 
 
-def check_exit_code(
-    code: int, expected: int = 0, *, name: str | None = None
-) -> CheckResult:
+def check_exit_code(code: int, expected: int = 0, *, name: str | None = None) -> CheckResult:
     def _run() -> CheckResult:
         passed = code == expected
         return CheckResult(

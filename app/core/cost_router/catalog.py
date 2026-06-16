@@ -403,9 +403,7 @@ class ModelCatalog:
 
     def disable(self, provider: str, name: str) -> None:
         """Remove a model from the catalog (e.g. provider deprecated)."""
-        self._specs = [
-            s for s in self._specs if not (s.provider == provider and s.name == name)
-        ]
+        self._specs = [s for s in self._specs if not (s.provider == provider and s.name == name)]
 
     # ------------------------------------------------------------------
     # Query

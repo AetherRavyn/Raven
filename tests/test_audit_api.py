@@ -100,18 +100,14 @@ class TestEventsAPI:
         assert body["count"] == 1
         assert body["events"][0]["action"] == "rm"
 
-    def test_filter_by_actor(
-        self, client: TestClient, audit_log: AuditLog
-    ) -> None:
+    def test_filter_by_actor(self, client: TestClient, audit_log: AuditLog) -> None:
         _seed(audit_log)
         r = client.get("/api/audit/events?actor=admin")
         body = r.json()
         assert body["count"] == 1
         assert body["events"][0]["actor"] == "admin"
 
-    def test_filter_by_success(
-        self, client: TestClient, audit_log: AuditLog
-    ) -> None:
+    def test_filter_by_success(self, client: TestClient, audit_log: AuditLog) -> None:
         _seed(audit_log)
         r = client.get("/api/audit/events?success=false")
         body = r.json()
@@ -125,9 +121,7 @@ class TestEventsAPI:
         assert body["count"] == 2
         assert body["limit"] == 2
 
-    def test_get_by_id(
-        self, client: TestClient, audit_log: AuditLog
-    ) -> None:
+    def test_get_by_id(self, client: TestClient, audit_log: AuditLog) -> None:
         _seed(audit_log)
         events = audit_log.query(limit=10)
         eid = events[0].id
@@ -203,9 +197,7 @@ class TestExportAPI:
         assert len(body) == 3
         assert body[0]["kind"] == "tool_call"
 
-    def test_csv_export_with_kind_filter(
-        self, client: TestClient, audit_log: AuditLog
-    ) -> None:
+    def test_csv_export_with_kind_filter(self, client: TestClient, audit_log: AuditLog) -> None:
         _seed(audit_log)
         r = client.get("/api/audit/export.csv?kind=policy")
         body = r.text
@@ -227,14 +219,10 @@ class TestApprovalsAPI:
         assert body["count"] == 0
         assert body["approvals"] == []
 
-    def test_list_pending_after_ask(
-        self, client: TestClient, policy_engine: PolicyEngine
-    ) -> None:
+    def test_list_pending_after_ask(self, client: TestClient, policy_engine: PolicyEngine) -> None:
         # Set up an ASK scenario: established user + git_push.
         policy_engine.trust.set_tier("u1", "established")
-        policy_engine.evaluate(
-            _make_request("u1", "git_push", {"branch": "main"})
-        )
+        policy_engine.evaluate(_make_request("u1", "git_push", {"branch": "main"}))
         r = client.get("/api/audit/approvals/pending")
         body = r.json()
         assert body["count"] == 1
@@ -287,9 +275,7 @@ class TestHealthAPI:
         assert body["ok"] is True
         assert body["policy_v2"] is True
 
-    def test_health_no_policy(
-        self, audit_log: AuditLog
-    ) -> None:
+    def test_health_no_policy(self, audit_log: AuditLog) -> None:
         app = FastAPI()
         app.include_router(build_router(audit_log=audit_log, policy_engine=None))
         c = TestClient(app)

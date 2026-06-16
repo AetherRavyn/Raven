@@ -157,9 +157,7 @@ class SecretVault:
                     Fernet(data.encode("ascii"))
                     return data.encode("ascii")
                 except Exception as e:  # noqa: BLE001
-                    raise VaultUnavailable(
-                        f"key file {self._key_file} is corrupt: {e}"
-                    ) from e
+                    raise VaultUnavailable(f"key file {self._key_file} is corrupt: {e}") from e
         # 4. Generate new
         new_key = Fernet.generate_key()
         if not self._ephemeral:
@@ -189,13 +187,9 @@ class SecretVault:
             return
         try:
             raw = json.loads(self._vault_file.read_text(encoding="utf-8"))
-            self._entries = {
-                e["name"]: VaultEntry.from_dict(e) for e in raw.get("entries", [])
-            }
+            self._entries = {e["name"]: VaultEntry.from_dict(e) for e in raw.get("entries", [])}
         except (json.JSONDecodeError, KeyError, ValueError) as e:
-            raise VaultUnavailable(
-                f"vault file {self._vault_file} is corrupt: {e}"
-            ) from e
+            raise VaultUnavailable(f"vault file {self._vault_file} is corrupt: {e}") from e
         self._loaded = True
 
     def _atomic_write(self) -> None:
@@ -302,18 +296,14 @@ class SecretVault:
             count = 0
             for entry in self._entries.values():
                 try:
-                    plaintext = old.decrypt(entry.ciphertext.encode("ascii")).decode(
-                        "utf-8"
-                    )
+                    plaintext = old.decrypt(entry.ciphertext.encode("ascii")).decode("utf-8")
                 except InvalidToken:
                     logger.warning(
                         "entry %s could not be decrypted during rotation; skipping",
                         entry.name,
                     )
                     continue
-                entry.ciphertext = new_fernet.encrypt(plaintext.encode("utf-8")).decode(
-                    "ascii"
-                )
+                entry.ciphertext = new_fernet.encrypt(plaintext.encode("utf-8")).decode("ascii")
                 entry.rotation_count += 1
                 entry.updated_at = datetime.now(timezone.utc)
                 count += 1
@@ -330,9 +320,7 @@ class SecretVault:
                 try:
                     import keyring
 
-                    keyring.set_password(
-                        KEYRING_SERVICE, KEYRING_ACCOUNT, new_key.decode("ascii")
-                    )
+                    keyring.set_password(KEYRING_SERVICE, KEYRING_ACCOUNT, new_key.decode("ascii"))
                 except Exception as e:  # noqa: BLE001
                     logger.debug("keyring update failed: %s", e)
             self._atomic_write()
@@ -358,9 +346,7 @@ class SecretVault:
     def _decrypt_entry(self, entry: VaultEntry) -> str:
         assert self._fernet is not None
         try:
-            return self._fernet.decrypt(entry.ciphertext.encode("ascii")).decode(
-                "utf-8"
-            )
+            return self._fernet.decrypt(entry.ciphertext.encode("ascii")).decode("utf-8")
         except InvalidToken as e:
             raise VaultUnavailable(
                 f"failed to decrypt {entry.name}: wrong key or corrupt entry"

@@ -200,9 +200,7 @@ class TestKeyResolution:
         )
         assert v2.get("k") == "v"
 
-    def test_invalid_env_var_raises(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_invalid_env_var_raises(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(ENV_KEY_VAR, "not-a-valid-fernet-key")
         vault = SecretVault(
             vault_file=tmp_path / "v.json",
@@ -242,8 +240,9 @@ class TestRotation:
         # Ciphertext actually changed
         assert ephemeral_vault._entries["a"].ciphertext != old_ct_a
         # Rotation count bumped (from 0 to 1)
-        assert ephemeral_vault.metadata("a") is not None
-        assert ephemeral_vault.metadata("a")["rotation_count"] == 1
+        meta = ephemeral_vault.metadata("a")
+        assert meta is not None
+        assert meta["rotation_count"] == 1
 
     def test_rotate_creates_new_key_file(self, tmp_path: Path) -> None:
         # NOT ephemeral: we want the rotated key persisted so a second
@@ -301,23 +300,16 @@ class TestResolveSecret:
     def test_vault_wins(self, ephemeral_vault: SecretVault) -> None:
         ephemeral_vault.set("k", "from-vault")
         os.environ["MY_ENV"] = "from-env"
-        assert (
-            resolve_secret("k", vault=ephemeral_vault, env_var="MY_ENV") == "from-vault"
-        )
+        assert resolve_secret("k", vault=ephemeral_vault, env_var="MY_ENV") == "from-vault"
 
     def test_env_used_when_vault_misses(
         self, ephemeral_vault: SecretVault, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("MY_ENV", "from-env")
-        assert (
-            resolve_secret("k", vault=ephemeral_vault, env_var="MY_ENV") == "from-env"
-        )
+        assert resolve_secret("k", vault=ephemeral_vault, env_var="MY_ENV") == "from-env"
 
     def test_default_returned(self, ephemeral_vault: SecretVault) -> None:
-        assert (
-            resolve_secret("k", vault=ephemeral_vault, env_var="MISSING", default="d")
-            == "d"
-        )
+        assert resolve_secret("k", vault=ephemeral_vault, env_var="MISSING", default="d") == "d"
 
     def test_default_when_nothing_matches(self, ephemeral_vault: SecretVault) -> None:
         assert resolve_secret("k", vault=ephemeral_vault) is None

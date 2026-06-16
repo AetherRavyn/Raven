@@ -1,0 +1,42 @@
+# SARAS Code Owners
+# This file defines ownership for code review routing.
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo.
+*           @swadhin
+
+# Core agent runtime — touches every turn
+/app/core/runtime.py        @swadhin
+/app/core/orchestrator.py   @swadhin
+/app/core/agency.py         @swadhin
+
+# Security-critical modules
+/app/core/security.py       @swadhin
+/app/core/vault.py          @swadhin
+/app/core/secret_vault.py   @swadhin
+/app/core/policy_v2/        @swadhin
+/app/core/audit/            @swadhin
+/observability/             @swadhin
+
+# Storage layer (HelixDB)
+/app/db/                    @swadhin
+/scripts/start_helix.sh     @swadhin
+/helix.toml                 @swadhin
+
+# CI/CD
+/.github/                   @swadhin
+/Makefile                   @swadhin
+/.pre-commit-config.yaml    @swadhin
+/Dockerfile*                @swadhin
+/docker-compose*.yml        @swadhin
+
+# Plans and agent identity (governance)
+/PLAN_v3.md                 @swadhin
+/SOUL.md                    @swadhin
+/MEMORY.md                  @swadhin
+/Agent.md                   @swadhin
+/AGENTS.md                  @swadhin
+/friday.md                  @swadhin
+
+# Skills (curated content)
+/skills/bundled/            @swadhin

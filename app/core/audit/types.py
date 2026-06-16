@@ -58,9 +58,7 @@ class AuditEvent:
     cost_usd: float = 0.0
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
-    def to_dict(
-        self, *, redact: bool = True, redact_config: Any | None = None
-    ) -> dict[str, Any]:
+    def to_dict(self, *, redact: bool = True, redact_config: Any | None = None) -> dict[str, Any]:
         """Serialize the event to a dict.
 
         ``redact=True`` (the default) runs the payload through

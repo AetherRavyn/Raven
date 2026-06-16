@@ -146,9 +146,7 @@ def init_tracing(
         provider = TracerProvider(
             resource=resource,
             sampler=(
-                TraceIdRatioBased(cfg.sample_ratio)
-                if 0.0 <= cfg.sample_ratio < 1.0
-                else ALWAYS_ON
+                TraceIdRatioBased(cfg.sample_ratio) if 0.0 <= cfg.sample_ratio < 1.0 else ALWAYS_ON
             ),
         )
 
@@ -276,7 +274,7 @@ def span(
         if span_obj is not None and hasattr(span_obj, "record_exception"):
             try:
                 span_obj.record_exception(exc)
-            except Exception:  # noqa: BLE001
+            except Exception:  # nosec  # noqa: BLE001  # never fail the user's code because tracing failed
                 pass
         raise
     finally:
@@ -284,7 +282,7 @@ def span(
         # status=ERROR when the body raised.
         try:
             cm.__exit__(*sys.exc_info())
-        except Exception:  # noqa: BLE001
+        except Exception:  # nosec  # noqa: BLE001  # never fail the user's code because tracing failed
             pass
 
 
@@ -331,9 +329,7 @@ class _NoopTracer:
     so call sites can use it transparently.
     """
 
-    def start_as_current_span(
-        self, name: str, attributes: dict[str, Any] | None = None
-    ) -> Any:
+    def start_as_current_span(self, name: str, attributes: dict[str, Any] | None = None) -> Any:
         return _NoopSpan()
 
 

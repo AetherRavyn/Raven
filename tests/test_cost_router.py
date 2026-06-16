@@ -73,9 +73,7 @@ class TestCatalog:
 
     def test_override_price(self) -> None:
         cat = ModelCatalog()
-        cat.override_price(
-            "openai", "gpt-4o-mini", input_cost=0.0001, output_cost=0.0004
-        )
+        cat.override_price("openai", "gpt-4o-mini", input_cost=0.0001, output_cost=0.0004)
         spec = cat.get("openai", "gpt-4o-mini")
         assert spec is not None
         assert spec.input_cost_per_1k == 0.0001
@@ -107,9 +105,7 @@ class TestCatalog:
         assert new is not None
         assert new.input_cost_per_1k == 0.0
         # And it replaced, not appended
-        matches = [
-            s for s in cat.all() if s.provider == "openai" and s.name == "gpt-4o-mini"
-        ]
+        matches = [s for s in cat.all() if s.provider == "openai" and s.name == "gpt-4o-mini"]
         assert len(matches) == 1
 
     def test_within_tier_range(self) -> None:
@@ -121,7 +117,7 @@ class TestCatalog:
         cat = ModelCatalog()
         # Require a capability nothing has
         out = (
-            cat.filter(require=[ModelCapability.IMAGE])
+            cat.filter(require=[ModelCapability.IMAGE])  # type: ignore[attr-defined]
             if hasattr(ModelCapability, "IMAGE")
             else []
         )

@@ -199,17 +199,11 @@ def _redact_string(
     for name, pat in compiled:
         # For keyvalue_secret we want to keep the key and replace the value
         if name == "keyvalue_secret":
-            value = pat.sub(
-                lambda m: f"{m.group(1)}=[{placeholder}]", value
-            )
+            value = pat.sub(lambda m: f"{m.group(1)}=[{placeholder}]", value)
         elif name == "bearer_token":
-            value = pat.sub(
-                lambda m: f"Bearer [{placeholder}]", value
-            )
+            value = pat.sub(lambda m: f"Bearer [{placeholder}]", value)
         elif name == "private_key_block":
-            value = pat.sub(
-                lambda m: f"[{placeholder} ({name})]", value
-            )
+            value = pat.sub(lambda m: f"[{placeholder} ({name})]", value)
         else:
             value = pat.sub(f"[{placeholder} ({name})]", value)
     return value
@@ -224,9 +218,7 @@ def redact_value(
     if isinstance(value, str):
         return _redact_string(value, compiled, placeholder)
     if isinstance(value, (list, tuple)):
-        return type(value)(
-            redact_value(v, compiled, placeholder) for v in value
-        )
+        return type(value)(redact_value(v, compiled, placeholder) for v in value)
     if isinstance(value, dict):
         return redact_dict(value, compiled=compiled, placeholder=placeholder)
     return value
@@ -324,7 +316,8 @@ def safe_for_log(value: Any, *, config: RedactionConfig | None = None) -> str:
     """
     if isinstance(value, str):
         redacted = _redact_string(
-            value, compile_rules(config or RedactionConfig()),
+            value,
+            compile_rules(config or RedactionConfig()),
             (config.placeholder if config else DEFAULT_PLACEHOLDER),
         )
         return redacted

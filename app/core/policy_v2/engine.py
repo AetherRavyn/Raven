@@ -62,7 +62,7 @@ class ThresholdConfig:
     # < 1.0 reduces risk (trusted), > 1.0 amplifies (untrusted).
     tier_damping: dict[TrustTier, float] = field(
         default_factory=lambda: {
-            TrustTier.ADMIN: 0.0,       # admins always allowed
+            TrustTier.ADMIN: 0.0,  # admins always allowed
             TrustTier.TRUSTED: 0.7,
             TrustTier.ESTABLISHED: 0.9,
             TrustTier.NEW: 1.0,
@@ -162,9 +162,7 @@ class PolicyEngine:
         raw_score, risk_factors = self._compute_risk(request)
         if request.risk_score is not None:
             raw_score = max(raw_score, request.risk_score)
-            reasons.append(
-                f"caller-supplied score {request.risk_score} (max with computed)"
-            )
+            reasons.append(f"caller-supplied score {request.risk_score} (max with computed)")
         reasons.extend(risk_factors)
 
         # 3. Trust tier + damping
@@ -242,7 +240,11 @@ class PolicyEngine:
         return self.evaluate(request)
 
     def resolve_approval(
-        self, approval_id: str, *, approved: bool, resolved_by: str,
+        self,
+        approval_id: str,
+        *,
+        approved: bool,
+        resolved_by: str,
         note: str | None = None,
     ) -> ApprovalRequest:
         """Mark a pending approval as approved or denied.
@@ -288,9 +290,7 @@ class PolicyEngine:
     # Internals
     # ------------------------------------------------------------------
 
-    def _compute_risk(
-        self, request: PolicyRequest
-    ) -> tuple[int, list[str]]:
+    def _compute_risk(self, request: PolicyRequest) -> tuple[int, list[str]]:
         base = self.action_risk.get(request.action, 30)  # unknown action = medium
         reasons: list[str] = [f"action {request.action!r} base={base}"]
         delta_total = 0

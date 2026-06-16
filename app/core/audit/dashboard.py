@@ -119,9 +119,7 @@ def compute_stats(
         risk_key = _enum_value(ev.risk_level)
         stats.by_risk[risk_key] = stats.by_risk.get(risk_key, 0) + 1
         success_key = "success" if ev.success else "failure"
-        stats.by_success[success_key] = (
-            stats.by_success.get(success_key, 0) + 1
-        )
+        stats.by_success[success_key] = stats.by_success.get(success_key, 0) + 1
         stats.by_actor[ev.actor] = stats.by_actor.get(ev.actor, 0) + 1
         stats.duration_total_ms += int(getattr(ev, "duration_ms", 0) or 0)
         stats.cost_total_usd += float(getattr(ev, "cost_usd", 0.0) or 0.0)
@@ -160,9 +158,7 @@ def format_timeline(
     for ev in rows:
         d = ev.to_dict()
         rendered.append([_render_cell(col, d) for col in columns])
-    widths = [
-        max(len(row[i]) for row in rendered) for i in range(len(columns))
-    ]
+    widths = [max(len(row[i]) for row in rendered) for i in range(len(columns))]
 
     # Header
     header_cells = [c.upper().ljust(widths[i]) for i, c in enumerate(columns)]

@@ -55,11 +55,11 @@ def risk_level_for(score: int) -> RiskLevel:
 class TrustTier(str, Enum):
     """Per-user trust band.  Higher tier = lower scrutiny."""
 
-    UNTRUSTED = "untrusted"      # default for new users
-    NEW = "new"                  # first week of activity
+    UNTRUSTED = "untrusted"  # default for new users
+    NEW = "new"  # first week of activity
     ESTABLISHED = "established"  # 1+ week, no recent misuse
-    TRUSTED = "trusted"          # long history of safe use
-    ADMIN = "admin"              # in Config.ADMIN_USER_IDS
+    TRUSTED = "trusted"  # long history of safe use
+    ADMIN = "admin"  # in Config.ADMIN_USER_IDS
 
 
 @dataclass(slots=True)
@@ -192,6 +192,7 @@ DEFAULT_ACTION_RISK: dict[str, int] = {
     "kill_process": 70,
     "sudo": 90,
 }
+
 
 # Args that, if present, multiply risk.  Each entry is a callable
 # that takes the args dict and returns a (delta, reason) pair.

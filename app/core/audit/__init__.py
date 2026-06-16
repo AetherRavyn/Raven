@@ -68,17 +68,9 @@ class ActionLogger:
         return self._log.record(
             AuditEvent(
                 kind=kind,
-                actor=(
-                    getattr(context, "user_id", "system")
-                    if context is not None
-                    else "system"
-                ),
+                actor=(getattr(context, "user_id", "system") if context is not None else "system"),
                 action=action,
-                target=(
-                    getattr(context, "request_id", None)
-                    if context is not None
-                    else None
-                ),
+                target=(getattr(context, "request_id", None) if context is not None else None),
                 context=(
                     {
                         "user_id": getattr(context, "user_id", None),

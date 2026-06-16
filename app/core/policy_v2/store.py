@@ -44,9 +44,7 @@ class TrustRecord:
     last_used: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     # Track recent misuse so we can decay trust on bad behavior.
     recent_denials: int = 0
-    last_decision_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    last_decision_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     first_seen: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> dict[str, Any]:
@@ -298,11 +296,7 @@ class ApprovalStore:
         self._load()
         with self._lock:
             return sorted(
-                (
-                    a
-                    for a in self._approvals.values()
-                    if a.status == "pending" and not a.is_expired
-                ),
+                (a for a in self._approvals.values() if a.status == "pending" and not a.is_expired),
                 key=lambda a: a.created_at,
             )
 
@@ -403,9 +397,7 @@ def _approval_from_dict(d: dict[str, Any]) -> ApprovalRequest:
         expires_at=datetime.fromisoformat(d["expires_at"])
         if "expires_at" in d
         else datetime.now(timezone.utc) + timedelta(hours=1),
-        resolved_at=datetime.fromisoformat(d["resolved_at"])
-        if d.get("resolved_at")
-        else None,
+        resolved_at=datetime.fromisoformat(d["resolved_at"]) if d.get("resolved_at") else None,
         resolved_by=d.get("resolved_by"),
         resolution_note=d.get("resolution_note"),
     )

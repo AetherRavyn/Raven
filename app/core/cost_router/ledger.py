@@ -125,9 +125,7 @@ class BudgetLedger:
         if cfg.per_user_per_day_usd is not None and user_id:
             spent = self._buckets.get(self._bucket_key("user", user_id), 0.0)
             if spent + additional_usd > cfg.per_user_per_day_usd:
-                return False, (
-                    f"per-user daily cap ${cfg.per_user_per_day_usd:.4f} for {user_id}"
-                )
+                return False, (f"per-user daily cap ${cfg.per_user_per_day_usd:.4f} for {user_id}")
         return True, None
 
     async def budget_remaining(
@@ -186,11 +184,7 @@ class BudgetLedger:
         self._buckets[("total", "all", today)] += rec.cost_usd
 
         cfg = self._config
-        if (
-            cfg.per_user_per_day_usd is not None
-            and rec.user_id
-            and cfg.daily_warn_pct < 1.0
-        ):
+        if cfg.per_user_per_day_usd is not None and rec.user_id and cfg.daily_warn_pct < 1.0:
             spent = self._buckets[("user", rec.user_id, today)]
             if spent >= cfg.daily_warn_pct * cfg.per_user_per_day_usd:
                 logger.warning(
@@ -205,9 +199,7 @@ class BudgetLedger:
         if self._helix is None:
             return
         try:
-            key = (
-                f"{self._kv_ns}:{rec.timestamp.isoformat()}:{rec.provider}:{rec.model}"
-            )
+            key = f"{self._kv_ns}:{rec.timestamp.isoformat()}:{rec.provider}:{rec.model}"
             await self._helix.kv_put(key, rec.to_dict())
         except Exception as e:  # noqa: BLE001
             logger.debug("helix KV write failed (non-fatal): %s", e)

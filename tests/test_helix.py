@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
@@ -31,7 +32,7 @@ from app.db.helix import (
 
 
 @pytest_asyncio.fixture
-async def helix() -> "HelixClient":
+async def helix() -> AsyncGenerator[HelixClient, None]:
     """A HelixClient connected to localhost; yields it then closes."""
     client = HelixClient()
     try:
@@ -41,7 +42,7 @@ async def helix() -> "HelixClient":
 
 
 @pytest_asyncio.fixture
-async def live_helix() -> "HelixClient | None":
+async def live_helix() -> AsyncGenerator[HelixClient | None, None]:
     """Skip the test if no HelixDB is reachable."""
     client = HelixClient()
     healthy = False
@@ -145,8 +146,11 @@ class TestLiveHelix:
         assert n == 0
 
     async def test_execute_returns_query_result(self, live_helix: HelixClient) -> None:
+        # The `c` here is a placeholder query name; in production we'd
+        # register the named query on the HelixDB side first.  We only
+        # care that the call shape works.
         res = await live_helix.execute(
-            read_query(("c", [{"NWhere": {"Eq": ["$label", {"String": "X"}]}}, "Count"]))
+            read_query(("c", [{"NWhere": {"Eq": ["$label", {"String": "X"}]}}, "Count"]))  # type: ignore[arg-type]
         )
         assert isinstance(res, QueryResult)
         assert res.latency_ms >= 0

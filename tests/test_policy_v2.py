@@ -403,9 +403,7 @@ class TestArgRiskFactors:
             PolicyRequest(user_id="u1", action="file_edit", args={"path": "a.txt"})
         )
         forced = engine.evaluate(
-            PolicyRequest(
-                user_id="u1", action="file_edit", args={"path": "a.txt", "force": True}
-            )
+            PolicyRequest(user_id="u1", action="file_edit", args={"path": "a.txt", "force": True})
         )
         assert forced.risk_score > baseline.risk_score
 
@@ -424,18 +422,14 @@ class TestArgRiskFactors:
             PolicyRequest(user_id="u1", action="file_edit", args={"path": "a.txt"})
         )
         system = engine.evaluate(
-            PolicyRequest(
-                user_id="u1", action="file_edit", args={"path": "/etc/passwd"}
-            )
+            PolicyRequest(user_id="u1", action="file_edit", args={"path": "/etc/passwd"})
         )
         assert system.risk_score > baseline.risk_score
         assert any("/etc/" in r for r in system.reasons)
 
     def test_path_traversal_adds_risk(self, engine: PolicyEngine) -> None:
         r = engine.evaluate(
-            PolicyRequest(
-                user_id="u1", action="file_edit", args={"path": "../../etc/passwd"}
-            )
+            PolicyRequest(user_id="u1", action="file_edit", args={"path": "../../etc/passwd"})
         )
         assert any("traversal" in s for s in r.reasons)
 
@@ -452,9 +446,7 @@ class TestArgRiskFactors:
             extra_risk_factors=[my_factor],
         )
         r1 = e.evaluate(PolicyRequest(user_id="u1", action="list_files"))
-        r2 = e.evaluate(
-            PolicyRequest(user_id="u1", action="list_files", args={"secret": True})
-        )
+        r2 = e.evaluate(PolicyRequest(user_id="u1", action="list_files", args={"secret": True}))
         assert r2.risk_score > r1.risk_score
         assert any("secret" in s for s in r2.reasons)
 
@@ -501,15 +493,11 @@ class TestAskVerdict:
 
     def test_resolve_unknown_approval_raises(self, engine: PolicyEngine) -> None:
         with pytest.raises(KeyError):
-            engine.resolve_approval(
-                "nonexistent", approved=True, resolved_by="admin1"
-            )
+            engine.resolve_approval("nonexistent", approved=True, resolved_by="admin1")
 
     def test_approval_includes_request(self, engine: PolicyEngine) -> None:
         engine.trust.set_tier("u1", TrustTier.ESTABLISHED)
-        r = engine.evaluate(
-            PolicyRequest(user_id="u1", action="git_push", target="main")
-        )
+        r = engine.evaluate(PolicyRequest(user_id="u1", action="git_push", target="main"))
         assert r.approval_id is not None
         a = engine.approvals.get(r.approval_id)
         assert a is not None
@@ -591,9 +579,7 @@ class TestConcurrency:
         lock = threading.Lock()
 
         def worker(i: int) -> None:
-            r = engine.evaluate(
-                PolicyRequest(user_id=f"u{i}", action="list_files")
-            )
+            r = engine.evaluate(PolicyRequest(user_id=f"u{i}", action="list_files"))
             with lock:
                 results.append(r)
 

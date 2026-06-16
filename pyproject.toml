@@ -90,8 +90,66 @@ dev = [
     "pyright>=1.1.400",
     "pytest>=8.3.0",
     "pytest-asyncio>=0.26.0",
+    "pytest-cov>=6.0.0",
     "pytest-timeout>=2.4.0",
 ]
+
+[tool.pytest.ini_options]
+# Restrict collection to the canonical test directory.  The
+# 50+ scratch test_*.py files at the repo root are not part of
+# the audited suite — they are ad-hoc probes from earlier work.
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "-ra",
+]
+# Use the HelixDB service container in CI.  Override locally with
+# SARAS_HELIX_URL=http://localhost:8080 .venv/bin/pytest ...
+filterwarnings = [
+    "ignore::DeprecationWarning:opentelemetry.*",
+    "ignore::DeprecationWarning:prometheus_client.*",
+    "ignore::DeprecationWarning:google.*",
+    "ignore::DeprecationWarning:urllib3.*",
+]
+
+[tool.ruff]
+# Match the AGENTS.md standard (100-char line limit).
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# Default rules (E + F): pycodestyle + pyflakes.  We do NOT
+# enable isort (I) / bugbear (B) / upgrade (UP) / simplify (SIM)
+# because the legacy `app/core/*.py` files have accumulated
+# thousands of these violations.  Enable them file-by-file as
+# the legacy modules are ratcheted into the new style.
+select = ["E", "F", "W"]
+ignore = [
+    "E501",  # line-too-long (handled by line-length + formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Legacy files predate the lint policy.  We tolerate the
+# accumulated debt here and ratchet it down file-by-file.
+"app/core/runtime.py" = [
+    "E402",  # module-level imports not at top (legacy)
+    "F401",  # unused imports (legacy)
+    "F811",  # redefinition (legacy)
+    "F821",  # undefined name `time` (legacy pattern)
+    "F841",  # unused local (legacy)
+]
+"app/core/security.py" = [
+    "F401",  # `typing.List` unused
+]
+# Tests can use `assert` and other patterns ruff normally warns about.
+"tests/**" = ["B011"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
 
 [tool.setuptools]
 packages = ["app", "agent_reach"]

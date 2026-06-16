@@ -78,9 +78,7 @@ def _make_runtime_stub(
             ephemeral_key=True,
         )
         audit_log_v2 = _build_audit_log_v2()
-        policy_engine_v2 = _build_policy_v2(
-            audit_log=audit_log_v2, state_dir=state_dir
-        )
+        policy_engine_v2 = _build_policy_v2(audit_log=audit_log_v2, state_dir=state_dir)
 
         # Build a small "namespace" object that mimics the relevant
         # attributes of AgentRuntime, so the tests can call the
@@ -211,18 +209,14 @@ class TestPolicyV2Check:
     def test_disabled_returns_allow(self, tmp_path: Path) -> None:
         s = _make_runtime_stub(tmp_path, policy=False)
         # Even a destructive action returns allow when v2 is off.
-        allowed, reason, approval = s._policy_v2_check(
-            "rm", {"path": "/etc/passwd"}, "u1"
-        )
+        allowed, reason, approval = s._policy_v2_check("rm", {"path": "/etc/passwd"}, "u1")
         assert allowed is True
         assert reason == ""
         assert approval is None
 
     def test_deny_destructive_action(self, tmp_path: Path) -> None:
         s = _make_runtime_stub(tmp_path, policy=True)
-        allowed, reason, approval = s._policy_v2_check(
-            "rm", {"path": "/etc/passwd"}, "u1"
-        )
+        allowed, reason, approval = s._policy_v2_check("rm", {"path": "/etc/passwd"}, "u1")
         assert allowed is False
         assert approval is None
         assert "policy v2" in reason
@@ -230,9 +224,7 @@ class TestPolicyV2Check:
     def test_admin_bypasses(self, tmp_path: Path) -> None:
         s = _make_runtime_stub(tmp_path, policy=True)
         s.policy_engine_v2.trust.set_tier("admin1", "admin")
-        allowed, reason, approval = s._policy_v2_check(
-            "rm", {"path": "/etc/passwd"}, "admin1"
-        )
+        allowed, reason, approval = s._policy_v2_check("rm", {"path": "/etc/passwd"}, "admin1")
         assert allowed is True
         assert approval is None
 
@@ -258,9 +250,7 @@ class TestPolicyV2Check:
         # Set up the engine so git_push on an ESTABLISHED user is ASK.
         s.policy_engine_v2.trust.set_tier("u1", "established")
         # git_push base = 65; established * 0.9 = 58 → ASK
-        allowed, reason, approval = s._policy_v2_check(
-            "git_push", {"branch": "main"}, "u1"
-        )
+        allowed, reason, approval = s._policy_v2_check("git_push", {"branch": "main"}, "u1")
         assert allowed is False
         assert approval is not None
         pending = s.policy_engine_v2.approvals.pending()
@@ -289,9 +279,7 @@ class TestResolveCredential:
         v = s._resolve_credential("my_missing", "MY_MISSING_KEY")
         assert v is None
 
-    def test_vault_takes_precedence(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_vault_takes_precedence(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("MY_TEST_KEY", "env_value")
         s = _make_runtime_stub(tmp_path, vault=True)
         s.secret_vault.set("my_test", "vault_value")

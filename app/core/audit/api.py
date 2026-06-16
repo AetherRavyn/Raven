@@ -53,10 +53,7 @@ def build_router(
         from fastapi import APIRouter, HTTPException, Query
         from fastapi.responses import JSONResponse, PlainTextResponse
     except ImportError as e:  # pragma: no cover - guarded
-        raise ImportError(
-            "FastAPI is required to build the audit API router: "
-            f"{e}"
-        ) from e
+        raise ImportError(f"FastAPI is required to build the audit API router: {e}") from e
 
     from app.core.audit.dashboard import (
         compute_stats,
@@ -77,9 +74,7 @@ def build_router(
     # Events
     # ------------------------------------------------------------------
 
-    def _coerce_iso(
-        since: str | None = None, until: str | None = None
-    ) -> tuple[Any, Any]:
+    def _coerce_iso(since: str | None = None, until: str | None = None) -> tuple[Any, Any]:
         """Coerce ISO-8601 strings to datetime for AuditLog.query()."""
         from datetime import datetime
 
@@ -193,7 +188,6 @@ def build_router(
             raise HTTPException(503, "audit log not available")
         events = log.query(kind=kind, limit=default_export_limit)
         if since or until:
-
             # Reuse the time-bounded aggregation path.  The stats
             # builder already filters, so we can lean on it.
             events = list(events)  # materialize
@@ -205,8 +199,7 @@ def build_router(
             events = [
                 ev
                 for ev in events
-                if (s is None or ev.timestamp >= s)
-                and (u is None or ev.timestamp <= u)
+                if (s is None or ev.timestamp >= s) and (u is None or ev.timestamp <= u)
             ]
         return format_csv(events)
 
@@ -227,8 +220,7 @@ def build_router(
             events = [
                 ev
                 for ev in events
-                if (s is None or ev.timestamp >= s)
-                and (u is None or ev.timestamp <= u)
+                if (s is None or ev.timestamp >= s) and (u is None or ev.timestamp <= u)
             ]
         return JSONResponse(json.loads(format_json(events)))
 
@@ -275,17 +267,11 @@ def build_router(
                 AuditEvent(
                     kind=AuditKind.APPROVAL,
                     actor=resolved_by,
-                    action=(
-                        approval.request.action
-                        if approval.request
-                        else "approval"
-                    ),
+                    action=(approval.request.action if approval.request else "approval"),
                     target=approval_id,
                     success=approved,
                     detail=f"{'approved' if approved else 'denied'}: {note or ''}",
-                    risk_level=(
-                        RiskLevel.MEDIUM if approved else RiskLevel.HIGH
-                    ),
+                    risk_level=(RiskLevel.MEDIUM if approved else RiskLevel.HIGH),
                     metadata={"approval_id": approval_id},
                 )
             )

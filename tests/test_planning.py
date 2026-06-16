@@ -11,12 +11,10 @@ import asyncio
 import time
 
 import pytest
-import pytest_asyncio
 
 from app.core.planning import (
     CostEstimate,
     CostEstimator,
-    ExecutionResult,
     Goal,
     GoalStatus,
     GoalTracker,
@@ -27,7 +25,6 @@ from app.core.planning import (
     PlanStore,
     ReplanStrategy,
     Replanner,
-    StepAction,
     StepStatus,
     TaskPlan,
 )
@@ -86,7 +83,9 @@ class TestTaskPlan:
     def test_parallel_groups_collect(self) -> None:
         p = TaskPlan()
         for i in range(3):
-            p.add_step(PlanStep(id=f"s{i}", description=f"s{i}", action="llm", parallel_group=i % 2))
+            p.add_step(
+                PlanStep(id=f"s{i}", description=f"s{i}", action="llm", parallel_group=i % 2)
+            )
         groups = p.parallel_groups()
         assert len(groups) == 2
         assert [len(g) for g in groups] == [2, 1]
@@ -128,7 +127,9 @@ class TestCostEstimator:
     def test_plan_estimate_aggregates(self, cost: CostEstimator) -> None:
         p = TaskPlan()
         p.add_step(PlanStep(id="a", description="a", action="tool", tool_name="web_search"))
-        p.add_step(PlanStep(id="b", description="b", action="llm", prompt="hello world", deps=["a"]))
+        p.add_step(
+            PlanStep(id="b", description="b", action="llm", prompt="hello world", deps=["a"])
+        )
         total = cost.estimate_plan(p)
         assert total.tokens > 0
         assert total.usd > 0
@@ -275,8 +276,8 @@ class TestExecutor:
 
         executor = PlanExecutor(
             tool_dispatcher=boom,
-            llm_dispatcher=boom,
-            ask_user_dispatcher=boom,
+            llm_dispatcher=boom,  # type: ignore[arg-type]
+            ask_user_dispatcher=boom,  # type: ignore[arg-type]
             max_retries=2,
             store=store,
         )
@@ -287,7 +288,9 @@ class TestExecutor:
         assert any(s.error and "kaboom" in s.error for s in plan.steps)
 
     @pytest.mark.asyncio
-    async def test_retry_succeeds_on_second_attempt(self, planner: Planner, store: PlanStore) -> None:
+    async def test_retry_succeeds_on_second_attempt(
+        self, planner: Planner, store: PlanStore
+    ) -> None:
         attempts = {"n": 0}
 
         async def flaky(name: str, args: dict) -> str:
@@ -309,7 +312,9 @@ class TestExecutor:
         assert attempts["n"] == 2
 
     @pytest.mark.asyncio
-    async def test_parallel_group_runs_concurrently(self, planner: Planner, store: PlanStore) -> None:
+    async def test_parallel_group_runs_concurrently(
+        self, planner: Planner, store: PlanStore
+    ) -> None:
         barriers = [asyncio.Event() for _ in range(2)]
 
         async def tool_disp(name: str, args: dict) -> str:
@@ -319,8 +324,26 @@ class TestExecutor:
 
         executor = PlanExecutor(tool_dispatcher=tool_disp, store=store)
         plan = TaskPlan()
-        plan.add_step(PlanStep(id="a", description="a", action="tool", tool_name="x", tool_args={"i": 0}, parallel_group=0))
-        plan.add_step(PlanStep(id="b", description="b", action="tool", tool_name="x", tool_args={"i": 1}, parallel_group=0))
+        plan.add_step(
+            PlanStep(
+                id="a",
+                description="a",
+                action="tool",
+                tool_name="x",
+                tool_args={"i": 0},
+                parallel_group=0,
+            )
+        )
+        plan.add_step(
+            PlanStep(
+                id="b",
+                description="b",
+                action="tool",
+                tool_name="x",
+                tool_args={"i": 1},
+                parallel_group=0,
+            )
+        )
 
         async def release() -> None:
             await asyncio.sleep(0.05)
@@ -429,6 +452,7 @@ class TestGoalTracker:
         # mark one sub-plan completed
         plan_id = goal.sub_plans[0]
         plan = await store.load(plan_id)
+        assert plan is not None
         plan.status = PlanStatus.COMPLETED
         await store.save(plan)
         await tracker.update_progress(goal)

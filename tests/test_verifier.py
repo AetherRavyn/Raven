@@ -497,10 +497,7 @@ class TestVerifierCriteria:
         report = await v.verify(ctx)
         # The exception is captured as a warning, not a blocking failure.
         assert report.passed
-        assert any(
-            c.severity == Severity.WARNING and "boom" in c.message
-            for c in report.checks
-        )
+        assert any(c.severity == Severity.WARNING and "boom" in c.message for c in report.checks)
 
     @pytest.mark.asyncio
     async def test_action_specific_check(self) -> None:

@@ -300,11 +300,7 @@ class HelixClient:
                 latency_ms=dt,
                 error=f"HTTP {r.status_code}: {r.text[:200]}",
             )
-        body = (
-            r.json()
-            if r.headers.get("content-type", "").startswith("application/json")
-            else {}
-        )
+        body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
         return HelixHealth(
             healthy=bool(body.get("healthy", True)),
             service=str(body.get("service", "helix")),
@@ -350,9 +346,7 @@ class HelixClient:
                         self._client = None
                         self._client = httpx.AsyncClient(
                             base_url=url_attempt,
-                            timeout=httpx.Timeout(
-                                self.timeout_s, connect=self.connect_timeout_s
-                            ),
+                            timeout=httpx.Timeout(self.timeout_s, connect=self.connect_timeout_s),
                             headers={"content-type": "application/json"},
                         )
                         client = self._client

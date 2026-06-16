@@ -74,10 +74,7 @@ def _classify_text_for_task(text: str) -> Any:
     from app.core.cost_router import TaskType
 
     t = (text or "").lower()
-    if any(
-        w in t
-        for w in ("code", "function", "implement", "refactor", "debug", "compile")
-    ):
+    if any(w in t for w in ("code", "function", "implement", "refactor", "debug", "compile")):
         return TaskType.CODE
     if any(w in t for w in ("research", "investigate", "compare", "analyze", "study")):
         return TaskType.RESEARCH
@@ -153,9 +150,7 @@ def _build_policy_v2(
         from app.core.policy_v2 import ApprovalStore, PolicyEngine, TrustStore
 
         if state_dir is None:
-            state_dir = Path(
-                os.environ.get("SARAS_POLICY_STATE_DIR", "workspace/state")
-            )
+            state_dir = Path(os.environ.get("SARAS_POLICY_STATE_DIR", "workspace/state"))
         else:
             state_dir = Path(state_dir)
         return PolicyEngine(
@@ -182,15 +177,10 @@ class AgentRuntime:
 
         requested_provider = (provider_name or "killo").strip().lower()
         requested_model = (model_name or "").strip()
-        configured_provider = (
-            (getattr(Config, "LLM_PROVIDER", "auto") or "auto").strip().lower()
-        )
+        configured_provider = (getattr(Config, "LLM_PROVIDER", "auto") or "auto").strip().lower()
         configured_model = (getattr(Config, "LLM_MODEL", "") or "").strip()
 
-        if (
-            configured_provider not in {"", "auto", "default"}
-            and requested_provider == "killo"
-        ):
+        if configured_provider not in {"", "auto", "default"} and requested_provider == "killo":
             provider_name = configured_provider
             model_name = configured_model or AutoModelRouter.default_model_for_provider(
                 configured_provider
@@ -205,9 +195,7 @@ class AgentRuntime:
                 or AutoModelRouter.default_model_for_provider(requested_provider)
             )
 
-        self.workspace_dir = (
-            Path(workspace_dir) if workspace_dir else Path(Config.MEMORY_ROOT)
-        )
+        self.workspace_dir = Path(workspace_dir) if workspace_dir else Path(Config.MEMORY_ROOT)
         self.session_manager = SessionManager(workspace_dir)
         self.bootstrapper = Bootstrapper(workspace_dir)
         self.provider = create_provider(provider_name)
@@ -263,9 +251,7 @@ class AgentRuntime:
         try:
             from app.core.cost_router import CostRouter
 
-            return CostRouter(
-                ledger=_wrap_ledger_with_budget(_env_float("SARAS_DAILY_BUDGET_USD"))
-            )
+            return CostRouter(ledger=_wrap_ledger_with_budget(_env_float("SARAS_DAILY_BUDGET_USD")))
         except Exception as e:  # noqa: BLE001
             logger.debug("cost router unavailable: %s", e)
             return None
@@ -439,9 +425,7 @@ class AgentRuntime:
                     tool_name=None,
                     prompt=None,
                     output=content,
-                    metadata={
-                        "success_criteria": getattr(step, "success_criteria", "")
-                    },
+                    metadata={"success_criteria": getattr(step, "success_criteria", "")},
                 )
                 report = await self.verifier_v2.verify(ctx)
                 return report.to_dict()
@@ -518,15 +502,9 @@ class AgentRuntime:
             safe_args = {k: v for k, v in args.items() if k != "_request"}
 
             for task in ledger.list_tasks():
-                if (
-                    task.get("task_type") == "approval"
-                    and task.get("status") == "approved"
-                ):
+                if task.get("task_type") == "approval" and task.get("status") == "approved":
                     meta = task.get("metadata", {})
-                    if (
-                        meta.get("tool_name") == function_name
-                        and meta.get("args") == safe_args
-                    ):
+                    if meta.get("tool_name") == function_name and meta.get("args") == safe_args:
                         ledger.update_status(str(task.get("task_id", "")), "consumed")
                         return False
 
@@ -565,9 +543,7 @@ class AgentRuntime:
             logger.error("Failed to queue approval request: %s", exc)
             return False
 
-    def _record_hook_event(
-        self, event_name: str, request: IncomingRequest, title: str
-    ) -> None:
+    def _record_hook_event(self, event_name: str, request: IncomingRequest, title: str) -> None:
         try:
             self.task_ledger.record_hook(
                 hook_name=event_name,
@@ -622,9 +598,7 @@ class AgentRuntime:
 
     def _maybe_schedule_follow_up(self, request: IncomingRequest, content: str) -> None:
         lower = (request.text + " " + content).lower()
-        if any(
-            phrase in lower for phrase in ("follow up", "get back to you", "remind me")
-        ):
+        if any(phrase in lower for phrase in ("follow up", "get back to you", "remind me")):
             try:
                 schedule_follow_up(
                     platform=request.platform,
@@ -841,9 +815,7 @@ class AgentRuntime:
 
         return "general"
 
-    def _learn_from_turn(
-        self, request: IncomingRequest, content: str, session_id: str
-    ) -> None:
+    def _learn_from_turn(self, request: IncomingRequest, content: str, session_id: str) -> None:
         try:
             text = f"User: {request.text}\nAssistant: {content}"
             self.memory_manager.store_extraction(text, user_id=request.user_id)
@@ -882,9 +854,7 @@ class AgentRuntime:
                 loop = asyncio.get_running_loop()
                 if loop.is_running():
                     loop.create_task(
-                        self.workspace_graph.sync_user(
-                            request.user_id, query=request.text
-                        )
+                        self.workspace_graph.sync_user(request.user_id, query=request.text)
                     )
                     loop.create_task(
                         self.hooks.dispatch(
@@ -899,9 +869,7 @@ class AgentRuntime:
                     )
                 else:
                     loop.run_until_complete(
-                        self.workspace_graph.sync_user(
-                            request.user_id, query=request.text
-                        )
+                        self.workspace_graph.sync_user(request.user_id, query=request.text)
                     )
                     loop.run_until_complete(
                         self.hooks.dispatch(
@@ -937,13 +905,9 @@ class AgentRuntime:
             pass
 
         try:
-            graph = self.workspace_graph.build_for_user(
-                request.user_id, query=request.text
-            )
+            graph = self.workspace_graph.build_for_user(request.user_id, query=request.text)
             if graph.get("nodes"):
-                evidence.append(
-                    f"graph:nodes={len(graph['nodes'])} edges={len(graph['edges'])}"
-                )
+                evidence.append(f"graph:nodes={len(graph['nodes'])} edges={len(graph['edges'])}")
         except Exception:
             pass
 
@@ -1051,9 +1015,7 @@ class AgentRuntime:
 
         # Meta-cognitive strategy selection
         task_category = self._classify_task(request.text)
-        self._current_strategy = self.metacognition.select_strategy(
-            request.text, task_category
-        )
+        self._current_strategy = self.metacognition.select_strategy(request.text, task_category)
         logger.debug(
             "Meta-cognition: selected strategy '%s' for category '%s'",
             self._current_strategy,
@@ -1078,9 +1040,7 @@ class AgentRuntime:
                 system_content = system_content + "\n" + standing_orders
 
             persona = get_persona_engine()
-            system_content = persona.generate_system_prompt(
-                system_content, request.user_id
-            )
+            system_content = persona.generate_system_prompt(system_content, request.user_id)
 
             system_prompt = {"role": "system", "content": system_content}
             messages.append(system_prompt)
@@ -1091,8 +1051,7 @@ class AgentRuntime:
                 "role": "system",
                 "content": "Planner: "
                 + " | ".join(
-                    f"{step.step}:{step.action}:{step.description}"
-                    for step in plan.steps
+                    f"{step.step}:{step.action}:{step.description}" for step in plan.steps
                 ),
             }
             messages.append(plan_message)
@@ -1100,9 +1059,7 @@ class AgentRuntime:
 
         # Build user message (handle True Native Multimodality)
         if request.image_urls:
-            content_array: List[Dict[str, Any]] = [
-                {"type": "text", "text": request.text}
-            ]
+            content_array: List[Dict[str, Any]] = [{"type": "text", "text": request.text}]
             for url in request.image_urls:
                 content_array.append({"type": "image_url", "image_url": {"url": url}})
             user_msg = {"role": "user", "content": content_array}
@@ -1126,9 +1083,7 @@ class AgentRuntime:
         max_turns = 15
         turn_count = 0
         # ── Loop guardrails ────────────────────────────────────────────
-        MAX_SAME_TOOL_STREAK = (
-            3  # force synthesis after N consecutive identical tool calls
-        )
+        MAX_SAME_TOOL_STREAK = 3  # force synthesis after N consecutive identical tool calls
         _last_tool_name: str | None = None
         _same_tool_streak = 0
 
@@ -1161,9 +1116,7 @@ class AgentRuntime:
                     kwargs["tools"] = openai_tools
 
                 provider_name = self._provider_name()
-                llm_calls_total.labels(
-                    provider=provider_name, model=self.model_name
-                ).inc()
+                llm_calls_total.labels(provider=provider_name, model=self.model_name).inc()
                 start_llm = __import__("time").perf_counter()
 
                 # ── Streaming path (edit-based, no tool calls) ──────────────
@@ -1218,9 +1171,9 @@ class AgentRuntime:
                     res = await self.provider.chat_completion(
                         model=self.model_name, messages=messages, **kwargs
                     )
-                llm_duration_seconds.labels(
-                    provider=provider_name, model=self.model_name
-                ).observe(__import__("time").perf_counter() - start_llm)
+                llm_duration_seconds.labels(provider=provider_name, model=self.model_name).observe(
+                    __import__("time").perf_counter() - start_llm
+                )
 
                 if not res.get("success"):
                     # Try resilient fallback across all configured providers [CLI, API, Local, etc]
@@ -1235,10 +1188,7 @@ class AgentRuntime:
 
                         fallbacks = AutoModelRouter.get_available_models("agent")
                         for f_prov_name, f_model_name in fallbacks:
-                            if (
-                                f_prov_name == provider_name
-                                and f_model_name == self.model_name
-                            ):
+                            if f_prov_name == provider_name and f_model_name == self.model_name:
                                 continue  # Skip the one that just failed
 
                             try:
@@ -1263,9 +1213,7 @@ class AgentRuntime:
                                     self.model_name = f_model_name
                                     break
                             except Exception as _f_exc:
-                                logger.debug(
-                                    "Fallback %s failed: %s", f_prov_name, _f_exc
-                                )
+                                logger.debug("Fallback %s failed: %s", f_prov_name, _f_exc)
                     except Exception as _routing_exc:
                         logger.debug("Fallback routing failed: %s", _routing_exc)
 
@@ -1297,9 +1245,7 @@ class AgentRuntime:
                     # Final response achieved
                     if not content:
                         content = "I have completed the task."
-                    evidence = self._build_evidence_lines(
-                        request, plan, traces, content
-                    )
+                    evidence = self._build_evidence_lines(request, plan, traces, content)
                     content = self._attach_evidence_footer(content, evidence)
                     logger.info(
                         "AGENT_RUNTIME  final_response  session=%s  turn=%d  len=%d",
@@ -1332,9 +1278,7 @@ class AgentRuntime:
                     break
 
                 # Execute tools
-                tool_names = [
-                    tc.get("function", {}).get("name", "unknown") for tc in tool_calls
-                ]
+                tool_names = [tc.get("function", {}).get("name", "unknown") for tc in tool_calls]
                 logger.debug(
                     "AGENT_RUNTIME  tool_calls  session=%s  turn=%d  tools=%s",
                     session_id,
@@ -1402,9 +1346,7 @@ class AgentRuntime:
                                 kind="tool_call",
                                 actor=request.user_id,
                                 action=function_name,
-                                target=str(
-                                    args.get("path") or args.get("command") or ""
-                                ),
+                                target=str(args.get("path") or args.get("command") or ""),
                                 success=True,
                                 detail="attempt",
                                 context={
@@ -1438,16 +1380,14 @@ class AgentRuntime:
                                     risk_level="high",
                                 )
                                 if decision.requires_confirmation:
-                                    approval_queued = (
-                                        await self._queue_approval_request(
-                                            function_name=function_name,
-                                            args=args,
-                                            request=request,
-                                            session_id=session_id,
-                                            tool_call_id=tc.get("id", ""),
-                                            source_kind=source_kind,
-                                            messages=messages,
-                                        )
+                                    approval_queued = await self._queue_approval_request(
+                                        function_name=function_name,
+                                        args=args,
+                                        request=request,
+                                        session_id=session_id,
+                                        tool_call_id=tc.get("id", ""),
+                                        source_kind=source_kind,
+                                        messages=messages,
                                     )
                                     if approval_queued:
                                         continue
@@ -1474,30 +1414,24 @@ class AgentRuntime:
                                 )
 
                                 if needs_approval:
-                                    approval_queued = (
-                                        await self._queue_approval_request(
-                                            function_name=function_name,
-                                            args=args,
-                                            request=request,
-                                            session_id=session_id,
-                                            tool_call_id=tc.get("id", ""),
-                                            source_kind=source_kind,
-                                            messages=messages,
-                                        )
+                                    approval_queued = await self._queue_approval_request(
+                                        function_name=function_name,
+                                        args=args,
+                                        request=request,
+                                        session_id=session_id,
+                                        tool_call_id=tc.get("id", ""),
+                                        source_kind=source_kind,
+                                        messages=messages,
                                     )
                                     if approval_queued:
                                         continue
                             except Exception as sec_e:
-                                logger.error(
-                                    f"Failed to check security requirements: {sec_e}"
-                                )
+                                logger.error(f"Failed to check security requirements: {sec_e}")
                             # ---------------------------------
 
                             # ── A4 policy v2 check (if enabled) ─────────
-                            allowed_v2, reason_v2, approval_id_v2 = (
-                                self._policy_v2_check(
-                                    function_name, args, request.user_id
-                                )
+                            allowed_v2, reason_v2, approval_id_v2 = self._policy_v2_check(
+                                function_name, args, request.user_id
                             )
                             if not allowed_v2 and approval_id_v2 is not None:
                                 # ASK: enqueue using legacy queue (which
@@ -1584,13 +1518,9 @@ class AgentRuntime:
                                     except Exception:  # noqa: BLE001
                                         pass
                             _tool_latency_ms = (
-                                (time.time() - _tool_start) * 1000
-                                if "_tool_start" in dir()
-                                else 0
+                                (time.time() - _tool_start) * 1000 if "_tool_start" in dir() else 0
                             )
-                            tool_calls_total.labels(
-                                tool_name=function_name, success="true"
-                            ).inc()
+                            tool_calls_total.labels(tool_name=function_name, success="true").inc()
                             result_str = json.dumps(result, default=str)
                             logger.debug(
                                 "AGENT_RUNTIME  tool_success  session=%s  tool=%s  result_len=%d",
@@ -1645,9 +1575,7 @@ class AgentRuntime:
                                 except Exception:  # noqa: BLE001
                                     pass
                             result_str = json.dumps({"error": str(e)})
-                            tool_calls_total.labels(
-                                tool_name=function_name, success="false"
-                            ).inc()
+                            tool_calls_total.labels(tool_name=function_name, success="false").inc()
                             logger.warning(
                                 "AGENT_RUNTIME  tool_error  session=%s  tool=%s  error=%s",
                                 session_id,
@@ -1663,12 +1591,8 @@ class AgentRuntime:
                                 )
                             )
                     else:
-                        result_str = json.dumps(
-                            {"error": f"Tool {function_name} not found"}
-                        )
-                        tool_calls_total.labels(
-                            tool_name=function_name, success="false"
-                        ).inc()
+                        result_str = json.dumps({"error": f"Tool {function_name} not found"})
+                        tool_calls_total.labels(tool_name=function_name, success="false").inc()
                         logger.warning(
                             "AGENT_RUNTIME  tool_not_found  session=%s  tool=%s",
                             session_id,
@@ -1811,9 +1735,7 @@ class AgentRuntime:
         _turn_latency_ms = (_time_module.time() - _turn_start) * 1000
 
         # Meta-cognitive performance recording
-        tools_used = [
-            tc.get("tool", "") for tc in _tool_call_records if tc.get("success")
-        ]
+        tools_used = [tc.get("tool", "") for tc in _tool_call_records if tc.get("success")]
         self.metacognition.record(
             query=request.text,
             category=task_category,

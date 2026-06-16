@@ -1,0 +1,33 @@
+# Bandit security linter config for SARAS.
+#
+# Reference: https://bandit.readthedocs.io/en/latest/config.html
+#
+# Tuned for the codebase:
+# - B101 (assert): skipped because pytest uses assertions intentionally
+#                   and many "obviously true" sanity checks are clearer
+#                   as `assert` than as `if/raise`.
+# - B311 (random): skipped because we use the `random` module for
+#                   non-cryptographic purposes only (test data
+#                   shuffling, jitter).  Crypto code uses `secrets`.
+
+[bandit]
+exclude_dirs = [
+    "tests",
+    ".venv",
+    "build",
+    "dist",
+    "htmlcov",
+    "workspace",
+]
+skips = ["B101", "B311"]
+
+# Per-test plugins (none for now; the codebase doesn't use yaml/json
+# deserialisation beyond stdlib json which is already covered).
+
+[bandit.plugins]
+# All default plugins are enabled.
+
+# Reporting
+output_format = "json"
+quiet = false
+recursivelimit = 10

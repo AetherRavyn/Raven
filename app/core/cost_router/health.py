@@ -64,9 +64,7 @@ class ProviderHealth:
             )
 
     def record_success(self, provider: str, *, latency_ms: int) -> None:
-        self.record(
-            HealthSnapshot(provider=provider, success=True, latency_ms=latency_ms)
-        )
+        self.record(HealthSnapshot(provider=provider, success=True, latency_ms=latency_ms))
 
     def record_failure(
         self, provider: str, *, latency_ms: int = 0, error: str | None = None

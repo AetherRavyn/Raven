@@ -130,9 +130,7 @@ class JsonLogFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:  # noqa: A003
         try:
             payload: dict[str, Any] = {
-                "ts": datetime.fromtimestamp(
-                    record.created, tz=timezone.utc
-                ).isoformat(),
+                "ts": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
                 "level": record.levelname,
                 "logger": record.name,
                 "msg": _format_msg(record),

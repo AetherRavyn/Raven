@@ -117,9 +117,7 @@ class TestWrite:
 
 class TestQuery:
     def test_query_returns_recorded(self, audit_log: AuditLog) -> None:
-        audit_log.record(
-            AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action="file_read")
-        )
+        audit_log.record(AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action="file_read"))
         results = audit_log.query()
         assert len(results) == 1
         assert results[0].action == "file_read"
@@ -132,26 +130,18 @@ class TestQuery:
         assert len(audit_log.query(kind="config")) == 0
 
     def test_query_filter_by_actor(self, audit_log: AuditLog) -> None:
-        audit_log.record(
-            AuditEvent(kind=AuditKind.TOOL_CALL, actor="alice", action="t")
-        )
+        audit_log.record(AuditEvent(kind=AuditKind.TOOL_CALL, actor="alice", action="t"))
         audit_log.record(AuditEvent(kind=AuditKind.TOOL_CALL, actor="bob", action="t"))
         assert len(audit_log.query(actor="alice")) == 1
         assert len(audit_log.query(actor="bob")) == 1
 
     def test_query_filter_by_action(self, audit_log: AuditLog) -> None:
-        audit_log.record(
-            AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action="file_read")
-        )
-        audit_log.record(
-            AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action="file_write")
-        )
+        audit_log.record(AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action="file_read"))
+        audit_log.record(AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action="file_write"))
         assert len(audit_log.query(action="file_read")) == 1
 
     def test_query_filter_by_success(self, audit_log: AuditLog) -> None:
-        audit_log.record(
-            AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action="t", success=True)
-        )
+        audit_log.record(AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action="t", success=True))
         audit_log.record(
             AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action="t", success=False)
         )
@@ -193,12 +183,8 @@ class TestQuery:
         )
         audit_log.record(old)
         audit_log.record(new)
-        assert (
-            len(audit_log.query(since=datetime(2025, 1, 1, tzinfo=timezone.utc))) == 1
-        )
-        assert (
-            len(audit_log.query(until=datetime(2025, 1, 1, tzinfo=timezone.utc))) == 1
-        )
+        assert len(audit_log.query(since=datetime(2025, 1, 1, tzinfo=timezone.utc))) == 1
+        assert len(audit_log.query(until=datetime(2025, 1, 1, tzinfo=timezone.utc))) == 1
 
     def test_query_text_search(self, audit_log: AuditLog) -> None:
         audit_log.record(
@@ -308,9 +294,7 @@ class TestHealth:
         assert h["failures"] == 0
 
     def test_health_aggregates(self, audit_log: AuditLog) -> None:
-        audit_log.record(
-            AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action="t", success=True)
-        )
+        audit_log.record(AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action="t", success=True))
         audit_log.record(
             AuditEvent(
                 kind=AuditKind.TOOL_CALL,
@@ -321,9 +305,7 @@ class TestHealth:
             )
         )
         audit_log.record(
-            AuditEvent(
-                kind=AuditKind.LLM_CALL, actor="u1", action="chat", duration_ms=500
-            )
+            AuditEvent(kind=AuditKind.LLM_CALL, actor="u1", action="chat", duration_ms=500)
         )
         h = audit_log.health()
         assert h["event_count"] == 3
@@ -350,9 +332,7 @@ class TestDurability:
 
     def test_rotate_moves_file(self, audit_log: AuditLog, log_path: Path) -> None:
         for i in range(3):
-            audit_log.record(
-                AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action=f"t{i}")
-            )
+            audit_log.record(AuditEvent(kind=AuditKind.TOOL_CALL, actor="u1", action=f"t{i}"))
         rotated_to = audit_log.rotate()
         assert rotated_to != log_path
         assert rotated_to.exists()

@@ -114,13 +114,9 @@ class CostRouter:
         # budget-gate the whole request.
         cheapest = min(
             candidates,
-            key=lambda s: s.estimate_cost(
-                request.input_tokens, request.max_output_tokens
-            ),
+            key=lambda s: s.estimate_cost(request.input_tokens, request.max_output_tokens),
         )
-        cheapest_estimate = cheapest.estimate_cost(
-            request.input_tokens, request.max_output_tokens
-        )
+        cheapest_estimate = cheapest.estimate_cost(request.input_tokens, request.max_output_tokens)
         # Effective cap = the tighter of per-request and remaining budget.
         effective_budget = self._effective_budget(request, budget_remaining)
         if effective_budget is not None and cheapest_estimate > effective_budget:
@@ -157,14 +153,10 @@ class CostRouter:
         # Pick the best (lowest score = best).
         best_spec, best_score = scored[0]
         rationale = self._explain(best_spec, best_score, request)
-        estimated = best_spec.estimate_cost(
-            request.input_tokens, request.max_output_tokens
-        )
+        estimated = best_spec.estimate_cost(request.input_tokens, request.max_output_tokens)
 
         # Build the fallback chain (everything else, in score order).
-        fallback = tuple(
-            f"{s.provider}/{s.name}" for s, _ in scored[1 : min(4, len(scored))]
-        )
+        fallback = tuple(f"{s.provider}/{s.name}" for s, _ in scored[1 : min(4, len(scored))])
 
         return RouteDecision(
             provider=best_spec.provider,
@@ -205,9 +197,7 @@ class CostRouter:
         if success:
             self.health.record_success(decision.provider, latency_ms=latency_ms)
         else:
-            self.health.record_failure(
-                decision.provider, latency_ms=latency_ms, error=error
-            )
+            self.health.record_failure(decision.provider, latency_ms=latency_ms, error=error)
 
         actual_cost = decision.spec.estimate_cost(input_tokens, output_tokens)
         from app.core.cost_router.types import TaskType
@@ -251,9 +241,7 @@ class CostRouter:
             return []
         # 2. Provider health
         if any(self.health.snapshot(p) for p in {s.provider for s in candidates}):
-            healthy = {
-                s.provider for s in candidates if self.health.is_healthy(s.provider)
-            }
+            healthy = {s.provider for s in candidates if self.health.is_healthy(s.provider)}
             if healthy:  # don't filter to empty if we have nothing recorded
                 candidates = [s for s in candidates if s.provider in healthy]
         # 3. API-key availability
@@ -280,8 +268,7 @@ class CostRouter:
             "anthropic": bool(getattr(Config, "ANTHROPIC_API_KEY", None)),
             "openai": bool(getattr(Config, "OPENAI_API_KEY", None)),
             "google": bool(
-                getattr(Config, "GOOGLE_API_KEY", None)
-                or getattr(Config, "GEMINI_API_KEY", None)
+                getattr(Config, "GOOGLE_API_KEY", None) or getattr(Config, "GEMINI_API_KEY", None)
             ),
             "openrouter": bool(getattr(Config, "OPENROUTER_API_KEY", None)),
             "groq": bool(getattr(Config, "GROQ_API_KEY", None)),
@@ -320,9 +307,7 @@ class CostRouter:
         scored.sort(key=lambda pair: pair[1])
         return scored
 
-    def _effective_budget(
-        self, request: RouteRequest, remaining: float | None
-    ) -> float | None:
+    def _effective_budget(self, request: RouteRequest, remaining: float | None) -> float | None:
         """Return the tighter of the per-request cap and the remaining budget."""
         candidates: list[float] = []
         if request.budget_usd is not None:

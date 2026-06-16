@@ -140,7 +140,7 @@ class Verifier:
         # 3. Action-specific extras
         for chk in self._action_checks.get(ctx.action, []):
             try:
-                result = chk(ctx)
+                result: CheckResult = chk(ctx)  # type: ignore[assignment]
                 if hasattr(result, "__await__"):
                     result = await result  # type: ignore[func-returns-value]
                 checks.append(result)
@@ -158,7 +158,7 @@ class Verifier:
         # 4. Global extras
         for chk in self._extra:
             try:
-                result = chk(ctx)
+                result: CheckResult = chk(ctx)  # type: ignore[assignment]
                 if hasattr(result, "__await__"):
                     result = await result  # type: ignore[func-returns-value]
                 checks.append(result)
@@ -175,9 +175,7 @@ class Verifier:
 
         # 5. LLM-as-judge (only if deterministic checks all pass)
         if self._use_llm_judge and self._judge is not None:
-            blocking_failed = any(
-                not c.passed and c.severity == Severity.BLOCKING for c in checks
-            )
+            blocking_failed = any(not c.passed and c.severity == Severity.BLOCKING for c in checks)
             if not blocking_failed:
                 try:
                     judge_result = await self._judge(ctx)
@@ -241,11 +239,7 @@ class Verifier:
                     output.get("path") if isinstance(output, Mapping) else None
                 )
                 if path:
-                    out.append(
-                        check_file_written(
-                            path, min_bytes=1, name=f"file_written({path})"
-                        )
-                    )
+                    out.append(check_file_written(path, min_bytes=1, name=f"file_written({path})"))
             elif ctx.tool_name in {"file_read", "read_file"}:
                 out.append(check_non_empty(output, name="file_read_non_empty"))
             elif ctx.tool_name in {"exec", "shell", "bash", "command"}:
@@ -257,9 +251,7 @@ class Verifier:
                 out.append(check_non_empty(output, name="fetch_non_empty"))
                 url = meta.get("url")
                 if isinstance(url, str):
-                    out.append(
-                        check_url_well_formed(url, name=f"url_well_formed({url})")
-                    )
+                    out.append(check_url_well_formed(url, name=f"url_well_formed({url})"))
 
         elif ctx.action == "llm":
             out.append(check_non_empty(output, name="llm_non_empty"))
@@ -296,9 +288,7 @@ class Verifier:
                     name="wait_completed",
                     kind=CheckKind.NON_EMPTY,
                     passed=meta.get("completed", True),
-                    message="wait did not complete"
-                    if not meta.get("completed", True)
-                    else "",
+                    message="wait did not complete" if not meta.get("completed", True) else "",
                 )
             )
 
@@ -312,10 +302,7 @@ def _looks_like_regex(s: str) -> bool:
     if len(s) > 200:
         return False
     # Common regex tokens
-    if any(
-        tok in s
-        for tok in (".*", ".+", "\\d", "\\w", "\\s", "(?:", "[a-z", "[0-9", "^", "$")
-    ):
+    if any(tok in s for tok in (".*", ".+", "\\d", "\\w", "\\s", "(?:", "[a-z", "[0-9", "^", "$")):
         return True
     return False
 

@@ -32,9 +32,7 @@ class Memory(Base):
     __tablename__ = "memories"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("users.id"), nullable=True
-    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     category: Mapped[str] = mapped_column(String(32))  # FACT | RULE | TOOL_GUIDE
     content: Mapped[str] = mapped_column(Text)
     # Vector column: populated only when pgvector backend is active.
@@ -51,9 +49,7 @@ class ScheduledTask(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     job_id: Mapped[str] = mapped_column(String(128), unique=True)
-    user_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("users.id"), nullable=True
-    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     platform: Mapped[str] = mapped_column(String(32))
     chat_id: Mapped[str] = mapped_column(String(128))
     message: Mapped[str] = mapped_column(Text)

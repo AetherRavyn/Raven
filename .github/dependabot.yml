@@ -1,0 +1,70 @@
+# Dependabot config — auto-PRs for dependency updates.
+# Groups related updates so reviewers get one PR per group, not
+# dozens of single-bump PRs.
+
+version: 2
+
+updates:
+  # Python (uv) dependencies from pyproject.toml
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      runtime:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-runtime:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+      security:
+        patterns:
+          - "*"
+        # Security updates should be PR'd quickly, independent of schedule.
+    # Allow only same-ecosystem PRs to keep review focused
+    target-branch: "develop"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Docker (when we add a Dockerfile)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+    # Skip if no Dockerfile
+    ignore:
+      - dependency-type: "all"

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 
-
 from app.core.audit.redaction import (
     DEFAULT_PLACEHOLDER,
     RedactionConfig,
@@ -33,9 +32,7 @@ class TestDefaultRules:
 
     def test_google_api_key_redacted(self) -> None:
         # 35 chars after "AIza" — matches the regex.
-        out = redact_dict(
-            {"text": "AIza" + "a" * 35}
-        )
+        out = redact_dict({"text": "AIza" + "a" * 35})
         assert "AIza" not in out["text"]
 
     def test_github_token_redacted(self) -> None:
@@ -63,9 +60,7 @@ class TestDefaultRules:
         assert "Bearer" in out["header"]
 
     def test_keyvalue_secret_redacted(self) -> None:
-        out = redact_dict(
-            {"config": "api_key=abcdef12345 other=value"}
-        )
+        out = redact_dict({"config": "api_key=abcdef12345 other=value"})
         assert "abcdef12345" not in out["config"]
         assert "other=value" in out["config"]
 
@@ -106,9 +101,7 @@ class TestFieldNameHeuristic:
 
 class TestNestedStructures:
     def test_nested_dict_redacted(self) -> None:
-        out = redact_dict(
-            {"context": {"password": "p", "name": "alice"}}
-        )
+        out = redact_dict({"context": {"password": "p", "name": "alice"}})
         assert out["context"]["name"] == "alice"
         # The "p" char appears in the key "password" itself, so we
         # assert the value is the redaction placeholder.
@@ -120,9 +113,7 @@ class TestNestedStructures:
         assert out["secrets"][1] == "ok"
 
     def test_deeply_nested(self) -> None:
-        out = redact_dict(
-            {"a": {"b": {"c": {"password": "deep"}}}}
-        )
+        out = redact_dict({"a": {"b": {"c": {"password": "deep"}}}})
         assert "deep" not in str(out)
 
 
@@ -147,9 +138,7 @@ class TestOptionalRules:
 
     def test_credit_card_not_redacted_when_disabled(self) -> None:
         cfg = RedactionConfig(redact_credit_cards=False)
-        out = redact_dict(
-            {"text": "card 4111 1111 1111 1111"}, config=cfg
-        )
+        out = redact_dict({"text": "card 4111 1111 1111 1111"}, config=cfg)
         assert "4111 1111 1111 1111" in out["text"]
 
 
@@ -179,9 +168,7 @@ class TestCustomConfig:
         assert DEFAULT_PLACEHOLDER not in out["text"]
 
     def test_extra_overrides_default_by_name(self) -> None:
-        cfg = RedactionConfig(
-            extra_patterns=[("openai_key", r"\bsk-X{20}\b")]
-        )
+        cfg = RedactionConfig(extra_patterns=[("openai_key", r"\bsk-X{20}\b")])
         out = redact_dict(
             {"a": "sk-XXXXXXXXXXXXXXXXXXXX", "b": "sk-YYYYYYYYYYYYYYYYYYYY"},
             config=cfg,
