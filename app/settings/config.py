@@ -131,6 +131,9 @@ class Config:
     # Memory backend selector: chroma (default) | pgvector | helix
     # helix = HelixDB unified graph+vector engine (Phase B)
     MEMORY_BACKEND: str = os.getenv("MEMORY_BACKEND", "chroma")
+    # Knowledge graph backend selector: neo4j (default) | helix
+    # helix = HelixDB unified graph+vector engine (Phase B)
+    KG_BACKEND: str = os.getenv("KG_BACKEND", "neo4j")
     # Embedding model used by every memory backend.
     MEMORY_EMBEDDING_MODEL: str = os.getenv(
         "MEMORY_EMBEDDING_MODEL", "all-MiniLM-L6-v2"

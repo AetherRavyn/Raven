@@ -285,7 +285,7 @@ coverage-all: ## Run pytest with coverage on the full app/ surface.
 .PHONY: coverage-gate
 coverage-gate: coverage ## Fail if coverage on new A2-A5 modules < 80%.
 	@COV=$$($(VENV)/bin/coverage report \
-		--include="app/core/cost_router/*,app/core/verifier/*,app/core/vault.py,app/core/audit/*,app/core/policy_v2/*,app/db/helix.py,app/observability/*" \
+		--include="app/core/cost_router/*,app/core/verifier/*,app/core/vault.py,app/core/audit/*,app/core/policy_v2/*,app/db/helix.py,app/db/memory_helix.py,app/db/knowledge_graph_helix.py,app/observability/*" \
 		2>/dev/null | grep -E "^TOTAL" | awk '{print $$NF}'); \
 	echo "new-modules coverage: $${COV}"; \
 	$(PY) -c "import sys; pct=float(sys.argv[1].rstrip('%')); sys.exit(1 if pct < 80 else 0)" "$${COV}"
