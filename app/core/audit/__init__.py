@@ -16,7 +16,22 @@ from pathlib import Path
 from typing import Any
 
 from app.core.audit.log import DEFAULT_PATH, HELIX_KV_PREFIX, AuditLog
+from app.core.audit.redaction import (
+    DEFAULT_PLACEHOLDER,
+    DEFAULT_RULES,
+    RedactionConfig,
+    redact_dict,
+    safe_for_log,
+)
 from app.core.audit.types import AuditEvent, AuditKind, RiskLevel
+from app.core.audit.dashboard import (
+    DEFAULT_COLUMNS,
+    AuditStats,
+    compute_stats,
+    format_csv,
+    format_json,
+    format_timeline,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,4 +136,17 @@ __all__ = [
     "get_action_logger",
     "DEFAULT_PATH",
     "HELIX_KV_PREFIX",
+    # Redaction
+    "RedactionConfig",
+    "DEFAULT_RULES",
+    "DEFAULT_PLACEHOLDER",
+    "redact_dict",
+    "safe_for_log",
+    # Dashboard
+    "AuditStats",
+    "DEFAULT_COLUMNS",
+    "compute_stats",
+    "format_timeline",
+    "format_csv",
+    "format_json",
 ]

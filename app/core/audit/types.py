@@ -58,8 +58,17 @@ class AuditEvent:
     cost_usd: float = 0.0
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
-    def to_dict(self) -> dict[str, Any]:
-        return {
+    def to_dict(
+        self, *, redact: bool = True, redact_config: Any | None = None
+    ) -> dict[str, Any]:
+        """Serialize the event to a dict.
+
+        ``redact=True`` (the default) runs the payload through
+        :mod:`app.core.audit.redaction` so credentials never reach
+        the on-disk JSONL.  Set ``redact=False`` only for tests
+        that need to inspect the raw value.
+        """
+        raw = {
             "id": self.id,
             "kind": _enum_value(self.kind),
             "actor": self.actor,
@@ -74,6 +83,13 @@ class AuditEvent:
             "duration_ms": self.duration_ms,
             "cost_usd": self.cost_usd,
         }
+        if not redact:
+            return raw
+        # Local import keeps the redaction module optional and
+        # avoids a cycle: types.py is imported by redaction tests.
+        from app.core.audit.redaction import redact_dict
+
+        return redact_dict(raw, config=redact_config)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "AuditEvent":
