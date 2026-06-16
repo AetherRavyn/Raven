@@ -96,6 +96,14 @@ class Scheduler:
     # arrival (True, default) or every tick that finds the
     # event in the queue (False).
     consume_event_on_fire: bool = True
+    # Optional router that receives :class:`Signal` objects
+    # produced by routines.  When a routine's fire callable
+    # returns a ``list[Signal]`` and this is set, the default
+    # :meth:`fire` publishes them through the router in
+    # addition to the routine's side-effects.
+    signal_router: Any = None
+    # Optional per-user dedupe cache shared by watcher routines.
+    dedupe_cache: Any = None
 
     # ---- public lifecycle ----
 
@@ -258,6 +266,14 @@ class Scheduler:
         * install a custom ``fire_callback`` on the scheduler, or
         * iterate over :meth:`tick` results and call :meth:`fire`
           itself.
+
+        If the routine returns a ``list[Signal]`` and the
+        scheduler was constructed with a :attr:`signal_router`,
+        the signals are published through the router in
+        addition to the routine's own side-effects.  This lets
+        watcher-style routines (``calendar_watcher``,
+        ``internet_watcher``, ``autonomy_worker``) emit typed
+        events without knowing how they're delivered.
         """
         routine = self.routine_registry.get(schedule.routine_id)
         if routine is None:
@@ -268,7 +284,7 @@ class Scheduler:
             )
             return
         try:
-            await routine.fn(
+            result = await routine.fn(
                 schedule.user_id,
                 *schedule.args,
                 triggered_at=triggered_at,
@@ -278,6 +294,40 @@ class Scheduler:
             logger.warning(
                 "routine %s raised %s", schedule.routine_id, e
             )
+            return
+
+        if self.signal_router is not None and result:
+            await self._publish_routine_signals(result)
+
+    async def _publish_routine_signals(self, result: Any) -> None:
+        """Best-effort publish of a routine's return value as Signals.
+
+        Accepts:
+        * ``list[Signal]`` — published as-is
+        * a single :class:`Signal` — published alone
+        * anything else — silently ignored
+
+        Per-signal errors are caught and logged so a broken
+        subscriber can't take down the routine's outcome.
+        """
+        from app.core.scheduling.signal import Signal
+
+        if isinstance(result, Signal):
+            signals: list[Signal] = [result]
+        elif isinstance(result, list) and all(
+            isinstance(x, Signal) for x in result
+        ):
+            signals = result
+        else:
+            return
+
+        for sig in signals:
+            try:
+                await self.signal_router.publish(sig)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "signal_router.publish failed for %s: %s", sig.id, exc
+                )
 
     # ---- diagnostics ----
 

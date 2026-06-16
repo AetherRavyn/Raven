@@ -108,7 +108,6 @@ def register_anomaly_digest(
 ) -> None:
     """Register the anomaly-digest cron job for a user (default 09:30 daily)."""
     from app.core.scheduling import (
-        CronTrigger,
         Scheduler,
     )
 
@@ -156,7 +155,7 @@ def register_anomaly_digest(
 
 
 def register_anomaly_digest_v2(
-    scheduler: "Scheduler",
+    scheduler: "Scheduler",  # noqa: F821 (forward ref under __future__ annotations)
     *,
     user_id: str,
     platform: str,

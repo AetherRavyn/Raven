@@ -149,7 +149,6 @@ def register_evening_review(
     preserved for the original APScheduler wrapper.
     """
     from app.core.scheduling import (
-        CronTrigger,
         Scheduler,
     )
 
@@ -193,7 +192,7 @@ def register_evening_review(
 
 
 def register_evening_review_v2(
-    scheduler: "Scheduler",
+    scheduler: "Scheduler",  # noqa: F821 (forward ref under __future__ annotations)
     *,
     user_id: str,
     platform: str,

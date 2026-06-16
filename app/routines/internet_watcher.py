@@ -1,8 +1,17 @@
-"""Background routine for continuous internet topic tracking via Agent Reach."""
+"""Background routine for continuous internet topic tracking via Agent Reach.
+
+Day 22: Adds :func:`generate_signals` that returns a
+:class:`Signal` per topic discovered, and a
+:func:`register_internet_watcher_v2` entry point that wires
+the watcher to a v2 :class:`Scheduler`.  The legacy
+``APScheduler`` path is preserved for backward compatibility.
+"""
 
 import logging
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
 from apscheduler.triggers.interval import IntervalTrigger
 
 from agent_reach.core import AgentReach
@@ -11,6 +20,25 @@ from app.core.task_inbox import TaskInboxStore
 from app.core.user_profile import UserProfileStore
 
 logger = logging.getLogger(__name__)
+
+
+# Sentiment word lists (kept tiny — the inbox payload still
+# carries the raw summary for richer downstream processing).
+_NEGATIVE_WORDS = (
+    "crisis", "fail", "drop", "bad", "worse", "decline", "risk",
+)
+_POSITIVE_WORDS = (
+    "growth", "success", "rise", "good", "better", "boom", "gain",
+)
+
+
+def _classify_sentiment(text: str) -> str:
+    lower = text.lower()
+    if any(w in lower for w in _NEGATIVE_WORDS):
+        return "negative"
+    if any(w in lower for w in _POSITIVE_WORDS):
+        return "positive"
+    return "neutral"
 
 
 class InternetWatcher:
@@ -72,20 +100,61 @@ class InternetWatcher:
         return list(topics)[:10]  # Allow up to 10 topics when explicitly provided
 
     async def run_sweep(self, user_id: str, platform: str, chat_id: str) -> None:
-        """Run an internet sweep for watched topics and ingest new signals."""
-        logger.info(f"Starting internet watcher sweep for user {user_id}...")
+        """Run an internet sweep for watched topics and ingest new signals.
+
+        v1 API: side-effecting (writes to inbox + evidence).
+        v2 code should use :meth:`generate_signals` and let the
+        :class:`SignalRouter` handle delivery.  This method is
+        kept for the legacy ``APScheduler`` path.
+        """
+        signals = await self.generate_signals(
+            user_id=user_id, platform=platform, chat_id=chat_id,
+        )
+        # The v2 path already published through the router;
+        # here we only do the persistence side-effects.
+        for sig in signals:
+            topic = sig.payload.get("topic", "?")
+            logger.info("internet_sweep persisted signal %s for topic %s", sig.id, topic)
+
+    async def generate_signals(
+        self,
+        *,
+        user_id: str,
+        platform: str,
+        chat_id: str,
+    ) -> list:
+        """Discover intel on watched topics and return :class:`Signal` objects.
+
+        Side effects (per signal):
+        * appends a row to ``evidence.jsonl`` (for
+          :class:`ForecastEngine` and any future analytics)
+        * queues a graph-sync task for the topic
+        * stores an inbox item so the user can review in
+          their task inbox
+
+        The returned signals are typed ``INTERNET`` so
+        subscribers (botsignal, anticipation, dashboard) can
+        filter on ``kind``.
+        """
+        from app.core.scheduling import Signal, SignalKind, SignalSeverity
+        from pathlib import Path
+
+        logger.info("Starting internet watcher sweep for user %s...", user_id)
 
         topics = self._get_watched_topics(user_id)
         if not topics:
-            logger.debug(f"No topics to watch for {user_id}")
-            return
+            logger.debug("No topics to watch for %s", user_id)
+            return []
 
-        logger.info(f"Watching topics for {user_id}: {topics}")
+        logger.info("Watching topics for %s: %s", user_id, topics)
+        out: list[Signal] = []
 
         for topic in topics:
-            # 1. Search for latest intel
-            logger.debug(f"Agent Reach discovering: {topic}")
-            result = self.reach.discover(query=topic, limit=3, sources="all")
+            try:
+                result = self.reach.discover(query=topic, limit=3, sources="all")
+            except Exception as exc:
+                logger.warning("AgentReach discover failed for %r: %s", topic, exc)
+                continue
 
             if not result.get("success"):
                 continue
@@ -94,89 +163,110 @@ class InternetWatcher:
             if not summary or summary.startswith("No discovery results"):
                 continue
 
-            # 2. Check if we already have this signal in the graph
-            # This is a naive duplication check using the summary text
-            existing_graph = self.graph.build_for_user(user_id, query=topic)
-            existing_text = " ".join(
-                [n.get("description", "") for n in existing_graph.get("nodes", [])]
-            )
-
-            # If the summary contains very new keywords not in the graph, it's a new signal
-            # For simplicity in this lightweight version, we just add it to the Inbox as a "signal"
-            # In a full model, we would embed it and check similarity.
-
-            item_id = self.inbox.add_item(
-                user_id=user_id,
-                title=f"Intel on {topic}: {summary[:120]}...",
-                kind="signal",
-                source="internet_watcher",
-                platform=platform,
-                chat_id=chat_id,
-                context={
-                    "topic": topic,
-                    "summary": summary,
-                    "results": result.get("results", []),
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                },
-            )
-
-            # Append evidence to evidence.jsonl for ForecastEngine
-            from pathlib import Path
-            import json
-
-            memory_root = Path(self.workspace_dir)
-            memory_root.mkdir(parents=True, exist_ok=True)
-            evidence_path = memory_root / "evidence.jsonl"
-
-            lower_summary = summary.lower()
-            sentiment = "neutral"
-            if any(
-                w in lower_summary
-                for w in ["crisis", "fail", "drop", "bad", "worse", "decline", "risk"]
-            ):
-                sentiment = "negative"
-            elif any(
-                w in lower_summary
-                for w in ["growth", "success", "rise", "good", "better", "boom", "gain"]
-            ):
-                sentiment = "positive"
-
+            sentiment = _classify_sentiment(summary)
             results = result.get("results", [])
             source_url = results[0].get("url") if results else "AgentReach Discovery"
+            ts = datetime.now(timezone.utc).isoformat()
 
-            evidence_record = {
-                "topic_id": topic,
-                "claims": [summary],
-                "sentiment": sentiment,
-                "source_url": source_url,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
+            # Persist inbox + evidence
+            try:
+                self.inbox.add_item(
+                    user_id=user_id,
+                    title=f"Intel on {topic}: {summary[:120]}...",
+                    kind="signal",
+                    source="internet_watcher",
+                    platform=platform,
+                    chat_id=chat_id,
+                    context={
+                        "topic": topic,
+                        "summary": summary,
+                        "results": results,
+                        "timestamp": ts,
+                    },
+                )
+            except Exception as exc:
+                logger.warning("inbox.add_item failed: %s", exc)
 
             try:
-                with open(evidence_path, "a", encoding="utf-8") as f:
-                    f.write(json.dumps(evidence_record) + "\n")
-            except Exception as e:
-                logger.error(f"Failed to write evidence: {e}")
+                memory_root = Path(self.workspace_dir)
+                memory_root.mkdir(parents=True, exist_ok=True)
+                evidence_path = memory_root / "evidence.jsonl"
+                with evidence_path.open("a", encoding="utf-8") as f:
+                    import json
+                    f.write(
+                        json.dumps(
+                            {
+                                "topic_id": topic,
+                                "claims": [summary],
+                                "sentiment": sentiment,
+                                "source_url": source_url,
+                                "timestamp": ts,
+                            }
+                        )
+                        + "\n"
+                    )
+            except Exception as exc:
+                logger.error("Failed to write evidence: %s", exc)
 
-            # 3. Add a node to the workspace graph
             try:
-                # We run this sync inside the thread pool or synchronously since it's sqlite
-                # Using the asyncio wrapper we need to be careful
                 asyncio.create_task(
                     self.graph.sync_user(
                         user_id, query=f"Internet signal on {topic}: {summary}"
                     )
                 )
-            except Exception as e:
-                logger.warning(f"Failed to sync graph for internet watcher: {e}")
+            except Exception as exc:
+                logger.warning("Failed to sync graph for internet watcher: %s", exc)
 
-            logger.info(f"Added new internet signal for {topic} to inbox ({item_id})")
+            severity = (
+                SignalSeverity.WARNING
+                if sentiment == "negative"
+                else SignalSeverity.NOTICE
+                if sentiment == "positive"
+                else SignalSeverity.INFO
+            )
+
+            out.append(
+                Signal.make(
+                    kind=SignalKind.INTERNET,
+                    source="internet_watcher",
+                    user_id=user_id,
+                    title=f"Intel on {topic}",
+                    severity=severity,
+                    body=summary,
+                    payload={
+                        "topic": topic,
+                        "summary": summary,
+                        "sentiment": sentiment,
+                        "source_url": source_url,
+                        "results": results,
+                        "platform": platform,
+                        "chat_id": chat_id,
+                    },
+                )
+            )
+
+        return out
 
 
 def register_internet_watcher(
     scheduler, user_id: str, platform: str, chat_id: str, interval_hours: int = 6
-) -> None:
-    """Register continuous internet monitoring routine."""
+) -> str | None:
+    """Register continuous internet monitoring routine.
+
+    Returns the schedule id when registered on a v2
+    :class:`~app.core.scheduling.Scheduler`, or ``None`` when
+    the legacy APScheduler path is used.
+    """
+    from app.core.scheduling import Scheduler
+
+    if isinstance(scheduler, Scheduler):
+        return register_internet_watcher_v2(
+            scheduler,
+            user_id=user_id,
+            platform=platform,
+            chat_id=chat_id,
+            interval_hours=interval_hours,
+        )
 
     async def _fire():
         try:
@@ -198,3 +288,71 @@ def register_internet_watcher(
         user_id,
         interval_hours,
     )
+    return None
+
+
+def register_internet_watcher_v2(
+    scheduler,
+    *,
+    user_id: str,
+    platform: str,
+    chat_id: str,
+    interval_hours: int = 6,
+    signal_router: Any = None,
+    schedule_id: str | None = None,
+) -> str:
+    """Register the internet watcher on a v2 :class:`Scheduler`."""
+    from app.core.scheduling import (
+        IntervalTrigger,
+        Scheduler,
+        get_default_signal_router,
+    )
+
+    if not isinstance(scheduler, Scheduler):
+        raise TypeError(
+            "register_internet_watcher_v2 requires a v2 Scheduler; "
+            f"got {type(scheduler).__name__}"
+        )
+
+    routine_id = f"internet_watcher::{user_id}"
+    watcher = InternetWatcher()
+    router = signal_router or getattr(scheduler, "signal_router", None) or get_default_signal_router()
+
+    async def _fire(uid: str, *args: Any, triggered_at: datetime | None = None, **kwargs: Any) -> list:
+        signals = await watcher.generate_signals(
+            user_id=uid,
+            platform=platform,
+            chat_id=chat_id,
+        )
+        for sig in signals:
+            await router.publish(sig)
+        return signals
+
+    if scheduler.routine_registry.get(routine_id) is None:
+        scheduler.routine_registry.register_fn(
+            routine_id,
+            _fire,
+            name="internet_watcher",
+            kind="watcher",
+            metadata={
+                "user_id": user_id,
+                "platform": platform,
+                "chat_id": chat_id,
+                "interval_hours": interval_hours,
+            },
+        )
+
+    sid = schedule_id or f"internet_watcher_{user_id}"
+    scheduler.add(
+        routine_id=routine_id,
+        trigger=IntervalTrigger(every=timedelta(hours=interval_hours)),
+        user_id=user_id,
+        schedule_id=sid,
+    )
+    logger.info(
+        "InternetWatcher v2 registered for user %s every %d hours (schedule=%s)",
+        user_id,
+        interval_hours,
+        sid,
+    )
+    return sid

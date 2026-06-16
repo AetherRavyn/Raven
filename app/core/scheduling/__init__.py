@@ -48,6 +48,19 @@ from app.core.scheduling.scheduler import (
     reset_default_scheduler,
     set_default_scheduler,
 )
+from app.core.scheduling.signal import (
+    DedupeCache,
+    Signal,
+    SignalHandler,
+    SignalKind,
+    SignalPredicate,
+    SignalRouter,
+    SignalSeverity,
+    generate_signals,
+    get_default_signal_router,
+    reset_default_signal_router,
+    set_default_signal_router,
+)
 from app.core.scheduling.trigger import (
     CronTrigger,
     EventTrigger,
@@ -60,6 +73,7 @@ from app.core.scheduling.trigger import (
 __all__ = [
     "ClockFn",
     "CronTrigger",
+    "DedupeCache",
     "EventTrigger",
     "FiredSchedule",
     "FireCallback",
@@ -71,10 +85,20 @@ __all__ = [
     "Schedule",
     "ScheduleRegistry",
     "Scheduler",
+    "Signal",
+    "SignalHandler",
+    "SignalKind",
+    "SignalPredicate",
+    "SignalRouter",
+    "SignalSeverity",
     "TimeOfDayTrigger",
     "Trigger",
+    "generate_signals",
     "get_default_scheduler",
+    "get_default_signal_router",
     "make_schedule_id",
     "reset_default_scheduler",
+    "reset_default_signal_router",
     "set_default_scheduler",
+    "set_default_signal_router",
 ]

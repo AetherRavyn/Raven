@@ -110,7 +110,7 @@ class MemoryConsolidator:
             logger.info("No recent activity to consolidate.")
             return
 
-        prompt = f"""You are a memory consolidation AI. 
+        prompt = f"""You are a memory consolidation AI.
 Review the following recent activity (chat sessions and completed tasks) of the user and extract new enduring facts, preferences, and operational rules.
 
 Activity Context:

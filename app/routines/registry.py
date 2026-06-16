@@ -14,16 +14,29 @@ time-of-day, interval, event, or one-shot).  The trigger is
 exposed via :attr:`Routine.metadata` and via the
 :class:`Scheduler.explain` snapshot, so a dashboard can show
 *what* is scheduled and *when* it next fires.
+
+Day 22 adds :func:`register_default_signals` which wires
+the three watcher routines (``calendar_watcher``,
+``internet_watcher``, ``autonomy_worker``) using their v2
+``register_*_v2`` entry points.  These run on
+:class:`IntervalTrigger` schedules and produce
+:class:`~app.core.scheduling.Signal` objects that the
+scheduler publishes through its
+:class:`~app.core.scheduling.SignalRouter`.
 """
 
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from app.core.scheduling import Scheduler
 
 from app.routines.anomaly_digest import register_anomaly_digest_v2
+from app.routines.autonomy_worker import register_autonomy_worker_v2
+from app.routines.calendar_watcher import register_calendar_watcher_v2
 from app.routines.evening_review import register_evening_review_v2
+from app.routines.internet_watcher import register_internet_watcher_v2
 from app.routines.morning_briefing import register_morning_briefing_v2
 from app.routines.weekly_digest import register_weekly_digest_v2
 
@@ -94,4 +107,73 @@ def register_default_routines(
     return schedule_ids
 
 
-__all__ = ["register_default_routines"]
+def register_default_signals(
+    scheduler: Scheduler,
+    user_id: str,
+    platform: str,
+    chat_id: str,
+    *,
+    calendar_interval_minutes: int = 5,
+    internet_interval_hours: int = 6,
+    autonomy_interval_minutes: int = 15,
+    signal_router: Any = None,
+) -> dict[str, str]:
+    """Register the three v2 watcher routines for one user.
+
+    These run on :class:`IntervalTrigger` schedules and emit
+    :class:`~app.core.scheduling.Signal` objects through the
+    supplied ``signal_router`` (falling back to the
+    scheduler's own router, or the process-wide default).
+
+    Returns ``kind -> schedule_id`` for diagnostics.  Skips
+    any routine whose registration fails — watchdogs must
+    not block boot.
+    """
+    schedule_ids: dict[str, str] = {}
+
+    for kind, fn, kwargs in (
+        (
+            "calendar_watcher",
+            register_calendar_watcher_v2,
+            {"interval_minutes": calendar_interval_minutes},
+        ),
+        (
+            "internet_watcher",
+            register_internet_watcher_v2,
+            {"interval_hours": internet_interval_hours},
+        ),
+        (
+            "autonomy_worker",
+            register_autonomy_worker_v2,
+            {"interval_minutes": autonomy_interval_minutes},
+        ),
+    ):
+        try:
+            schedule_ids[kind] = fn(
+                scheduler,
+                user_id=user_id,
+                platform=platform,
+                chat_id=chat_id,
+                signal_router=signal_router,
+                **kwargs,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "register_default_signals: %s failed for user %s: %s",
+                kind,
+                user_id,
+                exc,
+            )
+            schedule_ids[kind] = ""
+
+    registered = sum(1 for v in schedule_ids.values() if v)
+    logger.info(
+        "default signals registered: user=%s count=%d/%d",
+        user_id,
+        registered,
+        len(schedule_ids),
+    )
+    return schedule_ids
+
+
+__all__ = ["register_default_routines", "register_default_signals"]

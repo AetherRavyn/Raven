@@ -130,10 +130,10 @@ async def compose_morning_briefing(user_id: str) -> str:
     context_str = "\n".join(context_lines)
 
     # 3. LLM Synthesize
-    prompt = f"""You are a highly capable Executive Operator AI (like JARVIS). 
-Write a concise, sci-fi style morning briefing for your user. 
-Synthesize the following system context into a seamless, spoken-word narrative. 
-Be highly professional, slightly proactive, and keep it under 3 paragraphs. 
+    prompt = f"""You are a highly capable Executive Operator AI (like JARVIS).
+Write a concise, sci-fi style morning briefing for your user.
+Synthesize the following system context into a seamless, spoken-word narrative.
+Be highly professional, slightly proactive, and keep it under 3 paragraphs.
 Do not use markdown headers, asterisks, or complex formatting - just plain text suitable for text-to-speech.
 
 System Context:
@@ -249,7 +249,6 @@ def register_morning_briefing(
     APScheduler-based registration.
     """
     from app.core.scheduling import (
-        CronTrigger,
         Scheduler,
     )
 
@@ -264,7 +263,6 @@ def register_morning_briefing(
         )
         return
 
-    from app.core.botsignal import get_botsignal
     from app.core.models import ReplyTarget
 
     async def _fire():
@@ -295,7 +293,7 @@ def register_morning_briefing(
 
 
 def register_morning_briefing_v2(
-    scheduler: "Scheduler",
+    scheduler: "Scheduler",  # noqa: F821 (forward ref under __future__ annotations)
     *,
     user_id: str,
     platform: str,

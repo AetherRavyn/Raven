@@ -60,9 +60,30 @@ def register_proactive_routines(scheduler: SarasScheduler) -> None:
             except Exception as exc:  # noqa: BLE001
                 logger.info("v2 default routines skipped: %s", exc)
 
-            # Legacy registrations (still useful for routines that
-            # haven't been ported yet — forecast, internet watcher,
-            # autonomy worker, memory consolidator, calendar watcher).
+            # Day 22: v2 registration of the three watcher
+            # routines (calendar / internet / autonomy).  These
+            # produce :class:`Signal` objects that the scheduler
+            # publishes through the SignalRouter.
+            try:
+                register_default_signals(
+                    v2_scheduler,
+                    uid,
+                    platform,
+                    cid,
+                    signal_router=v2_scheduler.signal_router,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.info("v2 default signals skipped: %s", exc)
+
+            # Legacy registrations (still useful for routines
+            # that haven't been ported yet — forecast, memory
+            # consolidator).  The three watcher routines above
+            # are now v2-only; the legacy ``register_*``
+            # functions fall through to the v2 path automatically
+            # when given a v2 Scheduler, but here the legacy
+            # ``SarasScheduler`` is passed so the APScheduler
+            # jobs continue to run as a safety net until the
+            # watchers are validated in production.
             register_morning_briefing(
                 scheduler,
                 uid,

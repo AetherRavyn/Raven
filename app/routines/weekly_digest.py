@@ -161,7 +161,6 @@ def register_weekly_digest(
     through unchanged.
     """
     from app.core.scheduling import (
-        CronTrigger,
         Scheduler,
     )
 
@@ -207,7 +206,7 @@ def register_weekly_digest(
 
 
 def register_weekly_digest_v2(
-    scheduler: "Scheduler",
+    scheduler: "Scheduler",  # noqa: F821 (forward ref under __future__ annotations)
     *,
     user_id: str,
     platform: str,
