@@ -103,6 +103,7 @@ class PrivacyManager:
         consent_store: ConsentStore | None = None,
         retention_manager: RetentionManager | None = None,
         config: PrivacyConfig | None = None,
+        helix_store: Any | None = None,
     ) -> None:
         self._lock = threading.RLock()
         self._config = config or PrivacyConfig()
@@ -118,6 +119,11 @@ class PrivacyManager:
             policy=self._config.retention,
             consent_store=self.consent_store,
         )
+        # Optional HelixDB persistence layer.  When set, async write
+        # methods mirror consent/retention writes to durable storage.
+        # Typed as ``Any`` to avoid an import cycle with the
+        # persistence module (which imports from this package).
+        self._helix_store = helix_store
 
     # ---- redaction ----
 
@@ -245,6 +251,71 @@ class PrivacyManager:
         return self.retention.purge_due()
 
     def delete_user(self, user_id: str, *, reason: str = "user-request") -> list[str]:
+        return self.retention.purge_user(user_id, reason=reason)
+
+    # ---- async persistence mirror ----
+    #
+    # These methods mirror the in-memory writes to HelixDB
+    # when a store is attached.  They are best-effort:
+    # in-memory state is the source of truth, the store is
+    # a durable shadow that catches up asynchronously.
+
+    async def a_grant_consent(
+        self,
+        user_id: str,
+        data_class: DataClass,
+        level: ConsentLevel = ConsentLevel.ALLOW,
+        *,
+        ttl: timedelta | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Consent:
+        consent = self.consent_store.grant(
+            user_id, data_class, level, ttl=ttl, metadata=metadata,
+        )
+        if self._helix_store is not None:
+            await self._helix_store.grant_consent(
+                user_id, data_class, level,
+                ttl=ttl, metadata=metadata,
+            )
+        return consent
+
+    async def a_revoke_consent(self, user_id: str, data_class: DataClass) -> bool:
+        ok = self.consent_store.revoke(user_id, data_class)
+        if ok and self._helix_store is not None:
+            await self._helix_store.revoke_consent(user_id, data_class)
+        return ok
+
+    async def a_schedule_retention(
+        self,
+        record_id: str,
+        data_class: DataClass,
+        user_id: str,
+        *,
+        retention_until: Any = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> PurgeRecord:
+        record = self.retention.mark_for_purge(
+            record_id, data_class, user_id,
+            retention_until=retention_until, metadata=metadata,
+        )
+        if self._helix_store is not None:
+            await self._helix_store.mark_for_purge(
+                record_id, data_class, user_id,
+                retention_until=retention_until, metadata=metadata,
+            )
+        return record
+
+    async def a_cancel_purge(self, record_id: str) -> bool:
+        if self._helix_store is not None:
+            return await self._helix_store.cancel_purge(record_id)
+        return self.retention.cancel(record_id)
+
+    async def a_delete_user(
+        self, user_id: str, *, reason: str = "user-request",
+    ) -> list[str]:
+        if self._helix_store is not None:
+            # Helix store wipes in-memory + Helix for this user.
+            await self._helix_store.purge_user(user_id)
         return self.retention.purge_user(user_id, reason=reason)
 
     # ---- diagnostics ----

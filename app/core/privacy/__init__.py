@@ -1,6 +1,6 @@
 """Phase E — Privacy & Trust.
 
-Six modules:
+Seven modules:
 
   * :mod:`app.core.privacy.detection`   — PII pattern detection
   * :mod:`app.core.privacy.redaction`   — apply per-kind policies
@@ -8,6 +8,7 @@ Six modules:
   * :mod:`app.core.privacy.retention`   — purge scheduling
   * :mod:`app.core.privacy.policy`      — tool name → DataClass
   * :mod:`app.core.privacy.orchestrator` — :class:`PrivacyManager` facade
+  * :mod:`app.core.privacy.persistence` — HelixDB durable mirror
   * :mod:`app.core.privacy.registry`    — process-singleton helpers
 
 The :class:`PrivacyManager` is the runtime-facing entry point.
@@ -37,6 +38,12 @@ from app.core.privacy.orchestrator import (
     PrivacyError,
     PrivacyManager,
 )
+from app.core.privacy.persistence import (
+    HelixPrivacyStore,
+    get_default_privacy_store,
+    reset_default_privacy_store,
+    set_default_privacy_store,
+)
 from app.core.privacy.policy import data_class_for
 from app.core.privacy.redaction import (
     Redaction,
@@ -62,6 +69,7 @@ __all__ = [
     "ConsentLevel",
     "ConsentStore",
     "DataClass",
+    "HelixPrivacyStore",
     "PIIDetection",
     "PIIDetector",
     "PIIKind",
@@ -80,8 +88,11 @@ __all__ = [
     "data_class_for",
     "detector_audit_safe",
     "detector_with_kinds",
+    "get_default_privacy_store",
     "get_privacy_manager",
     "redact_for_log",
+    "reset_default_privacy_store",
     "reset_privacy",
+    "set_default_privacy_store",
     "set_privacy_manager",
 ]

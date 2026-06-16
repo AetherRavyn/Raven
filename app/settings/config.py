@@ -158,6 +158,13 @@ class Config:
         "yes",
         "on",
     }
+    # Mirror consent + retention writes to HelixDB for durability.
+    PRIVACY_HELIX_ENABLED: bool = os.getenv("SARAS_PRIVACY_HELIX", "true").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
     TOOL_USER_PERMISSIONS = os.getenv("TOOL_USER_PERMISSIONS", "")
     TOOL_AGENT_PERMISSIONS = os.getenv("TOOL_AGENT_PERMISSIONS", "")
