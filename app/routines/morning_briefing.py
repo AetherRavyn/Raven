@@ -1,5 +1,12 @@
 # app/routines/morning_briefing.py
-"""Morning briefing routine — fires at a configured time daily per user."""
+"""Morning briefing routine — fires at a configured time daily per user.
+
+When a :class:`DeliveryAdapter` is registered for the user in the
+proactive-core registry, the briefing is routed through the
+engine.  Otherwise it falls back to the legacy direct-send path,
+preserving the old behaviour for callers that haven't been
+upgraded yet.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +17,12 @@ from pathlib import Path
 
 from app.core.model_router import AutoModelRouter
 from app.core.proactive import ProactiveDigest, send_proactive_digest
+from app.core.proactive_core import (
+    ProactiveSignal,
+    SignalKind,
+    Urgency,
+    get_context,
+)
 from app.settings.config import Config
 from app.core.task_ledger import TaskLedger
 from app.provider.factory import create_provider
@@ -169,6 +182,55 @@ async def compose_daily_digest(user_id: str) -> ProactiveDigest:
     return ProactiveDigest(title=text, items=[], source="morning_briefing")
 
 
+def _build_morning_signal(
+    user_id: str, digest: ProactiveDigest
+) -> ProactiveSignal:
+    """Wrap a composed digest in a :class:`ProactiveSignal`.
+
+    The morning briefing is a low-urgency routine signal.  We
+    give it a high value and high confidence because we trust
+    the LLM-composed text and the user has explicitly asked for
+    a daily digest (so it shouldn't be treated as noise).
+    """
+    return ProactiveSignal(
+        id=f"morning_briefing:{user_id}:{datetime.now(timezone.utc).date().isoformat()}",
+        user_id=user_id,
+        kind=SignalKind.ROUTINE,
+        title="Morning briefing",
+        body=digest.title,
+        urgency=Urgency.LOW,
+        value=0.95,
+        confidence=0.95,
+        source="morning_briefing",
+        metadata={"target_id": f"morning_briefing:{user_id}"},
+    )
+
+
+async def _fire_via_engine(
+    user_id: str, platform: str, chat_id: str
+) -> bool:
+    """Send the briefing through the proactive engine.
+
+    Returns True if the engine handled the signal, False if no
+    context was registered and the caller should fall back.
+    """
+    ctx = get_context(user_id)
+    if ctx is None or ctx.adapter is None:
+        return False
+
+    digest = await compose_daily_digest(user_id)
+    signal = _build_morning_signal(user_id, digest)
+    decision = await ctx.adapter.dispatch(signal)
+    logger.info(
+        "morning_briefing: user=%s verdict=%s stage=%s reason=%s",
+        user_id,
+        decision.verdict.value,
+        decision.stage,
+        decision.reason or "-",
+    )
+    return True
+
+
 def register_morning_briefing(
     scheduler,
     user_id: str,
@@ -179,10 +241,13 @@ def register_morning_briefing(
 ) -> None:
     """Register the morning briefing cron job for a user."""
     from app.core.botsignal import get_botsignal
+    from app.core.models import ReplyTarget
 
     async def _fire():
-        from app.core.models import ReplyTarget
-
+        # Prefer the proactive engine when registered.
+        if await _fire_via_engine(user_id, platform, chat_id):
+            return
+        # Legacy path — direct send.
         digest = await compose_daily_digest(user_id)
         target = ReplyTarget(platform=platform, chat_id=chat_id)
         await send_proactive_digest(target, digest)

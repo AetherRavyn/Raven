@@ -27,6 +27,20 @@ Quick start::
         ...
 """
 
+from app.core.proactive_core.bootstrap import (
+    ProactiveBootstrapConfig,
+    UserProactiveContext,
+    all_contexts,
+    get_context,
+    register_proactive_core,
+    reset_registry,
+    unregister,
+)
+from app.core.proactive_core.delivery import (
+    DeliveryAdapter,
+    DeliverySender,
+    build_default_adapter,
+)
 from app.core.proactive_core.dispatcher import ChannelDispatcher, DispatcherConfig
 from app.core.proactive_core.engine import (
     EngineConfig,
@@ -63,10 +77,13 @@ __all__ = [
     "ChannelDispatcher",
     "ChannelPreference",
     "DecisionVerdict",
+    "DeliveryAdapter",
+    "DeliverySender",
     "DispatcherConfig",
     "EngineConfig",
     "GateConfig",
     "InMemoryRateLimitStore",
+    "ProactiveBootstrapConfig",
     "ProactiveDecision",
     "ProactiveEngine",
     "ProactiveSignal",
@@ -77,6 +94,13 @@ __all__ = [
     "SilenceConfig",
     "SilenceEngine",
     "Urgency",
+    "UserProactiveContext",
     "ValueGate",
+    "all_contexts",
+    "build_default_adapter",
     "configure_default_engine",
+    "get_context",
+    "register_proactive_core",
+    "reset_registry",
+    "unregister",
 ]

@@ -19,6 +19,18 @@ def register_proactive_routines(scheduler: SarasScheduler) -> None:
         logger.debug("No MORNING_BRIEFING_USERS configured; proactive routines skipped")
         return
 
+    # Phase C1: wire the proactive core so routines can route their
+    # output through the should-I-speak decision engine.  This is
+    # best-effort — if registration fails (missing dependencies,
+    # mis-config), the routines still register and fall back to the
+    # legacy direct-send path.
+    try:
+        from app.core.proactive_core import register_proactive_core
+
+        register_proactive_core(botsignal=scheduler._botsignal)
+    except Exception as exc:  # noqa: BLE001
+        logger.info("Proactive core bootstrap skipped: %s", exc)
+
     for entry in Config.MORNING_BRIEFING_USERS.split(","):
         parts = entry.strip().split(":")
         if len(parts) == 3:
