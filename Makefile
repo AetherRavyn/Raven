@@ -118,11 +118,12 @@ lint: ## Run ruff check on the surfaces we own (A2-A5 + db + observability + tes
 		app/core/runtime.py \
 		app/db \
 		app/observability \
+		app/core/proactive_core \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py \
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py \
 		scripts/
 
 .PHONY: lint-fix
@@ -137,11 +138,12 @@ lint-fix: ## Run ruff check with --fix.
 		app/core/runtime.py \
 		app/db \
 		app/observability \
+		app/core/proactive_core \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py \
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py \
 		scripts/
 
 .PHONY: format
@@ -156,11 +158,12 @@ format: ## Run ruff format on the surfaces we own.
 		app/core/runtime.py \
 		app/db \
 		app/observability \
+		app/core/proactive_core \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py \
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py \
 		scripts/
 
 .PHONY: format-check
@@ -175,11 +178,12 @@ format-check: ## Verify formatting without changing files.
 		app/core/runtime.py \
 		app/db \
 		app/observability \
+		app/core/proactive_core \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py \
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py \
 		scripts/
 
 .PHONY: typecheck
@@ -197,7 +201,7 @@ typecheck: ## Run pyright on the A2-A5 + db + observability modules.
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py
 
 .PHONY: security
 security: ## Run bandit security scan on the new A2-A5 modules.
@@ -210,6 +214,7 @@ security: ## Run bandit security scan on the new A2-A5 modules.
 		app/core/security.py \
 		app/db \
 		app/observability \
+		app/core/proactive_core \
 		-lll --skip B101,B311
 
 .PHONY: security-full
@@ -271,6 +276,7 @@ coverage: ## Run pytest with coverage report (deselects pre-existing failing tes
 	$(PYT) --cov=app/core/cost_router --cov=app/core/verifier \
 	       --cov=app/core/vault --cov=app/core/audit --cov=app/core/policy_v2 \
 	       --cov=app/core/security --cov=app/db --cov=app/observability \
+	       --cov=app/core/proactive_core \
 	       --cov-report=term-missing --cov-report=html --cov-report=xml -q \
 	       --deselect tests/test_dm_pairing.py::TestOrchestratorAndGatewayIntegration \
 	       --deselect tests/test_phase_integration.py::TestSkillAutoInvocation \
@@ -280,12 +286,13 @@ coverage: ## Run pytest with coverage report (deselects pre-existing failing tes
 .PHONY: coverage-all
 coverage-all: ## Run pytest with coverage on the full app/ surface.
 	$(PYT) --cov=app/core --cov=app/db --cov=app/observability \
+	       --cov=app/core/proactive_core \
 	       --cov-report=term-missing --cov-report=html --cov-report=xml -q
 
 .PHONY: coverage-gate
 coverage-gate: coverage ## Fail if coverage on new A2-A5 modules < 80%.
 	@COV=$$($(VENV)/bin/coverage report \
-		--include="app/core/cost_router/*,app/core/verifier/*,app/core/vault.py,app/core/audit/*,app/core/policy_v2/*,app/db/helix.py,app/db/memory_helix.py,app/db/knowledge_graph_helix.py,app/observability/*" \
+		--include="app/core/cost_router/*,app/core/verifier/*,app/core/vault.py,app/core/audit/*,app/core/policy_v2/*,app/db/helix.py,app/db/memory_helix.py,app/db/knowledge_graph_helix.py,app/observability/*,app/core/proactive_core/*" \
 		2>/dev/null | grep -E "^TOTAL" | awk '{print $$NF}'); \
 	echo "new-modules coverage: $${COV}"; \
 	$(PY) -c "import sys; pct=float(sys.argv[1].rstrip('%')); sys.exit(1 if pct < 80 else 0)" "$${COV}"
