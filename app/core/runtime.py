@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import time as _time_module
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -23,6 +24,7 @@ from app.core.hooks import HookDispatcher
 from app.core.workflow_engine import WorkflowEngine
 from app.core.standing_orders import StandingOrderStore
 from app.core.feedback import FeedbackStore
+from app.core.security import get_security_guard
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +105,69 @@ from app.tools.base import BaseTool
 logger = logging.getLogger(__name__)
 
 
+def _build_secret_vault() -> Any:
+    """Construct a :class:`SecretVault` (A4).
+
+    Module-level so the runtime can be tested without instantiating
+    the full ``AgentRuntime`` (which loads LLM providers and
+    embedding models).  Returns ``None`` if the vault cannot be
+    constructed.
+    """
+    try:
+        from app.core.vault import SecretVault
+
+        return SecretVault()
+    except Exception as e:  # noqa: BLE001
+        logger.debug("secret vault unavailable: %s", e)
+        return None
+
+
+def _build_audit_log_v2() -> Any:
+    """Construct a v2 :class:`AuditLog` (A4).
+
+    The path is read from ``SARAS_AUDIT_PATH`` (default
+    ``workspace/audit.jsonl``).  Returns ``None`` on failure.
+    """
+    try:
+        from app.core.audit import AuditLog
+        from app.core.audit.log import DEFAULT_PATH
+
+        log_path = Path(os.environ.get("SARAS_AUDIT_PATH", str(DEFAULT_PATH)))
+        return AuditLog(jsonl_path=log_path)
+    except Exception as e:  # noqa: BLE001
+        logger.debug("audit log v2 unavailable: %s", e)
+        return None
+
+
+def _build_policy_v2(
+    audit_log: Any | None = None, state_dir: str | os.PathLike[str] | None = None
+) -> Any:
+    """Construct a v2 :class:`PolicyEngine` (A4).
+
+    Reads ``SARAS_POLICY_STATE_DIR`` for the trust + approval
+    stores (default ``workspace/state``).  Pass ``audit_log`` to
+    wire the policy engine into the same audit log used by the
+    runtime.
+    """
+    try:
+        from app.core.policy_v2 import ApprovalStore, PolicyEngine, TrustStore
+
+        if state_dir is None:
+            state_dir = Path(
+                os.environ.get("SARAS_POLICY_STATE_DIR", "workspace/state")
+            )
+        else:
+            state_dir = Path(state_dir)
+        return PolicyEngine(
+            trust_store=TrustStore(state_dir / "trust.jsonl"),
+            approval_store=ApprovalStore(state_dir / "approvals.jsonl"),
+            audit_log=audit_log,
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.debug("policy v2 unavailable: %s", e)
+        return None
+
+
 class AgentRuntime:
     """The embedded execution environment that manages the lifecycle of an agent's turn with a ReAct loop."""
 
@@ -159,6 +224,14 @@ class AgentRuntime:
         self.verifier_v2 = self._build_verifier_v2()
         self._use_cost_router_v2 = _env_flag("SARAS_COST_ROUTER_V2")
         self._use_verifier_v2 = _env_flag("SARAS_VERIFIER_V2")
+        # A4: vault, audit, policy v2
+        self.secret_vault = self._build_secret_vault()
+        self.audit_log_v2 = self._build_audit_log_v2()
+        self.policy_engine_v2 = self._build_policy_v2()
+        self._use_vault_v2 = _env_flag("SARAS_VAULT_ENABLED")
+        self._use_audit_v2 = _env_flag("SARAS_AUDIT_V2")
+        self._use_policy_v2 = _env_flag("SARAS_POLICY_V2")
+        self.security_guard = get_security_guard()
         self.multimodal_builder = MultimodalContextBuilder()
         self.policy_engine = get_policy_engine()
         self.memory_manager = MemoryManager()
@@ -205,6 +278,114 @@ class AgentRuntime:
         except Exception as e:  # noqa: BLE001
             logger.debug("verifier v2 unavailable: %s", e)
             return None
+
+    def _build_secret_vault(self) -> Any:
+        # Delegates to the module-level helper so tests can construct
+        # the vault without instantiating the full runtime.
+        return _build_secret_vault()
+
+    def _build_audit_log_v2(self) -> Any:
+        return _build_audit_log_v2()
+
+    def _build_policy_v2(self) -> Any:
+        return _build_policy_v2(audit_log=self.audit_log_v2)
+
+    # ------------------------------------------------------------------
+    # A4 audit + policy helpers
+    # ------------------------------------------------------------------
+
+    def _audit(
+        self,
+        *,
+        kind: str,
+        actor: str,
+        action: str,
+        target: str | None = None,
+        success: bool = True,
+        detail: str | None = None,
+        context: dict[str, Any] | None = None,
+        risk_level: str = "low",
+    ) -> None:
+        """Append an audit event.  No-op when A4 audit is disabled."""
+        if not self._use_audit_v2 or self.audit_log_v2 is None:
+            return
+        try:
+            from app.core.audit import AuditEvent, AuditKind, RiskLevel
+
+            self.audit_log_v2.record(
+                AuditEvent(
+                    kind=AuditKind(kind),
+                    actor=actor,
+                    action=action,
+                    target=target,
+                    context=context or {},
+                    success=success,
+                    detail=detail,
+                    risk_level=RiskLevel(risk_level),
+                )
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.debug("audit v2 record failed: %s", e)
+
+    def _policy_v2_check(
+        self, function_name: str, args: dict[str, Any], user_id: str
+    ) -> tuple[bool, str, str | None]:
+        """Run a v2 policy check on a tool call.
+
+        Returns ``(allowed, reason, approval_id)``:
+
+        - ``allowed=True`` — proceed.
+        - ``allowed=False, approval_id=...`` — enqueued for approval.
+        - ``allowed=False, approval_id=None`` — denied.
+
+        When A4 policy v2 is disabled, returns ``(True, "", None)``
+        so the legacy gate remains the only authority.
+        """
+        if not self._use_policy_v2 or self.policy_engine_v2 is None:
+            return True, "", None
+        try:
+            from app.core.policy_v2 import PolicyRequest, Verdict
+
+            decision = self.policy_engine_v2.evaluate(
+                PolicyRequest(
+                    user_id=user_id,
+                    action=function_name,
+                    target=args.get("path") or args.get("command"),
+                    args={
+                        k: v
+                        for k, v in args.items()
+                        if k != "_request" and isinstance(v, (str, int, float, bool))
+                    },
+                )
+            )
+            if decision.verdict == Verdict.ALLOW:
+                return True, "", None
+            if decision.verdict == Verdict.ASK:
+                return False, "policy v2: requires approval", decision.approval_id
+            return False, f"policy v2 denied: {'; '.join(decision.reasons)}", None
+        except Exception as e:  # noqa: BLE001
+            # Fail open: legacy path still runs after this.
+            logger.debug("policy v2 check failed: %s", e)
+            return True, "", None
+
+    def _resolve_credential(
+        self, name: str, env_var: str, default: str | None = None
+    ) -> str | None:
+        """Look up a credential, preferring the vault over env vars.
+
+        When A4 vault is disabled, this is equivalent to
+        ``os.environ.get(env_var, default)``.
+        """
+        if self._use_vault_v2 and self.secret_vault is not None:
+            try:
+                from app.core.vault import resolve_secret
+
+                v = resolve_secret(name, vault=self.secret_vault, env_var=env_var)
+                if v:
+                    return v
+            except Exception as e:  # noqa: BLE001
+                logger.debug("vault credential lookup failed for %s: %s", name, e)
+        return os.environ.get(env_var, default)
 
     async def _route_request(self, request: Any) -> Any:
         """Pick a model for the current request.
@@ -1194,6 +1375,21 @@ class AgentRuntime:
                     if function_name in self.tools:
                         tool = self.tools[function_name]
                         try:
+                            # ── A4 audit: tool attempt ────────────────────
+                            self._audit(
+                                kind="tool_call",
+                                actor=request.user_id,
+                                action=function_name,
+                                target=str(args.get("path") or args.get("command") or ""),
+                                success=True,
+                                detail="attempt",
+                                context={
+                                    "session_id": session_id,
+                                    "platform": request.platform,
+                                    "tool_call_id": tc.get("id", ""),
+                                },
+                                risk_level="low",
+                            )
                             decision = self.policy_engine.evaluate(
                                 tool,
                                 user_id=request.user_id,
@@ -1207,6 +1403,15 @@ class AgentRuntime:
                                         success=False,
                                         detail=decision.reason,
                                     )
+                                )
+                                self._audit(
+                                    kind="policy",
+                                    actor=request.user_id,
+                                    action=function_name,
+                                    success=False,
+                                    detail=f"deny (legacy): {decision.reason}",
+                                    context={"gate": "legacy", "verdict": "deny"},
+                                    risk_level="high",
                                 )
                                 if decision.requires_confirmation:
                                     approval_queued = (
@@ -1263,6 +1468,65 @@ class AgentRuntime:
                                     f"Failed to check security requirements: {sec_e}"
                                 )
                             # ---------------------------------
+
+                            # ── A4 policy v2 check (if enabled) ─────────
+                            allowed_v2, reason_v2, approval_id_v2 = self._policy_v2_check(
+                                function_name, args, request.user_id
+                            )
+                            if not allowed_v2 and approval_id_v2 is not None:
+                                # ASK: enqueue using legacy queue (which
+                                # also tracks a v2 approval id in metadata)
+                                self._audit(
+                                    kind="approval",
+                                    actor=request.user_id,
+                                    action=function_name,
+                                    success=False,
+                                    detail=reason_v2,
+                                    context={
+                                        "gate": "v2",
+                                        "verdict": "ask",
+                                        "approval_id": approval_id_v2,
+                                    },
+                                    risk_level="high",
+                                )
+                                approval_queued = await self._queue_approval_request(
+                                    function_name=function_name,
+                                    args={**args, "_v2_approval_id": approval_id_v2},
+                                    request=request,
+                                    session_id=session_id,
+                                    tool_call_id=tc.get("id", ""),
+                                    source_kind=source_kind,
+                                    messages=messages,
+                                )
+                                if approval_queued:
+                                    continue
+                            elif not allowed_v2:
+                                # DENY: block, no approval path
+                                self._audit(
+                                    kind="policy",
+                                    actor=request.user_id,
+                                    action=function_name,
+                                    success=False,
+                                    detail=f"deny (v2): {reason_v2}",
+                                    context={"gate": "v2", "verdict": "deny"},
+                                    risk_level="critical",
+                                )
+                                traces.append(
+                                    ToolTrace(
+                                        tool_name=function_name,
+                                        action="policy_v2_deny",
+                                        success=False,
+                                        detail=reason_v2,
+                                    )
+                                )
+                                await self.botsignal.send_text(
+                                    request.reply_target,
+                                    f"Action blocked: {reason_v2}",
+                                    source_kind=source_kind,
+                                    tool_traces=traces,
+                                )
+                                break
+                            # ── end A4 policy v2 check ────────────────
 
                             _tool_start = time.time()
                             result = await tool.execute(**args)
