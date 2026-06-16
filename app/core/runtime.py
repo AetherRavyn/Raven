@@ -178,6 +178,23 @@ def _build_conversation_manager() -> Any:
         return None
 
 
+def _build_privacy_manager() -> Any:
+    """Build the process-singleton :class:`PrivacyManager` (Phase E).
+
+    Returns ``None`` when the package can't be imported so
+    the runtime can run without privacy in test environments
+    that don't have the package on the path.
+    """
+    try:
+        from app.core.privacy import PrivacyManager, get_privacy_manager
+
+        # Touch the singleton so the manager exists.
+        return get_privacy_manager() or PrivacyManager()
+    except Exception as e:  # noqa: BLE001
+        logger.debug("privacy manager unavailable: %s", e)
+        return None
+
+
 class AgentRuntime:
     """The embedded execution environment that manages the lifecycle of an agent's turn with a ReAct loop."""
 
@@ -238,6 +255,10 @@ class AgentRuntime:
         # per session.  Opt-in via env var.
         self._use_conversation_v2 = _env_flag("SARAS_CONVERSATION_V2")
         self.conversation_manager = self._build_conversation_manager()
+        # Phase E: privacy manager — consent-gated tool calls, log
+        # redaction, retention scheduling.  Opt-in via env var.
+        self._use_privacy_v2 = _env_flag("SARAS_PRIVACY_V2")
+        self.privacy_manager = self._build_privacy_manager()
         self.security_guard = get_security_guard()
         self.multimodal_builder = MultimodalContextBuilder()
         self.policy_engine = get_policy_engine()
@@ -298,6 +319,9 @@ class AgentRuntime:
     def _build_conversation_manager(self) -> Any:
         return _build_conversation_manager()
 
+    def _build_privacy_manager(self) -> Any:
+        return _build_privacy_manager()
+
     # ------------------------------------------------------------------
     # A4 audit + policy helpers
     # ------------------------------------------------------------------
@@ -334,6 +358,49 @@ class AgentRuntime:
             )
         except Exception as e:  # noqa: BLE001
             logger.debug("audit v2 record failed: %s", e)
+
+    # ------------------------------------------------------------------
+    # E Privacy & Trust helper
+    # ------------------------------------------------------------------
+
+    def _privacy_check_tool(self, function_name: str, user_id: str) -> tuple[bool, str, str | None]:
+        """Run a privacy/consent check on a tool call (Phase E).
+
+        Returns ``(allowed, reason, data_class_value)``:
+
+        - ``allowed=True`` — proceed.
+        - ``allowed=False`` — denied; ``reason`` is human-readable.
+
+        When the privacy v2 flag is off, returns
+        ``(True, "", None)`` so the legacy path is unaffected.
+        """
+        if not self._use_privacy_v2 or self.privacy_manager is None:
+            return True, "", None
+        try:
+            dc = self.privacy_manager.check_tool(user_id, function_name)
+            return True, "", dc.value
+        except Exception as e:  # noqa: BLE001
+            # PrivacyError + any other error → deny.
+            from app.core.privacy import PrivacyError
+
+            if isinstance(e, PrivacyError):
+                self._audit(
+                    kind="privacy",
+                    actor=user_id,
+                    action=function_name,
+                    success=False,
+                    detail=str(e),
+                    context={
+                        "gate": "v2",
+                        "data_class": e.data_class.value,
+                        "current_level": (e.current_level.value if e.current_level else None),
+                    },
+                    risk_level="high",
+                )
+                return False, f"privacy: {e}", e.data_class.value
+            logger.debug("privacy check failed: %s", e)
+            # Unknown error → fail open (legacy gates still run).
+            return True, "", None
 
     def _policy_v2_check(
         self, function_name: str, args: dict[str, Any], user_id: str
@@ -1503,6 +1570,28 @@ class AgentRuntime:
                             except Exception as sec_e:
                                 logger.error(f"Failed to check security requirements: {sec_e}")
                             # ---------------------------------
+
+                            # ── E privacy check (if enabled) ────────────
+                            privacy_ok, privacy_reason, _dc_value = self._privacy_check_tool(
+                                function_name, request.user_id
+                            )
+                            if not privacy_ok:
+                                traces.append(
+                                    ToolTrace(
+                                        tool_name=function_name,
+                                        action="privacy_deny",
+                                        success=False,
+                                        detail=privacy_reason,
+                                    )
+                                )
+                                await self.botsignal.send_text(
+                                    request.reply_target,
+                                    f"Action blocked: {privacy_reason}",
+                                    source_kind=source_kind,
+                                    tool_traces=traces,
+                                )
+                                break
+                            # ── end E privacy check ─────────────────────
 
                             # ── A4 policy v2 check (if enabled) ─────────
                             allowed_v2, reason_v2, approval_id_v2 = self._policy_v2_check(

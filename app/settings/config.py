@@ -149,6 +149,16 @@ class Config:
         "CLOUD_HEAVY_MODEL", "gpt-4o"
     )  # Deep reasoning (System 2)
 
+    # Privacy & Trust (Phase E) — gate every tool call on the
+    # per-user consent ledger and run log lines through the
+    # privacy redactor.
+    PRIVACY_V2_ENABLED: bool = os.getenv("SARAS_PRIVACY_V2", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
     TOOL_USER_PERMISSIONS = os.getenv("TOOL_USER_PERMISSIONS", "")
     TOOL_AGENT_PERMISSIONS = os.getenv("TOOL_AGENT_PERMISSIONS", "")
     # MQTT

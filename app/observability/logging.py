@@ -62,16 +62,63 @@ def _env_json_enabled() -> bool:
 
 
 def _redact_value(value: Any) -> Any:
-    """Best-effort redaction of a value before it hits the log stream."""
+    """Best-effort redaction of a value before it hits the log stream.
+
+    Two layers:
+
+    1. Audit redaction (rule-based) — catches named-field
+       secrets like ``api_key``, ``password``, ``secret``.
+    2. Privacy redaction (content-based) — catches PII like
+       emails, SSNs, phone numbers embedded in any text.
+
+    Both layers run; audit first because it's more
+    conservative (replaces entire value with ``REDACTED``).
+    Never raises — a logger must not crash the calling code.
+    """
+    value = _audit_redact(value)
+    return _privacy_redact(value)
+
+
+def _audit_redact(value: Any) -> Any:
     try:
         from app.core.audit.redaction import redact_value, compile_rules
 
         rules = compile_rules(_redaction_config())
         return redact_value(value, rules, _redaction_config().placeholder)
     except Exception as e:  # noqa: BLE001
-        # If redaction fails, fall back to str() — never crash the logger.
-        logger.debug("redaction failed: %s", e)
-        return str(value)
+        logger.debug("audit redaction failed: %s", e)
+        return value
+
+
+def _privacy_redact(value: Any) -> Any:
+    try:
+        from app.core.privacy import get_privacy_manager
+
+        pm = get_privacy_manager()
+        if pm is None:
+            return value
+    except Exception as e:  # noqa: BLE001
+        logger.debug("privacy redaction unavailable: %s", e)
+        return value
+    return _redact_with_privacy(pm, value)
+
+
+def _redact_with_privacy(pm: Any, value: Any) -> Any:
+    """Apply the privacy redactor to one log value.
+
+    Recurses into dicts/lists/tuples.  Non-string scalars are
+    returned unchanged (PII detection is text-based).
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return pm.redact_for_log(value)
+    if isinstance(value, dict):
+        return {k: _redact_with_privacy(pm, v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        redacted = [_redact_with_privacy(pm, item) for item in value]
+        return type(value)(redacted)
+    return value
 
 
 _REDACTION_CONFIG_SINGLETON: Any = None
