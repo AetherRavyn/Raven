@@ -61,6 +61,12 @@ from app.core.scheduling.signal import (
     reset_default_signal_router,
     set_default_signal_router,
 )
+from app.core.scheduling.signal_delivery import (
+    SignalDeliveryAdapter,
+    get_default_signal_delivery_adapter,
+    reset_default_signal_delivery_adapter,
+    set_default_signal_delivery_adapter,
+)
 from app.core.scheduling.trigger import (
     CronTrigger,
     EventTrigger,
@@ -71,6 +77,7 @@ from app.core.scheduling.trigger import (
 )
 
 __all__ = [
+    "CHAT_ID_KEY",
     "ClockFn",
     "CronTrigger",
     "DedupeCache",
@@ -79,6 +86,7 @@ __all__ = [
     "FireCallback",
     "IntervalTrigger",
     "OneShotTrigger",
+    "PLATFORM_KEY",
     "Routine",
     "RoutineFn",
     "RoutineRegistry",
@@ -86,6 +94,7 @@ __all__ = [
     "ScheduleRegistry",
     "Scheduler",
     "Signal",
+    "SignalDeliveryAdapter",
     "SignalHandler",
     "SignalKind",
     "SignalPredicate",
@@ -95,10 +104,13 @@ __all__ = [
     "Trigger",
     "generate_signals",
     "get_default_scheduler",
+    "get_default_signal_delivery_adapter",
     "get_default_signal_router",
     "make_schedule_id",
     "reset_default_scheduler",
+    "reset_default_signal_delivery_adapter",
     "reset_default_signal_router",
     "set_default_scheduler",
+    "set_default_signal_delivery_adapter",
     "set_default_signal_router",
 ]

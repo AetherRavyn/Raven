@@ -35,6 +35,14 @@ def register_proactive_routines(scheduler: SarasScheduler) -> None:
     except Exception as exc:  # noqa: BLE001
         logger.info("Proactive core bootstrap skipped: %s", exc)
 
+    # Day 23: wire the :class:`SignalDeliveryAdapter` so v2
+    # watcher signals (CALENDAR / INTERNET / AUTONOMY) actually
+    # reach the user.  The adapter subscribes to the default
+    # router, so anything published by the v2 watcher routines
+    # is delivered through ``botsignal`` (best-effort — DND /
+    # value-gate filtering is a future Day 24 enhancement).
+    _ensure_signal_delivery_adapter(scheduler)
+
     # Day 21: build a v2 :class:`Scheduler` (one per process) and
     # use it for the new flexible trigger model.  The legacy
     # ``SarasScheduler`` is kept running so the original cron
@@ -148,6 +156,49 @@ def _ensure_v2_scheduler(legacy: SarasScheduler) -> Any:
     if legacy is not None and getattr(legacy, "_botsignal", None) is not None:
         sched.metadata.setdefault("botsignal", legacy._botsignal)
     return sched
+
+
+def _ensure_signal_delivery_adapter(legacy: SarasScheduler | None) -> None:
+    """Wire the :class:`SignalDeliveryAdapter` singleton.
+
+    Connects the process-wide :class:`SignalRouter` to the
+    legacy scheduler's ``botsignal`` (when available) so v2
+    watcher signals reach the user.  Idempotent: a second
+    call is a no-op because ``get_default_signal_delivery_adapter``
+    already returns a started adapter.
+
+    This is intentionally lenient — failure to construct the
+    adapter (e.g. no ``botsignal`` wired yet) logs a warning
+    and returns without raising, since proactive routines
+    must not block boot.
+    """
+    from app.core.scheduling import (
+        SignalDeliveryAdapter,
+        get_default_signal_delivery_adapter,
+        get_default_signal_router,
+        set_default_signal_delivery_adapter,
+    )
+
+    if get_default_signal_delivery_adapter() is not None:
+        return
+    botsignal = getattr(legacy, "_botsignal", None) if legacy is not None else None
+    if botsignal is None:
+        logger.debug(
+            "SignalDeliveryAdapter skipped: no botsignal on legacy scheduler"
+        )
+        return
+    try:
+        adapter = SignalDeliveryAdapter(
+            get_default_signal_router(), botsignal
+        )
+        adapter.start()
+        set_default_signal_delivery_adapter(adapter)
+        logger.info(
+            "SignalDeliveryAdapter wired: kinds=%s",
+            sorted(k.value for k in adapter.kinds),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("SignalDeliveryAdapter wiring failed: %s", exc)
 
 
 def _start_sentinel_bridge(scheduler: SarasScheduler) -> None:
