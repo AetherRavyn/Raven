@@ -199,16 +199,40 @@ def _props(d: dict[str, Any]) -> dict[str, Any]:
 
 
 def _literal(v: Any) -> dict[str, Any]:
-    """Wrap a Python value in Helix's literal type tag."""
+    """Wrap a Python value in Helix's literal type tag.
+
+    Type mapping (matches the HelixDB v3 wire format):
+
+    * ``bool``        → ``{"Boolean": v}``
+    * ``int``         → ``{"I64": v}``
+    * ``float``       → ``{"F64": v}``   (covers Python ``float``)
+    * ``str``         → ``{"String": v}``
+    * ``bytes``       → ``{"Bytes": v}``
+    * ``list[float]`` → ``{"F32Array": [...]}``  (vector-friendly)
+    * ``list[int]``   → ``{"I64Array": [...]}``
+    * ``list[str]``   → ``{"StringArray": [...]}``
+    * ``list[mixed]`` → ``{"Array": [_literal(x) for x in v]}``
+    * ``dict``        → ``{"Object": {k: _literal(x) for k, x in v.items()}}``
+    """
     if isinstance(v, bool):
         return {"Boolean": v}
     if isinstance(v, int):
-        return {"I32": v}
+        return {"I64": v}
     if isinstance(v, float):
-        return {"F32": v}
+        return {"F64": v}
     if isinstance(v, str):
         return {"String": v}
+    if isinstance(v, (bytes, bytearray)):
+        return {"Bytes": bytes(v)}
     if isinstance(v, list):
+        # Vector-friendly fast path: if every element is a float,
+        # emit F32Array.  This is the common case for embeddings.
+        if v and all(isinstance(x, float) and not isinstance(x, bool) for x in v):
+            return {"F32Array": [float(x) for x in v]}
+        if v and all(isinstance(x, int) and not isinstance(x, bool) for x in v):
+            return {"I64Array": [int(x) for x in v]}
+        if v and all(isinstance(x, str) for x in v):
+            return {"StringArray": list(v)}
         return {"Array": [_literal(x) for x in v]}
     if isinstance(v, dict):
         return {"Object": {k: _literal(x) for k, x in v.items()}}

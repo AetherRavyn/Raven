@@ -98,7 +98,7 @@ class TestStepHelpers:
         props = step["AddN"]["properties"]
         assert isinstance(props, list)
         assert props[0] == ["name", {"Value": {"String": "alice"}}]
-        assert props[1] == ["age", {"Value": {"I32": 30}}]
+        assert props[1] == ["age", {"Value": {"I64": 30}}]
 
     def test_step_n_where_eq(self) -> None:
         step = step_n_where_eq("name", "bob")
@@ -112,10 +112,13 @@ class TestStepHelpers:
         from app.db.helix import _literal  # noqa: PLC0415
 
         assert _literal(True) == {"Boolean": True}
-        assert _literal(1) == {"I32": 1}
-        assert _literal(1.5) == {"F32": 1.5}
+        assert _literal(1) == {"I64": 1}
+        assert _literal(1.5) == {"F64": 1.5}
         assert _literal("x") == {"String": "x"}
-        assert _literal([1, 2]) == {"Array": [{"I32": 1}, {"I32": 2}]}
+        assert _literal([1, 2]) == {"I64Array": [1, 2]}
+        assert _literal([0.1, 0.2]) == {"F32Array": [0.1, 0.2]}
+        assert _literal(["a", "b"]) == {"StringArray": ["a", "b"]}
+        assert _literal([1, "a"]) == {"Array": [{"I64": 1}, {"String": "a"}]}
 
     def test_unsupported_literal_raises(self) -> None:
         from app.db.helix import _literal  # noqa: PLC0415

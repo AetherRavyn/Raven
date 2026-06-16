@@ -128,6 +128,13 @@ class Config:
     STATE_DB_PATH: str = os.getenv(
         "STATE_DB_PATH", f"{MEMORY_ROOT}/state/ledger.sqlite"
     )
+    # Memory backend selector: chroma (default) | pgvector | helix
+    # helix = HelixDB unified graph+vector engine (Phase B)
+    MEMORY_BACKEND: str = os.getenv("MEMORY_BACKEND", "chroma")
+    # Embedding model used by every memory backend.
+    MEMORY_EMBEDDING_MODEL: str = os.getenv(
+        "MEMORY_EMBEDDING_MODEL", "all-MiniLM-L6-v2"
+    )
 
     # ---------------------------------------------------------
     # HYBRID ROUTING (System 1 vs System 2)

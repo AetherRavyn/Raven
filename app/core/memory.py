@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
@@ -250,17 +250,29 @@ class PgvectorMemoryStore:
 
 
 _PGVECTOR_INSTANCE: PgvectorMemoryStore | None = None
+_HELIX_INSTANCE: Any = None  # HelixMemoryStore, lazy-typed to avoid import
 
 
-def get_memory_store() -> MemoryStore | PgvectorMemoryStore:
+def get_memory_store() -> Any:
     """Return the configured memory backend.
 
     MEMORY_BACKEND=chroma (default) → ChromaDB MemoryStore
     MEMORY_BACKEND=pgvector         → PostgreSQL PgvectorMemoryStore
+    MEMORY_BACKEND=helix            → HelixDB HelixMemoryStore (Phase B)
     """
     from app.settings.config import Config
 
-    if getattr(Config, "MEMORY_BACKEND", "chroma") == "pgvector":
+    backend = getattr(Config, "MEMORY_BACKEND", "chroma")
+
+    if backend == "helix":
+        global _HELIX_INSTANCE
+        if _HELIX_INSTANCE is None:
+            from app.db.memory_helix import HelixMemoryStore
+
+            _HELIX_INSTANCE = HelixMemoryStore()
+        return _HELIX_INSTANCE
+
+    if backend == "pgvector":
         global _PGVECTOR_INSTANCE
         if _PGVECTOR_INSTANCE is None:
             _PGVECTOR_INSTANCE = PgvectorMemoryStore()
