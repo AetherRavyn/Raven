@@ -119,11 +119,12 @@ lint: ## Run ruff check on the surfaces we own (A2-A5 + db + observability + tes
 		app/db \
 		app/observability \
 		app/core/proactive_core \
+		app/routines/travel_prep.py app/routines/inbox_zero.py \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py \
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py tests/test_proactive_routines_day14.py \
 		scripts/
 
 .PHONY: lint-fix
@@ -139,11 +140,12 @@ lint-fix: ## Run ruff check with --fix.
 		app/db \
 		app/observability \
 		app/core/proactive_core \
+		app/routines/travel_prep.py app/routines/inbox_zero.py \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py \
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py tests/test_proactive_routines_day14.py \
 		scripts/
 
 .PHONY: format
@@ -159,11 +161,12 @@ format: ## Run ruff format on the surfaces we own.
 		app/db \
 		app/observability \
 		app/core/proactive_core \
+		app/routines/travel_prep.py app/routines/inbox_zero.py \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py \
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py tests/test_proactive_routines_day14.py \
 		scripts/
 
 .PHONY: format-check
@@ -179,11 +182,12 @@ format-check: ## Verify formatting without changing files.
 		app/db \
 		app/observability \
 		app/core/proactive_core \
+		app/routines/travel_prep.py app/routines/inbox_zero.py \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py \
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py tests/test_proactive_routines_day14.py \
 		scripts/
 
 .PHONY: typecheck
@@ -201,7 +205,7 @@ typecheck: ## Run pyright on the A2-A5 + db + observability modules.
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py tests/test_proactive_routines_day14.py
 
 .PHONY: security
 security: ## Run bandit security scan on the new A2-A5 modules.
