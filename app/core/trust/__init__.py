@@ -1,6 +1,6 @@
 """Phase F1 — Trust & Explainability.
 
-Five modules:
+Six modules:
 
   * :mod:`app.core.trust.citations`         — inline ``[1]`` / ``[2]``
     source markers on every fact the agent states.
@@ -14,6 +14,10 @@ Five modules:
   * :mod:`app.core.trust.citation_runtime`  — per-turn citation context
     + inline-injection of ``[1]`` markers + sources footer into
     the final response.  Wires citations into the agent runtime.
+  * :mod:`app.core.trust.explanation`       — bundles citations +
+    rollback + audit + fact-check into a single user-facing
+    report ("Why did the agent say that?") with Markdown / text /
+    JSON renderers.
 
 All expose a process-singleton facade (``get_default_*``)
 and a reset hook for tests.
@@ -47,6 +51,13 @@ from app.core.trust.citation_runtime import (
     get_default_citation_injector,
     reset_default_citation_injector,
     set_default_citation_injector,
+)
+from app.core.trust.explanation import (
+    ExplanationBuilder,
+    ExplanationReport,
+    Verdict,
+    format_explanation_markdown,
+    format_explanation_text,
 )
 from app.core.trust.fact_check import (
     Claim,
@@ -82,6 +93,8 @@ __all__ = [
     "CitedFact",
     "Claim",
     "EvidenceProvider",
+    "ExplanationBuilder",
+    "ExplanationReport",
     "FactCheckReport",
     "FactCheckResult",
     "FactChecker",
@@ -92,7 +105,10 @@ __all__ = [
     "RollbackResult",
     "RollbackStatus",
     "TimelineBucket",
+    "Verdict",
     "dict_evidence_provider",
+    "format_explanation_markdown",
+    "format_explanation_text",
     "format_sources_list",
     "get_default_audit_viewer",
     "get_default_citation_injector",
