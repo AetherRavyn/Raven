@@ -1,6 +1,6 @@
 """Phase F1 — Trust & Explainability.
 
-Six modules:
+Seven modules:
 
   * :mod:`app.core.trust.citations`         — inline ``[1]`` / ``[2]``
     source markers on every fact the agent states.
@@ -18,6 +18,10 @@ Six modules:
     rollback + audit + fact-check into a single user-facing
     report ("Why did the agent say that?") with Markdown / text /
     JSON renderers.
+  * :mod:`app.core.trust.slash_commands`    — user-facing chat commands
+    (``/explain``, ``/explain-action``, ``/trust-status``,
+    ``/explain-turns``) that surface the trust module in any
+    chat interface.
 
 All expose a process-singleton facade (``get_default_*``)
 and a reset hook for tests.
@@ -59,6 +63,19 @@ from app.core.trust.explanation import (
     format_explanation_markdown,
     format_explanation_text,
 )
+from app.core.trust.slash_commands import (
+    ExplainActionCommand,
+    ExplainCommand,
+    ExplainTurnsCommand,
+    SlashCommand,
+    SlashCommandContext,
+    SlashCommandRegistry,
+    TrustStatusCommand,
+    get_default_command_registry,
+    reset_default_command_registry,
+    run_command,
+    set_default_command_registry,
+)
 from app.core.trust.fact_check import (
     Claim,
     EvidenceProvider,
@@ -93,6 +110,9 @@ __all__ = [
     "CitedFact",
     "Claim",
     "EvidenceProvider",
+    "ExplainActionCommand",
+    "ExplainCommand",
+    "ExplainTurnsCommand",
     "ExplanationBuilder",
     "ExplanationReport",
     "FactCheckReport",
@@ -104,7 +124,11 @@ __all__ = [
     "RollbackRegistry",
     "RollbackResult",
     "RollbackStatus",
+    "SlashCommand",
+    "SlashCommandContext",
+    "SlashCommandRegistry",
     "TimelineBucket",
+    "TrustStatusCommand",
     "Verdict",
     "dict_evidence_provider",
     "format_explanation_markdown",
@@ -113,16 +137,20 @@ __all__ = [
     "get_default_audit_viewer",
     "get_default_citation_injector",
     "get_default_citation_manager",
+    "get_default_command_registry",
     "get_default_fact_checker",
     "get_default_rollback_manager",
     "reset_default_audit_viewer",
     "reset_default_citation_injector",
     "reset_default_citation_manager",
+    "reset_default_command_registry",
     "reset_default_fact_checker",
     "reset_default_rollback_manager",
+    "run_command",
     "set_default_audit_viewer",
     "set_default_citation_injector",
     "set_default_citation_manager",
+    "set_default_command_registry",
     "set_default_fact_checker",
     "set_default_rollback_manager",
 ]
