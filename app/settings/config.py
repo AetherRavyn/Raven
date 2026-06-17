@@ -45,13 +45,9 @@ class Config:
     API_KEY_SPEECHMATE = os.getenv("API_KEY_SPEECHMATE")
     SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")  # xoxb-...
     SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN")  # xapp-... (Socket Mode)
-    ADMIN_USER_IDS = [
-        u.strip() for u in os.getenv("ADMIN_USER_IDS", "").split(",") if u.strip()
-    ]
+    ADMIN_USER_IDS = [u.strip() for u in os.getenv("ADMIN_USER_IDS", "").split(",") if u.strip()]
     # Gmail OAuth
-    GMAIL_CREDENTIALS_PATH = os.getenv(
-        "GMAIL_CREDENTIALS_PATH", "workspace/gmail_credentials.json"
-    )
+    GMAIL_CREDENTIALS_PATH = os.getenv("GMAIL_CREDENTIALS_PATH", "workspace/gmail_credentials.json")
     # Obsidian
     OBSIDIAN_VAULT_PATH = os.getenv("OBSIDIAN_VAULT_PATH", "")
     # Spotify
@@ -78,9 +74,7 @@ class Config:
     LOCALAI_BASE_URL = os.getenv("LOCALAI_BASE_URL", "http://localhost:8080/v1")
     VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1")
     # Home Assistant
-    HOME_ASSISTANT_URL = os.getenv(
-        "HOME_ASSISTANT_URL", "http://homeassistant.local:8123"
-    )
+    HOME_ASSISTANT_URL = os.getenv("HOME_ASSISTANT_URL", "http://homeassistant.local:8123")
     HOME_ASSISTANT_TOKEN = os.getenv("HOME_ASSISTANT_TOKEN")
     # Google Calendar OAuth
     GOOGLE_CALENDAR_CREDENTIALS_PATH = os.getenv(
@@ -103,17 +97,15 @@ class Config:
     }
     VOICE_STT_MODEL: str = os.getenv("VOICE_STT_MODEL", "tiny")  # tiny/base/small
     VOICE_TTS_VOICE: str = os.getenv("VOICE_TTS_VOICE", "en-US-AriaNeural")
-    VOICE_WAKE_WORD_THRESHOLD: float = float(
-        os.getenv("VOICE_WAKE_WORD_THRESHOLD", "0.5")
-    )
+    VOICE_WAKE_WORD_THRESHOLD: float = float(os.getenv("VOICE_WAKE_WORD_THRESHOLD", "0.5"))
     VOICE_MIC_DEVICE: int | None = (
-        int(os.environ.get("VOICE_MIC_DEVICE", "0"))
-        if os.environ.get("VOICE_MIC_DEVICE")
-        else None
+        int(os.environ.get("VOICE_MIC_DEVICE", "0")) if os.environ.get("VOICE_MIC_DEVICE") else None
     )
-    VOICE_REPLY_WITH_AUDIO: bool = os.getenv(
-        "VOICE_REPLY_WITH_AUDIO", "false"
-    ).lower() in {"1", "true", "yes"}
+    VOICE_REPLY_WITH_AUDIO: bool = os.getenv("VOICE_REPLY_WITH_AUDIO", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
     # Per-user TTS voice customization: "user_id:voice_name,user_id2:voice_name2"
     VOICE_TTS_VOICES: str = os.getenv("VOICE_TTS_VOICES", "")
     # Infrastructure
@@ -125,9 +117,7 @@ class Config:
     MEMORY_ROOT: str = os.getenv("MEMORY_ROOT", "workspace/memory")
     VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", f"{MEMORY_ROOT}/vector")
     GRAPH_DB_PATH: str = os.getenv("GRAPH_DB_PATH", f"{MEMORY_ROOT}/graph/saras.sqlite")
-    STATE_DB_PATH: str = os.getenv(
-        "STATE_DB_PATH", f"{MEMORY_ROOT}/state/ledger.sqlite"
-    )
+    STATE_DB_PATH: str = os.getenv("STATE_DB_PATH", f"{MEMORY_ROOT}/state/ledger.sqlite")
     # Memory backend selector: chroma (default) | pgvector | helix
     # helix = HelixDB unified graph+vector engine (Phase B)
     MEMORY_BACKEND: str = os.getenv("MEMORY_BACKEND", "chroma")
@@ -135,19 +125,13 @@ class Config:
     # helix = HelixDB unified graph+vector engine (Phase B)
     KG_BACKEND: str = os.getenv("KG_BACKEND", "neo4j")
     # Embedding model used by every memory backend.
-    MEMORY_EMBEDDING_MODEL: str = os.getenv(
-        "MEMORY_EMBEDDING_MODEL", "all-MiniLM-L6-v2"
-    )
+    MEMORY_EMBEDDING_MODEL: str = os.getenv("MEMORY_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
     # ---------------------------------------------------------
     # HYBRID ROUTING (System 1 vs System 2)
     # ---------------------------------------------------------
-    LOCAL_LIGHT_MODEL: str = os.getenv(
-        "LOCAL_LIGHT_MODEL", "gemma:7b"
-    )  # Fast reflexes (System 1)
-    CLOUD_HEAVY_MODEL: str = os.getenv(
-        "CLOUD_HEAVY_MODEL", "gpt-4o"
-    )  # Deep reasoning (System 2)
+    LOCAL_LIGHT_MODEL: str = os.getenv("LOCAL_LIGHT_MODEL", "gemma:7b")  # Fast reflexes (System 1)
+    CLOUD_HEAVY_MODEL: str = os.getenv("CLOUD_HEAVY_MODEL", "gpt-4o")  # Deep reasoning (System 2)
 
     # Privacy & Trust (Phase E) — gate every tool call on the
     # per-user consent ledger and run log lines through the
@@ -166,6 +150,35 @@ class Config:
         "on",
     }
 
+    # Trust & Explainability (Phase F1) — when true, the runtime
+    # wraps the final LLM response with inline [1][2] markers and
+    # a sources footer (only if at least one citation was gathered
+    # during the turn).  Off by default to preserve channel
+    # compatibility (some downstream renderers strip brackets).
+    CITATIONS_IN_RESULTS: bool = os.getenv("SARAS_CITATIONS_IN_RESULTS", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    # When true, the runtime also runs fact-checking on the final
+    # response — claims without supporting evidence are flagged in
+    # the audit log.  Pairs with CITATIONS_IN_RESULTS.
+    FACT_CHECK_IN_RESULTS: bool = os.getenv("SARAS_FACT_CHECK_IN_RESULTS", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    # When true, mutations executed by tools are auto-registered
+    # with the RollbackManager so the user can undo them later.
+    AUTO_ROLLBACK: bool = os.getenv("SARAS_AUTO_ROLLBACK", "true").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
     TOOL_USER_PERMISSIONS = os.getenv("TOOL_USER_PERMISSIONS", "")
     TOOL_AGENT_PERMISSIONS = os.getenv("TOOL_AGENT_PERMISSIONS", "")
     # MQTT
@@ -176,9 +189,11 @@ class Config:
     # WhatsApp (Baileys bridge)
     WHATSAPP_BRIDGE_URL = os.getenv("WHATSAPP_BRIDGE_URL", "")
     # Web dashboard
-    WEB_DASHBOARD_ENABLED: bool = os.getenv(
-        "WEB_DASHBOARD_ENABLED", "false"
-    ).lower() in {"1", "true", "yes"}
+    WEB_DASHBOARD_ENABLED: bool = os.getenv("WEB_DASHBOARD_ENABLED", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
     WEB_DASHBOARD_PORT: int = int(os.getenv("WEB_DASHBOARD_PORT", "8090"))
     WEB_DASHBOARD_HOST: str = os.getenv("WEB_DASHBOARD_HOST", "0.0.0.0")
     # Streamlit dashboard
@@ -188,8 +203,10 @@ class Config:
     STREAMLIT_DASHBOARD_PORT: int = int(os.getenv("STREAMLIT_DASHBOARD_PORT", "8501"))
     STREAMLIT_DASHBOARD_HOST: str = os.getenv("STREAMLIT_DASHBOARD_HOST", "0.0.0.0")
     # Safety & Sandboxing
-    ALLOW_HOST_SHELL_EXECUTION: bool = os.getenv(
-        "ALLOW_HOST_SHELL_EXECUTION", "false"
-    ).lower() in {"1", "true", "yes"}
+    ALLOW_HOST_SHELL_EXECUTION: bool = os.getenv("ALLOW_HOST_SHELL_EXECUTION", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
 
     # Ollama / local LLM (Phase 6.3 — already present above; kept here for completeness)

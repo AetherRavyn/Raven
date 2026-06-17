@@ -1,16 +1,19 @@
 """Phase F1 — Trust & Explainability.
 
-Four modules:
+Five modules:
 
-  * :mod:`app.core.trust.citations`     — inline ``[1]`` / ``[2]``
+  * :mod:`app.core.trust.citations`         — inline ``[1]`` / ``[2]``
     source markers on every fact the agent states.
-  * :mod:`app.core.trust.rollback`      — registry of compensating
+  * :mod:`app.core.trust.rollback`          — registry of compensating
     functions so any mutating action can be undone.
-  * :mod:`app.core.trust.audit_viewer`  — rich query layer over the
+  * :mod:`app.core.trust.audit_viewer`      — rich query layer over the
     :class:`AuditLog` with filtering, timelines, turn replay, and
     summary stats.
-  * :mod:`app.core.trust.fact_check`    — claim extraction + evidence
+  * :mod:`app.core.trust.fact_check`        — claim extraction + evidence
     lookup + verdict for flagging unsupported LLM statements.
+  * :mod:`app.core.trust.citation_runtime`  — per-turn citation context
+    + inline-injection of ``[1]`` markers + sources footer into
+    the final response.  Wires citations into the agent runtime.
 
 All expose a process-singleton facade (``get_default_*``)
 and a reset hook for tests.
@@ -36,6 +39,14 @@ from app.core.trust.citations import (
     get_default_citation_manager,
     reset_default_citation_manager,
     set_default_citation_manager,
+)
+from app.core.trust.citation_runtime import (
+    CitationContext,
+    CitationInjector,
+    InjectionMode,
+    get_default_citation_injector,
+    reset_default_citation_injector,
+    set_default_citation_injector,
 )
 from app.core.trust.fact_check import (
     Claim,
@@ -64,6 +75,8 @@ __all__ = [
     "AuditSummary",
     "AuditViewer",
     "Citation",
+    "CitationContext",
+    "CitationInjector",
     "CitationManager",
     "CitationSource",
     "CitedFact",
@@ -72,6 +85,7 @@ __all__ = [
     "FactCheckReport",
     "FactCheckResult",
     "FactChecker",
+    "InjectionMode",
     "RollbackAction",
     "RollbackManager",
     "RollbackRegistry",
@@ -81,14 +95,17 @@ __all__ = [
     "dict_evidence_provider",
     "format_sources_list",
     "get_default_audit_viewer",
+    "get_default_citation_injector",
     "get_default_citation_manager",
     "get_default_fact_checker",
     "get_default_rollback_manager",
     "reset_default_audit_viewer",
+    "reset_default_citation_injector",
     "reset_default_citation_manager",
     "reset_default_fact_checker",
     "reset_default_rollback_manager",
     "set_default_audit_viewer",
+    "set_default_citation_injector",
     "set_default_citation_manager",
     "set_default_fact_checker",
     "set_default_rollback_manager",
