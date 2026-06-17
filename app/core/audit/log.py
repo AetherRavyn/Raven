@@ -301,4 +301,46 @@ class AuditLog:
         }
 
 
-__all__ = ["AuditLog", "DEFAULT_PATH", "HELIX_KV_PREFIX"]
+# -- process singleton --------------------------------------------------------
+
+
+_DEFAULT_LOG: AuditLog | None = None
+_DEFAULT_LOCK = threading.RLock()
+
+
+def get_audit_log() -> AuditLog:
+    """Return the process-singleton :class:`AuditLog`.
+
+    Constructed lazily on first call.  Tests that need a
+    fresh instance should call :func:`reset_default_audit_log`
+    between cases.
+    """
+    global _DEFAULT_LOG
+    with _DEFAULT_LOCK:
+        if _DEFAULT_LOG is None:
+            _DEFAULT_LOG = AuditLog()
+        return _DEFAULT_LOG
+
+
+def set_default_audit_log(log: AuditLog | None) -> None:
+    """Replace the singleton.  Pass ``None`` to clear."""
+    global _DEFAULT_LOG
+    with _DEFAULT_LOCK:
+        _DEFAULT_LOG = log
+
+
+def reset_default_audit_log() -> None:
+    """Drop the singleton.  Tests use this between cases."""
+    global _DEFAULT_LOG
+    with _DEFAULT_LOCK:
+        _DEFAULT_LOG = None
+
+
+__all__ = [
+    "AuditLog",
+    "DEFAULT_PATH",
+    "HELIX_KV_PREFIX",
+    "get_audit_log",
+    "reset_default_audit_log",
+    "set_default_audit_log",
+]
