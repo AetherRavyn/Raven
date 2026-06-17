@@ -157,6 +157,11 @@ class ConsentStore:
             existing.metadata["revoked_at"] = datetime.now(timezone.utc).isoformat()
             return True
 
+    def remove(self, user_id: str, data_class: DataClass) -> bool:
+        """Hard-delete a consent record.  Used by GDPR "forget me"."""
+        with self._lock:
+            return self._records.pop((user_id, data_class), None) is not None
+
     def check(
         self,
         user_id: str,
