@@ -122,13 +122,14 @@ lint: ## Run ruff check on the surfaces we own (A2-A5 + db + observability + tes
 		app/core/continuity \
 		app/core/conversation \
 		app/core/privacy \
+		app/core/trust \
 		app/core/scheduling \
 		app/routines/travel_prep.py app/routines/inbox_zero.py \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py tests/test_proactive_routines_day14.py tests/test_continuity.py tests/test_continuity_integration.py tests/test_conversation.py tests/test_conversation_manager.py tests/test_privacy.py tests/test_privacy_runtime.py tests/test_privacy_persistence.py 		tests/test_scheduling.py tests/test_routine_registry.py tests/test_signals.py tests/test_watcher_routines_v2.py tests/test_signal_delivery.py tests/test_signal_bridge.py \
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py tests/test_proactive_routines_day14.py tests/test_continuity.py tests/test_continuity_integration.py tests/test_conversation.py tests/test_conversation_manager.py tests/test_privacy.py tests/test_privacy_runtime.py tests/test_privacy_persistence.py tests/test_trust_citations.py tests/test_trust_rollback.py 		tests/test_scheduling.py tests/test_routine_registry.py tests/test_signals.py tests/test_watcher_routines_v2.py tests/test_signal_delivery.py tests/test_signal_bridge.py \
 		scripts/
 
 .PHONY: lint-fix
@@ -147,11 +148,12 @@ lint-fix: ## Run ruff check with --fix.
 		app/core/continuity \
 		app/core/conversation \
 		app/core/privacy \
+		app/core/trust \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py tests/test_proactive_routines_day14.py tests/test_continuity.py tests/test_continuity_integration.py tests/test_conversation.py tests/test_conversation_manager.py tests/test_privacy.py tests/test_privacy_runtime.py tests/test_privacy_persistence.py 		tests/test_scheduling.py tests/test_routine_registry.py tests/test_signals.py tests/test_watcher_routines_v2.py tests/test_signal_delivery.py tests/test_signal_bridge.py \
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py tests/test_proactive_routines_day14.py tests/test_continuity.py tests/test_continuity_integration.py tests/test_conversation.py tests/test_conversation_manager.py tests/test_privacy.py tests/test_privacy_runtime.py tests/test_privacy_persistence.py tests/test_trust_citations.py tests/test_trust_rollback.py 		tests/test_scheduling.py tests/test_routine_registry.py tests/test_signals.py tests/test_watcher_routines_v2.py tests/test_signal_delivery.py tests/test_signal_bridge.py \
 		scripts/
 
 .PHONY: format
@@ -170,11 +172,12 @@ format: ## Run ruff format on the surfaces we own.
 		app/core/continuity \
 		app/core/conversation \
 		app/core/privacy \
+		app/core/trust \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
 		tests/test_audit_api.py tests/test_policy_v2.py \
-		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py tests/test_proactive_routines_day14.py tests/test_continuity.py tests/test_continuity_integration.py tests/test_conversation.py tests/test_conversation_manager.py tests/test_privacy.py tests/test_privacy_runtime.py tests/test_privacy_persistence.py 		tests/test_scheduling.py tests/test_routine_registry.py tests/test_signals.py tests/test_watcher_routines_v2.py tests/test_signal_delivery.py tests/test_signal_bridge.py \
+		tests/test_runtime_a4_integration.py tests/test_observability.py tests/test_proactive_core.py tests/test_proactive_anticipation.py tests/test_proactive_routines.py tests/test_proactive_routines_day14.py tests/test_continuity.py tests/test_continuity_integration.py tests/test_conversation.py tests/test_conversation_manager.py tests/test_privacy.py tests/test_privacy_runtime.py tests/test_privacy_persistence.py tests/test_trust_citations.py tests/test_trust_rollback.py 		tests/test_scheduling.py tests/test_routine_registry.py tests/test_signals.py tests/test_watcher_routines_v2.py tests/test_signal_delivery.py tests/test_signal_bridge.py \
 		scripts/
 
 .PHONY: format-check
@@ -193,6 +196,7 @@ format-check: ## Verify formatting without changing files.
 		app/core/continuity \
 		app/core/conversation \
 		app/core/privacy \
+		app/core/trust \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
 		tests/test_audit_redaction.py tests/test_audit_dashboard.py \
@@ -212,6 +216,7 @@ typecheck: ## Run pyright on the A2-A5 + db + observability modules.
 		app/db \
 		app/observability \
 		app/core/privacy \
+		app/core/trust \
 		app/core/scheduling \
 		tests/test_helix.py tests/test_planning.py tests/test_cost_router.py \
 		tests/test_verifier.py tests/test_vault.py tests/test_audit.py \
@@ -234,6 +239,7 @@ security: ## Run bandit security scan on the new A2-A5 modules.
 		app/core/continuity \
 		app/core/conversation \
 		app/core/privacy \
+		app/core/trust \
 		app/core/scheduling \
 		-lll --skip B101,B311
 
@@ -297,6 +303,8 @@ coverage: ## Run pytest with coverage report (deselects pre-existing failing tes
 	       --cov=app/core/vault --cov=app/core/audit --cov=app/core/policy_v2 \
 	       --cov=app/core/security --cov=app/db --cov=app/observability \
 	       --cov=app/core/proactive_core --cov=app/core/privacy \
+	       --cov=app/core/trust \
+		app/core/trust \
 	       --cov=app/core/scheduling \
 	       --cov-report=term-missing --cov-report=html --cov-report=xml -q \
 	       --deselect tests/test_dm_pairing.py::TestOrchestratorAndGatewayIntegration \
@@ -308,6 +316,8 @@ coverage: ## Run pytest with coverage report (deselects pre-existing failing tes
 coverage-all: ## Run pytest with coverage on the full app/ surface.
 	$(PYT) --cov=app/core --cov=app/db --cov=app/observability \
 	       --cov=app/core/proactive_core --cov=app/core/privacy \
+	       --cov=app/core/trust \
+		app/core/trust \
 	       --cov=app/core/scheduling \
 	       --cov-report=term-missing --cov-report=html --cov-report=xml -q
 
