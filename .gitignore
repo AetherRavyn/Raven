@@ -112,3 +112,21 @@ test_*.py
 *.md.bak
 *.tmp
 *.bak
+
+# ── Planning/strategy docs (not for repo) ───────────────────────────
+STRATEGY_100x_BETTER.md
+GAP_ANALYSIS_2026_06.md
+PLAN20260301.md
+STATUS_2026_06.md
+friday.md
+newplan.md
+newplan2.md
+plan.md
+PLAN_v3.md
+analysis20260301.md
+
+# ── Tool/planner scratch dirs ───────────────────────────────────────
+tests_harness*/
+.mimocode/
+plans.kiro/
+specs/

@@ -222,7 +222,6 @@ async def _run_streamlit(stop_event: asyncio.Event) -> None:
         return
 
     import sys
-    import subprocess as _sp
 
     cmd = [
         sys.executable,
@@ -395,6 +394,19 @@ async def _main_async() -> None:
                     [c.name for c in registry.list_modules()])
     except Exception as exc:
         logger.warning("A2A module registration failed: %s", exc)
+
+    # ── Modular Extension Platform ────────────────────────────────────────
+    # Bootstraps the ModuleLoader so community modules with module.yaml
+    # manifests (e.g. skills/community/) are discovered and auto-loaded.
+    try:
+        from app.modules import bootstrap_modular_platform
+        bootstrap_modular_platform(
+            modules_root=None,  # uses Config.MODULES_ROOT / RAVEN_MODULES_ROOT
+            orchestrator=orchestrator,
+            botsignal=botsignal,
+        )
+    except Exception as exc:
+        logger.warning("Modular platform bootstrap failed: %s", exc)
 
     # Keep a callable available for other startup code and future follow-up hooks.
     _ = schedule_follow_up

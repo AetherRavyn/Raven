@@ -18,7 +18,7 @@ maturity: production_candidate
 homepage: https://www.virustotal.com/
 docs: SKILL.md
 source_path: skills/virustotal-scanner
-entrypoint: app.tools.virustotal.VirusTotalTool
+entrypoint: app.tools.virustool.VirusTotalTool
 license: proprietary
 enabled_by_default: true
 trust_level: external

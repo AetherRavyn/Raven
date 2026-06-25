@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
-from typing import Any, cast
-from urllib.parse import urlparse
+from typing import Any
 
 from app.agents.assistant import PersonalAssistantAgent
 from app.agents.communications import HeraldAgent
@@ -48,7 +46,6 @@ from app.tools.remindertool import ReminderTool
 from app.tools.searxngtool import SearXNGTool
 from app.tools.sensorreadtool import SensorReadTool
 from app.tools.smarthometool import SmartHomeTool
-from app.tools.toolkit.google.googlecalender import GoogleCalendarTool
 from app.tools.toolkit.notes.notion import NotionTool
 from app.tools.virustool import VirusTotalTool
 from app.tools.weathertool import WeatherTool
@@ -64,6 +61,12 @@ from app.tools.cryptopricetool import CryptoPriceTool
 from app.tools.rssreadertool import RSSReaderTool
 from app.tools.airqualitytool import AirQualityTool
 from app.tools.totpgentool import TOTPGeneratorTool
+from app.tools.toolkit.github import GitHubTool
+from app.tools.toolkit.google.docs import GoogleDocsTool
+from app.tools.toolkit.google.gmailtool import GmailTool
+from app.tools.toolkit.google.sheet import GoogleSheetsTool
+from app.tools.toolkit.supabasetool import SupabaseTool
+from app.tools.news.hackernews import HackerNewsTool
 from app.tools.pomodorotool import PomodoroTool
 from app.tools.todolisttool import TodoListTool
 from app.tools.commutetool import CommuteTool
@@ -163,6 +166,10 @@ class MessageOrchestrator:
             CryptoPriceTool(),
             RSSReaderTool(),
             CommuteTool(),
+            # Air quality
+            AirQualityTool(),
+            # Hacker News intelligence
+            HackerNewsTool(),
             # Productivity
             PomodoroTool(),
             TodoListTool(),
@@ -266,6 +273,36 @@ class MessageOrchestrator:
                 logger.info("Loaded %d skill plugin tools", len(plugin_tools))
         except Exception as exc:
             logger.debug("Skill plugin tools load failed: %s", exc)
+
+        # Google Workspace tools — OAuth runs lazily on first use
+        try:
+            tools.append(GoogleDocsTool())
+        except Exception as exc:
+            logger.warning("GoogleDocsTool skipped — %s", exc)
+        try:
+            tools.append(GmailTool())
+        except Exception as exc:
+            logger.warning("GmailTool skipped — %s", exc)
+        try:
+            tools.append(GoogleSheetsTool())
+        except Exception as exc:
+            logger.warning("GoogleSheetsTool skipped — %s", exc)
+
+        # GitHub — requires GITHUB_TOKEN env var
+        try:
+            tools.append(GitHubTool())
+        except Exception as exc:
+            logger.warning("GitHubTool skipped — %s", exc)
+
+        # Supabase — requires SUPABASE_URL and SUPABASE_KEY env vars
+        try:
+            import os as _os
+            _su_url = _os.environ.get("SUPABASE_URL")
+            _su_key = _os.environ.get("SUPABASE_KEY")
+            if _su_url and _su_key:
+                tools.append(SupabaseTool(url=_su_url, key=_su_key))
+        except Exception as exc:
+            logger.warning("SupabaseTool skipped — %s", exc)
 
         # Optional tools: register only if their runtime deps are satisfied
         if Config.NOTION_API_KEY:
@@ -577,7 +614,7 @@ class MessageOrchestrator:
             # Resilient fallback across all configured providers
             from app.core.model_router import AutoModelRouter
             from app.provider.factory import create_provider
-            
+
             fallbacks = AutoModelRouter.get_available_models("agent")
             for f_prov_name, f_model_name in fallbacks:
                 try:
@@ -592,7 +629,7 @@ class MessageOrchestrator:
 
         if result.get("success"):
             content = result.get("content") or result.get("output") or mini_response
-            
+
             # Save assistant reply to memory/session
             if content:
                 session_manager.append_message(session_id, {"role": "assistant", "content": content})

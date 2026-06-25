@@ -1,1 +1,0 @@
-Rollback on Failure | If your code changes break tests, use the 'rollback' operation in file_operations or 'git checkout' to restore the file and try again.
