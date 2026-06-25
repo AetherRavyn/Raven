@@ -4,7 +4,7 @@ import hashlib
 import logging
 from typing import Any
 
-from app.core.memory_manager import MemoryManager
+from app.core.memory_facade import get_memory_facade
 from app.core.user_profile import UserProfileStore
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class WorkspaceGraph:
         self.workspace_dir = workspace_dir if workspace_dir else Config.MEMORY_ROOT
         self.graph_tool = graph_tool
         self.profile_store = UserProfileStore(workspace_dir)
-        self.memory_manager = MemoryManager()
+        self.memory_facade = get_memory_facade()
 
     @staticmethod
     def _safe_name(value: str) -> str:
@@ -50,8 +50,8 @@ class WorkspaceGraph:
         self, user_id: str, *, query: str | None = None
     ) -> dict[str, list[dict[str, Any]]]:
         profile = self.profile_store.load(user_id)
-        profile_summary = self.memory_manager.build_profile_summary(user_id)
-        memories = self.memory_manager.retrieve_context(
+        profile_summary = self.memory_facade.profile(user_id)
+        memories = self.memory_facade.recall(
             query or user_id, user_id=user_id, top_k=8
         )
 
@@ -84,7 +84,7 @@ class WorkspaceGraph:
                 edges.append(self._edge(user_name, relation, name, user_id=user_id))
 
         for mem in memories[:5]:
-            mem_name = self._safe_name(mem)
+            mem_name = self._safe_name(mem.content)
             nodes.append(self._node(mem_name, "memory", user_id=user_id))
             edges.append(self._edge(user_name, "REMEMBERS", mem_name, user_id=user_id))
 

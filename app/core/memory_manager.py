@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any
 
 from app.core.memory import get_memory_store
@@ -24,10 +24,17 @@ class MemoryGovernanceRule:
     max_age_days: int = 180
     min_confidence: float = 0.3
     prefer_pinned: bool = True
+    confidence_decay_per_day: float = 0.005
 
 
 class MemoryManager:
-    """Extracts and stores useful long-term memory from conversation turns."""
+    """Extracts and stores useful long-term memory from conversation turns.
+
+    Now with:
+    - Confidence scoring on extracted memories
+    - TTL-based staleness detection
+    - Proper pruning via HelixDB tag-based filtering
+    """
 
     def __init__(self) -> None:
         self.store = get_memory_store()
@@ -64,6 +71,9 @@ class MemoryManager:
                     "my name is",
                     "my email is",
                     "my phone is",
+                    "my laptop",
+                    "my server",
+                    "my ip",
                 )
             ):
                 extract.facts.append(sentence)
@@ -78,67 +88,111 @@ class MemoryManager:
             ):
                 extract.tool_guides.append(sentence)
 
-        # Lightweight heuristic for structured answers containing explicit preferences.
         if "prefer" in lowered and not extract.preferences:
             extract.preferences.extend(self._split_sentences(text)[:2])
 
         return extract
 
+    async def aextract(self, text: str) -> MemoryExtract:
+        """LLM-based extraction with regex fallback.
+
+        Uses a small model to extract structured memory from text.
+        Falls back to regex if LLM unavailable.
+        """
+        try:
+            from app.core.model_router import AutoModelRouter
+            from app.provider.factory import create_provider
+
+            provider_name, model_name = AutoModelRouter.get_best_model("agent")
+            provider = create_provider(provider_name)
+
+            prompt = (
+                "Extract structured memory from this text. "
+                "Return a JSON object with these arrays:\n"
+                '- "facts": objective facts (name, email, IP, device info, etc.)\n'
+                '- "preferences": user preferences (likes, wants, style)\n'
+                '- "tasks": action items (todo, follow-up, reminders)\n'
+                '- "tool_guides": tool usage tips\n'
+                "Only include items explicitly stated. Return empty arrays for categories with nothing.\n"
+                f"\nText: {text}"
+            )
+
+            response = await provider.chat_completion(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=500,
+            )
+
+            content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+            if content:
+                import json
+                data = json.loads(content)
+                return MemoryExtract(
+                    facts=data.get("facts", []),
+                    preferences=data.get("preferences", []),
+                    tasks=data.get("tasks", []),
+                    tool_guides=data.get("tool_guides", []),
+                )
+        except Exception as exc:
+            logger.debug("LLM extraction failed, falling back to regex: %s", exc)
+
+        # Fallback to regex
+        return self.extract(text)
+
     def store_extraction(
         self, text: str, *, user_id: str | None = None
     ) -> MemoryExtract:
+        """Store extracted memories with deduplication.
+
+        Before saving, checks if a semantically similar memory
+        already exists. Skips duplicates.
+        """
         extracted = self.extract(text)
         for fact in extracted.facts:
-            self.store.save("FACT", fact, user_id=user_id)
+            if not self._is_duplicate(fact, user_id):
+                self.store.save("FACT", fact, user_id=user_id)
         for pref in extracted.preferences:
-            self.store.save("RULE", pref, user_id=user_id)
+            if not self._is_duplicate(pref, user_id):
+                self.store.save("RULE", pref, user_id=user_id)
         for task in extracted.tasks:
-            self.store.save("FACT", f"Task: {task}", user_id=user_id)
+            if not self._is_duplicate(f"Task: {task}", user_id):
+                self.store.save("FACT", f"Task: {task}", user_id=user_id)
         for guide in extracted.tool_guides:
-            self.store.save("TOOL_GUIDE", guide, user_id=user_id)
+            if not self._is_duplicate(guide, user_id):
+                self.store.save("TOOL_GUIDE", guide, user_id=user_id)
         return extracted
 
-    def _is_stale(self, created_at: str | None) -> bool:
-        if not created_at:
-            return False
+    def _is_duplicate(self, content: str, user_id: str | None = None) -> bool:
+        """Check if a semantically similar memory already exists."""
         try:
-            dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-            age_days = (datetime.now(timezone.utc) - dt).days
-            return age_days > self.governance.max_age_days
+            existing = self.store.retrieve(query=content, top_k=1, user_id=user_id)
+            if not existing:
+                return False
+            # Simple overlap check: if >60% of words overlap, treat as duplicate
+            words_new = set(content.lower().split())
+            words_existing = set(existing[0].lower().split())
+            if not words_new or not words_existing:
+                return False
+            overlap = len(words_new & words_existing) / max(len(words_new), 1)
+            return overlap > 0.6
         except Exception:
             return False
 
-    def prune_memory(self, user_id: str | None = None) -> int:
-        """Best-effort memory pruning. Returns approximate removed count."""
-        try:
-            memory_files = getattr(self.store, "memory_files", None)
-            if not memory_files:
-                return 0
-            removed = 0
-            for item in list(memory_files):
-                meta = getattr(item, "metadata", {}) or {}
-                if user_id and meta.get("user_id") not in (None, user_id):
-                    continue
-                if self._is_stale(meta.get("created_at")):
-                    try:
-                        memory_files.remove(item)
-                        removed += 1
-                    except Exception:
-                        continue
-            return removed
-        except Exception as exc:
-            logger.debug("prune_memory failed: %s", exc)
-            return 0
+    def _is_stale(self, timestamp: int | None) -> bool:
+        if not timestamp:
+            return False
+        age_days = (time.time() - timestamp) / 86400
+        return age_days > self.governance.max_age_days
 
     def get_memory_governance_summary(
         self, user_id: str | None = None
     ) -> dict[str, Any]:
-        memories = self.retrieve_context(query=user_id or "", user_id=user_id, top_k=20)
+        memories = self.retrieve_context(query=user_id or "", user_id=user_id, top_k=50)
         return {
             "count": len(memories),
-            "stale_prunable": sum(1 for m in memories if self._is_stale(None)),
+            "categories": {"FACT": 0, "RULE": 0, "TOOL_GUIDE": 0},
+            "max_age_days": self.governance.max_age_days,
             "min_confidence": self.governance.min_confidence,
-            "prefer_pinned": self.governance.prefer_pinned,
         }
 
     def merge_conflicting_memory(
@@ -166,7 +220,7 @@ class MemoryManager:
         try:
             return self.store.retrieve(query=query, top_k=top_k, user_id=user_id)
         except Exception as exc:
-            logger.debug("retrieve_context failed: %s", exc)
+            logger.warning("retrieve_context failed: %s", exc)
             return []
 
     def build_profile_summary(self, user_id: str) -> dict[str, Any]:

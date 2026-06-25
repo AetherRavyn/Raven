@@ -7,19 +7,19 @@ they ever touch disk.
 
 Key resolution order (first wins):
 
-1. ``SARAS_VAULT_KEY`` env var — a base64-encoded 32-byte key.  Use
+1. ``RAVEN_VAULT_KEY`` env var — a base64-encoded 32-byte key.  Use
    this in container / CI environments where keyring is unavailable.
 2. OS keyring — the system password manager (macOS Keychain, Linux
    Secret Service, Windows DPAPI).  The key is stored under the
-   service name ``saras-vault`` and account ``master``.
-3. Local key file at ``~/.saras/vault.key`` (mode 0600).  Created
+   service name ``raven-vault`` and account ``master``.
+3. Local key file at ``~/.raven/vault.key`` (mode 0600).  Created
    on first use if neither (1) nor (2) is available.
 
 The vault is designed to fail closed: a missing or corrupt key
 raises :class:`VaultUnavailable` and the caller must surface a
 clear error rather than silently fall back to plaintext.
 
-Backing store is a JSON file at ``~/.saras/vault.json``.  All
+Backing store is a JSON file at ``~/.raven/vault.json``.  All
 values are base64-encoded ciphertext; no plaintext ever lands on
 disk.  An optional HelixDB KV store can be attached for cross-host
 replication.
@@ -41,12 +41,12 @@ from cryptography.fernet import Fernet, InvalidToken
 logger = logging.getLogger(__name__)
 
 
-KEYRING_SERVICE = "saras-vault"
+KEYRING_SERVICE = "raven-vault"
 KEYRING_ACCOUNT = "master"
-DEFAULT_VAULT_DIR = Path.home() / ".saras"
+DEFAULT_VAULT_DIR = Path.home() / ".raven"
 DEFAULT_VAULT_FILE = DEFAULT_VAULT_DIR / "vault.json"
 DEFAULT_KEY_FILE = DEFAULT_VAULT_DIR / "vault.key"
-ENV_KEY_VAR = "SARAS_VAULT_KEY"
+ENV_KEY_VAR = "RAVEN_VAULT_KEY"
 
 
 class VaultUnavailable(RuntimeError):

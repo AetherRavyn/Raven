@@ -1,0 +1,1182 @@
+{
+  "nodes": [
+    {
+      "id": "file:app/tools/base.py",
+      "type": "file",
+      "name": "base.py",
+      "filePath": "app/tools/base.py",
+      "summary": "Defines the tool abstraction layer with ToolParameter, ToolSchema, ToolCapability dataclasses and the BaseTool abstract base class. All tools in the system inherit from BaseTool and implement get_name(), get_description(), get_schema(), and execute().",
+      "tags": ["tools", "abstraction", "base-class", "dataclasses"],
+      "complexity": "simple",
+      "languageNotes": "Python 3.12+, uses abc.ABC, dataclasses, type hints"
+    },
+    {
+      "id": "class:app/tools/base.py:ToolParameter",
+      "type": "class",
+      "name": "ToolParameter",
+      "filePath": "app/tools/base.py",
+      "summary": "Dataclass representing a single parameter of a tool's schema. Fields: name, type, description, required, enum.",
+      "tags": ["dataclass", "schema"]
+    },
+    {
+      "id": "class:app/tools/base.py:ToolSchema",
+      "type": "class",
+      "name": "ToolSchema",
+      "filePath": "app/tools/base.py",
+      "summary": "Dataclass defining a tool's schema with name, description, and a list of ToolParameter objects.",
+      "tags": ["dataclass", "schema"]
+    },
+    {
+      "id": "class:app/tools/base.py:ToolCapability",
+      "type": "class",
+      "name": "ToolCapability",
+      "filePath": "app/tools/base.py",
+      "summary": "Dataclass describing tool capabilities and risk profile: required_permissions, risk_level, cost_tier, confirmation_policy, readonly.",
+      "tags": ["dataclass", "security", "capabilities"]
+    },
+    {
+      "id": "class:app/tools/base.py:BaseTool",
+      "type": "class",
+      "name": "BaseTool",
+      "filePath": "app/tools/base.py",
+      "summary": "Abstract base class for all tools. Defines the interface: get_name(), get_description(), get_schema(), get_capabilities(), execute(). Has a 'group' class attribute for categorization.",
+      "tags": ["abstract", "base-class", "interface"]
+    },
+    {
+      "id": "file:app/tools/websearch.py",
+      "type": "file",
+      "name": "websearch.py",
+      "filePath": "app/tools/websearch.py",
+      "summary": "Unified web search tool supporting multiple providers (Brave, Perplexity, Gemini, Grok). Implements web, news, image search, and scholar operations with in-process caching and provider auto-detection. Includes SSRF-safe redirect resolution.",
+      "tags": ["tools", "web-search", "multi-provider", "caching"],
+      "complexity": "complex",
+      "languageNotes": "Python, uses asyncio.to_thread for sync HTTP calls, in-process dict cache"
+    },
+    {
+      "id": "class:app/tools/websearch.py:WebOperationTool",
+      "type": "class",
+      "name": "WebOperationTool",
+      "filePath": "app/tools/websearch.py",
+      "summary": "Unified web operations tool. Supports search, news, image_search, and scholar operations. Auto-detects provider from environment variables. Uses in-process cache with configurable TTL.",
+      "tags": ["tool", "web-search", "provider-abstraction"]
+    },
+    {
+      "id": "class:app/tools/websearch.py:WebSearchTool",
+      "type": "class",
+      "name": "WebSearchTool",
+      "filePath": "app/tools/websearch.py",
+      "summary": "Backwards-compatible alias for WebOperationTool. Supports optional LLM model injection for Gemini-based search.",
+      "tags": ["tool", "backwards-compatible", "alias"]
+    },
+    {
+      "id": "function:app/tools/websearch.py:_search_brave",
+      "type": "function",
+      "name": "_search_brave",
+      "filePath": "app/tools/websearch.py",
+      "summary": "Helper function that calls the Brave Search API for web, news, or image searches. Returns structured results list.",
+      "tags": ["helper", "http", "brave-api"]
+    },
+    {
+      "id": "function:app/tools/websearch.py:_search_perplexity",
+      "type": "function",
+      "name": "_search_perplexity",
+      "filePath": "app/tools/websearch.py",
+      "summary": "Calls Perplexity/OpenRouter Sonar model for AI-synthesized search results with citations.",
+      "tags": ["helper", "http", "perplexity-api"]
+    },
+    {
+      "id": "function:app/tools/websearch.py:_search_gemini",
+      "type": "function",
+      "name": "_search_gemini",
+      "filePath": "app/tools/websearch.py",
+      "summary": "Uses Gemini with Google Search grounding. Resolves Google redirect URLs to direct URLs.",
+      "tags": ["helper", "http", "gemini-api"]
+    },
+    {
+      "id": "function:app/tools/websearch.py:_search_grok",
+      "type": "function",
+      "name": "_search_grok",
+      "filePath": "app/tools/websearch.py",
+      "summary": "Calls xAI Grok via OpenAI-compatible API for search queries.",
+      "tags": ["helper", "http", "xai-api"]
+    },
+    {
+      "id": "function:app/tools/websearch.py:_detect_provider",
+      "type": "function",
+      "name": "_detect_provider",
+      "filePath": "app/tools/websearch.py",
+      "summary": "Auto-detects search provider by checking env vars in order: Brave → Gemini → Perplexity → Grok.",
+      "tags": ["helper", "config", "provider-detection"]
+    },
+    {
+      "id": "file:app/tools/webfetch.py",
+      "type": "file",
+      "name": "webfetch.py",
+      "filePath": "app/tools/webfetch.py",
+      "summary": "Unified web fetch tool with SSRF-safe URL validation, BeautifulSoup HTML parsing, readability markdown extraction, Firecrawl fallback, and AI-powered summarization via Gemini. Supports fetch, summarize, extract_links, and metadata operations.",
+      "tags": ["tools", "web-fetch", "ssrf-safe", "ai-synthesis"],
+      "complexity": "complex",
+      "languageNotes": "Python, optional dependencies: requests, bs4, google-genai/google-generativeai"
+    },
+    {
+      "id": "class:app/tools/webfetch.py:WebFetchOperationTool",
+      "type": "class",
+      "name": "WebFetchOperationTool",
+      "filePath": "app/tools/webfetch.py",
+      "summary": "Unified web fetch tool. Supports fetch, summarize, extract_links, metadata operations. Includes SSRF protection, Firecrawl fallback, and Gemini AI synthesis.",
+      "tags": ["tool", "web-fetch", "ssrf-safe", "ai-synthesis"]
+    },
+    {
+      "id": "class:app/tools/webfetch.py:WebFetchTool",
+      "type": "class",
+      "name": "WebFetchTool",
+      "filePath": "app/tools/webfetch.py",
+      "summary": "Backwards-compatible alias for WebFetchOperationTool. Adds prompt-to-URL extraction.",
+      "tags": ["tool", "backwards-compatible", "alias"]
+    },
+    {
+      "id": "file:app/tools/filetool.py",
+      "type": "file",
+      "name": "filetool.py",
+      "filePath": "app/tools/filetool.py",
+      "summary": "Comprehensive file operations tool with 35+ operations including basic I/O, content manipulation, searching, archiving (zip/tar), hashing, CSV operations, batch processing, symlinks, base64 encoding, and encoding detection.",
+      "tags": ["tools", "file-operations", "comprehensive"],
+      "complexity": "complex",
+      "languageNotes": "Python, uses pathlib, shutil, zipfile, tarfile, csv, hashlib, base64"
+    },
+    {
+      "id": "class:app/tools/filetool.py:AdvancedFileOperationTool",
+      "type": "class",
+      "name": "AdvancedFileOperationTool",
+      "filePath": "app/tools/filetool.py",
+      "summary": "Advanced file operations tool with 35+ operations. Supports path validation against a base directory, automatic backup before mutation, human-readable file sizes, directory tree generation, and encoding detection.",
+      "tags": ["tool", "file-operations", "35-ops"]
+    },
+    {
+      "id": "file:app/tools/writetool.py",
+      "type": "file",
+      "name": "writetool.py",
+      "filePath": "app/tools/writetool.py",
+      "summary": "Todo list management tool. Allows the agent to write, update, and track todo lists with status management (pending, in_progress, completed, cancelled). Enforces single in_progress task rule.",
+      "tags": ["tools", "todo-list", "task-management"],
+      "complexity": "simple",
+      "languageNotes": "Python, JSON parsing for input robustness"
+    },
+    {
+      "id": "class:app/tools/writetool.py:WriteTodosTool",
+      "type": "class",
+      "name": "WriteTodosTool",
+      "filePath": "app/tools/writetool.py",
+      "summary": "Todo list management tool. Overwrites the current todo list with a new list. Validates task structure, enforces single in_progress rule, and formats output for LLM consumption.",
+      "tags": ["tool", "todo-management"]
+    },
+    {
+      "id": "file:app/tools/exectool.py",
+      "type": "file",
+      "name": "exectool.py",
+      "filePath": "app/tools/exectool.py",
+      "summary": "Nuclear sandboxed shell executor using bubblewrap (bwrap). Provides filesystem isolation, network isolation, PID namespace isolation, and capability dropping. Integrates with security guard for command analysis.",
+      "tags": ["tools", "shell-execution", "sandbox", "bubblewrap", "security"],
+      "complexity": "complex",
+      "languageNotes": "Python, requires bubblewrap (bwrap) system package"
+    },
+    {
+      "id": "class:app/tools/exectool.py:ExecTool",
+      "type": "class",
+      "name": "ExecTool",
+      "filePath": "app/tools/exectool.py",
+      "summary": "Nuclear sandboxed shell executor using bubblewrap. Read-only FS everywhere except workspace. Integrates with SecurityGuard for command analysis. Supports network toggle and extra env vars.",
+      "tags": ["tool", "sandbox", "shell-execution", "security"]
+    },
+    {
+      "id": "file:app/tools/gittool.py",
+      "type": "file",
+      "name": "gittool.py",
+      "filePath": "app/tools/gittool.py",
+      "summary": "Comprehensive Git operations tool covering status inspection, history, staging/committing, branching/merging, conflict resolution, remote syncing, cherry-picking, reverting, stashing, and tagging.",
+      "tags": ["tools", "git", "version-control"],
+      "complexity": "complex",
+      "languageNotes": "Python, uses asyncio.create_subprocess_exec for git CLI"
+    },
+    {
+      "id": "class:app/tools/gittool.py:GitOperationTool",
+      "type": "class",
+      "name": "GitOperationTool",
+      "filePath": "app/tools/gittool.py",
+      "summary": "Full Git tool supporting 25+ operations: status, log, diff, blame, add, commit, branch, merge, fetch, pull, push, stash, tag, cherry-pick, revert, and more. Uses subprocess for git CLI execution.",
+      "tags": ["tool", "git", "version-control"]
+    },
+    {
+      "id": "file:app/tools/memorytool.py",
+      "type": "file",
+      "name": "memorytool.py",
+      "filePath": "app/tools/memorytool.py",
+      "summary": "Metacognitive memory tool that allows agents to permanently save facts, rules, and tool guides. Writes to ChromaDB vector store and maintains a human-readable flat-file audit log.",
+      "tags": ["tools", "memory", "persistence", "chromadb"],
+      "complexity": "simple",
+      "languageNotes": "Python, uses ChromaDB for vector storage"
+    },
+    {
+      "id": "class:app/tools/memorytool.py:MemoryTool",
+      "type": "class",
+      "name": "MemoryTool",
+      "filePath": "app/tools/memorytool.py",
+      "summary": "Saves facts, rules, and tool guides to permanent memory (ChromaDB + flat file). Categories: FACT, RULE, TOOL_GUIDE. Injects _request for user context.",
+      "tags": ["tool", "memory", "persistence"]
+    },
+    {
+      "id": "file:app/tools/kgtool.py",
+      "type": "file",
+      "name": "kgtool.py",
+      "filePath": "app/tools/kgtool.py",
+      "summary": "Knowledge graph tool with interchangeable Neo4j and HelixDB backends. Supports adding entity relationships, querying entity connections, and finding paths between entities. Includes dashboard helpers (list_entities, get_stats, search_entities).",
+      "tags": ["tools", "knowledge-graph", "neo4j", "helixdb"],
+      "complexity": "complex",
+      "languageNotes": "Python, optional neo4j driver, HelixDB backend"
+    },
+    {
+      "id": "class:app/tools/kgtool.py:KnowledgeGraphTool",
+      "type": "class",
+      "name": "KnowledgeGraphTool",
+      "filePath": "app/tools/kgtool.py",
+      "summary": "Knowledge graph with Neo4j/HelixDB backends. Operations: add_relationship, query_entity, find_path. Dashboard helpers: list_entities, get_stats, search_entities. Backend selected via KG_BACKEND env var.",
+      "tags": ["tool", "knowledge-graph", "dual-backend"]
+    },
+    {
+      "id": "file:app/tools/browsertool.py",
+      "type": "file",
+      "name": "browsertool.py",
+      "filePath": "app/tools/browsertool.py",
+      "summary": "Full browser automation tool using Playwright. Supports navigation, clicking, form filling, scrolling, screenshots, text extraction, JavaScript execution, tab management, and cookie handling.",
+      "tags": ["tools", "browser-automation", "playwright"],
+      "complexity": "complex",
+      "languageNotes": "Python, requires playwright + chromium"
+    },
+    {
+      "id": "class:app/tools/browsertool.py:BrowserOperationTool",
+      "type": "class",
+      "name": "BrowserOperationTool",
+      "filePath": "app/tools/browsertool.py",
+      "summary": "Full Playwright browser automation. 20+ operations: navigate, click, fill, screenshot, extract_text, run_js, tab management, cookies. Uses asyncio.Lock for thread safety.",
+      "tags": ["tool", "browser-automation", "playwright"]
+    },
+    {
+      "id": "file:app/tools/dockertool.py",
+      "type": "file",
+      "name": "dockertool.py",
+      "filePath": "app/tools/dockertool.py",
+      "summary": "Docker management tool for monitoring containers, images, volumes, and networks. Supports listing, stats, inspection, start/stop/restart, pulling images, and system-wide pruning.",
+      "tags": ["tools", "docker", "container-management"],
+      "complexity": "moderate",
+      "languageNotes": "Python, uses docker SDK (optional)"
+    },
+    {
+      "id": "class:app/tools/dockertool.py:DockerTool",
+      "type": "class",
+      "name": "DockerTool",
+      "filePath": "app/tools/dockertool.py",
+      "summary": "Docker management tool. Operations: list_containers, container_stats, inspect_container, start/stop/restart, list_images, pull_image, list_volumes, list_networks, system_info, prune.",
+      "tags": ["tool", "docker", "container-management"]
+    },
+    {
+      "id": "file:app/tools/financetools.py",
+      "type": "file",
+      "name": "financetools.py",
+      "filePath": "app/tools/financetools.py",
+      "summary": "Collection of finance and security tools: StockQuoteTool (Yahoo Finance), CryptoAlertTool (CoinGecko), DNSLookupTool, HaveIBeenPwnedTool, URLVirusScanTool (VirusTotal), and CronManagerTool.",
+      "tags": ["tools", "finance", "security", "dns", "cron"],
+      "complexity": "complex",
+      "languageNotes": "Python, uses requests, yfinance, dnspython"
+    },
+    {
+      "id": "class:app/tools/financetools.py:StockQuoteTool",
+      "type": "class",
+      "name": "StockQuoteTool",
+      "filePath": "app/tools/financetools.py",
+      "summary": "Real-time stock quotes and market data via Yahoo Finance. Operations: quote, history, search. Supports major exchanges.",
+      "tags": ["tool", "finance", "stocks"]
+    },
+    {
+      "id": "class:app/tools/financetools.py:CryptoAlertTool",
+      "type": "class",
+      "name": "CryptoAlertTool",
+      "filePath": "app/tools/financetools.py",
+      "summary": "Cryptocurrency prices and alerts via CoinGecko (free, no key). Operations: price, alert, trending, history. Supports 1000+ coins.",
+      "tags": ["tool", "finance", "crypto"]
+    },
+    {
+      "id": "class:app/tools/financetools.py:DNSLookupTool",
+      "type": "class",
+      "name": "DNSLookupTool",
+      "filePath": "app/tools/financetools.py",
+      "summary": "DNS lookups for A, AAAA, MX, TXT, CNAME, NS, SOA, PTR records. Uses dnspython.",
+      "tags": ["tool", "dns", "networking"]
+    },
+    {
+      "id": "class:app/tools/financetools.py:HaveIBeenPwnedTool",
+      "type": "class",
+      "name": "HaveIBeenPwnedTool",
+      "filePath": "app/tools/financetools.py",
+      "summary": "Data breach checking for email addresses using Have I Been Pwned API. Returns breach details and statistics.",
+      "tags": ["tool", "security", "breach-check"]
+    },
+    {
+      "id": "class:app/tools/financetools.py:URLVirusScanTool",
+      "type": "class",
+      "name": "URLVirusScanTool",
+      "filePath": "app/tools/financetools.py",
+      "summary": "URL malware/phishing scanning via VirusTotal API. Operations: scan, report. Returns threat classification and safety rating.",
+      "tags": ["tool", "security", "url-scan"]
+    },
+    {
+      "id": "class:app/tools/financetools.py:CronManagerTool",
+      "type": "class",
+      "name": "CronManagerTool",
+      "filePath": "app/tools/financetools.py",
+      "summary": "Local crontab management. Operations: list, add, remove, execute. Uses subprocess to interact with crontab CLI.",
+      "tags": ["tool", "cron", "scheduling"]
+    },
+    {
+      "id": "file:app/tools/weathertool.py",
+      "type": "file",
+      "name": "weathertool.py",
+      "filePath": "app/tools/weathertool.py",
+      "summary": "Weather tool providing current conditions and 5-day forecasts via OpenWeatherMap API. Uses httpx for async HTTP.",
+      "tags": ["tools", "weather", "openweathermap"],
+      "complexity": "simple",
+      "languageNotes": "Python, uses httpx for async HTTP"
+    },
+    {
+      "id": "class:app/tools/weathertool.py:WeatherTool",
+      "type": "class",
+      "name": "WeatherTool",
+      "filePath": "app/tools/weathertool.py",
+      "summary": "Current weather and 5-day forecast via OpenWeatherMap. Actions: current, forecast. Configurable default location.",
+      "tags": ["tool", "weather"]
+    },
+    {
+      "id": "file:app/tools/remindertool.py",
+      "type": "file",
+      "name": "remindertool.py",
+      "filePath": "app/tools/remindertool.py",
+      "summary": "Reminder management tool supporting one-time (ISO 8601) and recurring (cron) reminders. Integrates with the scheduler module for persistence and execution.",
+      "tags": ["tools", "reminders", "scheduling"],
+      "complexity": "simple",
+      "languageNotes": "Python, uses app.core.scheduler"
+    },
+    {
+      "id": "class:app/tools/remindertool.py:ReminderTool",
+      "type": "class",
+      "name": "ReminderTool",
+      "filePath": "app/tools/remindertool.py",
+      "summary": "Set, list, and cancel reminders. Supports ISO 8601 one-shot and cron recurring reminders. Integrates with platform and chat_id for cross-platform delivery.",
+      "tags": ["tool", "reminders", "scheduling"]
+    },
+    {
+      "id": "file:app/tools/messagingtool.py",
+      "type": "file",
+      "name": "messagingtool.py",
+      "filePath": "app/tools/messagingtool.py",
+      "summary": "Cross-platform messaging tool enabling the agent to act as a digital proxy. Sends messages to Telegram, Discord, or Slack via BotSignal.",
+      "tags": ["tools", "messaging", "multi-platform", "digital-proxy"],
+      "complexity": "simple",
+      "languageNotes": "Python, uses app.core.botsignal"
+    },
+    {
+      "id": "class:app/tools/messagingtool.py:PlatformMessagingTool",
+      "type": "class",
+      "name": "PlatformMessagingTool",
+      "filePath": "app/tools/messagingtool.py",
+      "summary": "Digital proxy for sending messages to Telegram, Discord, Slack. Uses BotSignal for platform dispatch. Validates numeric chat_ids for Discord/Telegram.",
+      "tags": ["tool", "messaging", "digital-proxy"]
+    },
+    {
+      "id": "file:app/tools/smarthometool.py",
+      "type": "file",
+      "name": "smarthometool.py",
+      "filePath": "app/tools/smarthometool.py",
+      "summary": "Smart home control via Home Assistant REST API. Supports getting entity state, turning on/off, toggling, calling any HA service, and listing entities with domain filtering.",
+      "tags": ["tools", "smart-home", "home-assistant"],
+      "complexity": "moderate",
+      "languageNotes": "Python, uses httpx for async HTTP to Home Assistant"
+    },
+    {
+      "id": "class:app/tools/smarthometool.py:SmartHomeTool",
+      "type": "class",
+      "name": "SmartHomeTool",
+      "filePath": "app/tools/smarthometool.py",
+      "summary": "Home Assistant REST API integration. Operations: get_state, turn_on, turn_off, toggle, call_service, list_entities. Supports any HA domain.",
+      "tags": ["tool", "smart-home", "home-assistant"]
+    },
+    {
+      "id": "file:app/tools/imagegentool.py",
+      "type": "file",
+      "name": "imagegentool.py",
+      "filePath": "app/tools/imagegentool.py",
+      "summary": "Image generation tool using xAI Aurora model via REST API. Returns URLs or base64-encoded images.",
+      "tags": ["tools", "image-generation", "xai-aurora"],
+      "complexity": "simple",
+      "languageNotes": "Python, uses httpx for async HTTP"
+    },
+    {
+      "id": "class:app/tools/imagegentool.py:ImageGenerationTool",
+      "type": "class",
+      "name": "ImageGenerationTool",
+      "filePath": "app/tools/imagegentool.py",
+      "summary": "Generates images from text prompts using xAI Aurora model. Returns URL or base64 JSON. Supports 1-4 images per request.",
+      "tags": ["tool", "image-generation"]
+    },
+    {
+      "id": "file:app/tools/resilience.py",
+      "type": "file",
+      "name": "resilience.py",
+      "filePath": "app/tools/resilience.py",
+      "summary": "Tool resilience layer providing @with_retry (exponential backoff), @with_fallback, @with_timeout decorators, standardize_error for consistent error reporting, and ToolCircuitBreaker for preventing cascading failures.",
+      "tags": ["tools", "resilience", "retry", "circuit-breaker", "decorators"],
+      "complexity": "moderate",
+      "languageNotes": "Python, uses functools.wraps, asyncio"
+    },
+    {
+      "id": "class:app/tools/resilience.py:ToolCircuitBreaker",
+      "type": "class",
+      "name": "ToolCircuitBreaker",
+      "filePath": "app/tools/resilience.py",
+      "summary": "Circuit breaker pattern for tools. States: CLOSED (normal), OPEN (blocked, cooldown), HALF_OPEN (test request). Tracks failure count and threshold.",
+      "tags": ["circuit-breaker", "resilience", "pattern"]
+    },
+    {
+      "id": "function:app/tools/resilience.py:standardize_error",
+      "type": "function",
+      "name": "standardize_error",
+      "filePath": "app/tools/resilience.py",
+      "summary": "Creates a consistent error response dict with tool name, error type, context, recoverability flag, and user-friendly suggestion.",
+      "tags": ["helper", "error-handling"]
+    },
+    {
+      "id": "function:app/tools/resilience.py:with_retry",
+      "type": "function",
+      "name": "with_retry",
+      "filePath": "app/tools/resilience.py",
+      "summary": "Decorator for automatic retry with exponential backoff. Configurable max_attempts, backoff_base, retry_on, skip_on.",
+      "tags": ["decorator", "retry", "resilience"]
+    },
+    {
+      "id": "function:app/tools/resilience.py:with_timeout",
+      "type": "function",
+      "name": "with_timeout",
+      "filePath": "app/tools/resilience.py",
+      "summary": "Decorator that aborts tool execution if it exceeds a configurable timeout.",
+      "tags": ["decorator", "timeout"]
+    },
+    {
+      "id": "function:app/tools/resilience.py:with_fallback",
+      "type": "function",
+      "name": "with_fallback",
+      "filePath": "app/tools/resilience.py",
+      "summary": "Decorator that tries the primary function, falling back to a secondary on failure.",
+      "tags": ["decorator", "fallback"]
+    },
+    {
+      "id": "file:app/tools/sandbox.py",
+      "type": "file",
+      "name": "sandbox.py",
+      "filePath": "app/tools/sandbox.py",
+      "summary": "Docker-based sandboxed shell execution. Runs commands in ephemeral Docker containers with workspace mount. Falls back to host execution if explicitly permitted.",
+      "tags": ["tools", "sandbox", "docker", "security"],
+      "complexity": "moderate",
+      "languageNotes": "Python, uses asyncio.create_subprocess_exec for Docker CLI"
+    },
+    {
+      "id": "class:app/tools/sandbox.py:SandboxExecTool",
+      "type": "class",
+      "name": "SandboxExecTool",
+      "filePath": "app/tools/sandbox.py",
+      "summary": "Docker-based sandboxed shell executor. Mounts workspace read-write, restricts network by default. Falls back to host if ALLOW_HOST_SHELL_EXECUTION is True.",
+      "tags": ["tool", "sandbox", "docker"]
+    },
+    {
+      "id": "file:app/tools/rssreadertool.py",
+      "type": "file",
+      "name": "rssreadertool.py",
+      "filePath": "app/tools/rssreadertool.py",
+      "summary": "RSS/Atom feed reader supporting fetch, headlines (multi-feed), list_feeds, and summarize operations. Uses feedparser library.",
+      "tags": ["tools", "rss", "feeds"],
+      "complexity": "simple",
+      "languageNotes": "Python, uses feedparser, httpx"
+    },
+    {
+      "id": "class:app/tools/rssreadertool.py:RSSReaderTool",
+      "type": "class",
+      "name": "RSSReaderTool",
+      "filePath": "app/tools/rssreadertool.py",
+      "summary": "RSS/Atom feed reader. Operations: fetch (single feed), headlines (multi-feed), list_feeds (defaults), summarize. Parses with feedparser.",
+      "tags": ["tool", "rss", "feeds"]
+    },
+    {
+      "id": "file:app/tools/news/hackernews.py",
+      "type": "file",
+      "name": "hackernews.py",
+      "filePath": "app/tools/news/hackernews.py",
+      "summary": "Advanced Hacker News tool for technology intelligence. Supports top/new/best stories, search, comments, user profiles, trending domains, keyword filtering, story summaries, and ranked stories.",
+      "tags": ["tools", "hacker-news", "technology-intelligence"],
+      "complexity": "moderate",
+      "languageNotes": "Python, uses httpx, asyncio.gather for parallel fetches"
+    },
+    {
+      "id": "class:app/tools/news/hackernews.py:HackerNewsTool",
+      "type": "class",
+      "name": "HackerNewsTool",
+      "filePath": "app/tools/news/hackernews.py",
+      "summary": "Hacker News API tool. 12 operations: top, new, best, ask, jobs, search, get_story, get_comments, get_user, trending_domains, keyword_filter, story_summary, ranked_stories.",
+      "tags": ["tool", "hacker-news", "api"]
+    },
+    {
+      "id": "file:app/tools/music/spotify.py",
+      "type": "file",
+      "name": "spotify.py",
+      "filePath": "app/tools/music/spotify.py",
+      "summary": "Unified Spotify control tool preferring spogo CLI (with fallback to spotify_player). Supports playback control, search, device management, and like operations. Requires Spotify Premium.",
+      "tags": ["tools", "spotify", "music", "cli-wrapper"],
+      "complexity": "moderate",
+      "languageNotes": "Python, wraps spogo/spotify_player CLI via subprocess"
+    },
+    {
+      "id": "class:app/tools/music/spotify.py:SpotifyOperationTool",
+      "type": "class",
+      "name": "SpotifyOperationTool",
+      "filePath": "app/tools/music/spotify.py",
+      "summary": "Spotify control via spogo (preferred) or spotify_player CLI. Operations: status, play, pause, next, previous, search, device_list, device_set, like, play_uri.",
+      "tags": ["tool", "spotify", "music", "cli-wrapper"]
+    },
+    {
+      "id": "file:app/tools/toolkit/google/gmailtool.py",
+      "type": "file",
+      "name": "gmailtool.py",
+      "filePath": "app/tools/toolkit/google/gmailtool.py",
+      "summary": "Full Gmail management tool using Google OAuth2. Supports send, read, list, search, delete, reply, mark read/unread, labels, drafts, and attachment download.",
+      "tags": ["tools", "gmail", "google", "email"],
+      "complexity": "complex",
+      "languageNotes": "Python, uses google-api-python-client, google-auth, google-auth-oauthlib"
+    },
+    {
+      "id": "class:app/tools/toolkit/google/gmailtool.py:GmailTool",
+      "type": "class",
+      "name": "GmailTool",
+      "filePath": "app/tools/toolkit/google/gmailtool.py",
+      "summary": "Gmail management via Google API. 14 operations: send_email, get_email, list_emails, get_unread, search_emails, delete_email, mark_read, mark_unread, reply_email, download_attachments, list_labels, create_label, create_draft, list_drafts.",
+      "tags": ["tool", "gmail", "google-api"]
+    },
+    {
+      "id": "file:app/tools/toolkit/google/googlecalender.py",
+      "type": "file",
+      "name": "googlecalender.py",
+      "filePath": "app/tools/toolkit/google/googlecalender.py",
+      "summary": "Google Calendar management tool using Google OAuth2. Supports listing calendars, event CRUD, search, recurring events, free/busy queries, quick-add, and moving events between calendars.",
+      "tags": ["tools", "google-calendar", "google", "scheduling"],
+      "complexity": "complex",
+      "languageNotes": "Python, uses google-api-python-client, google-auth, google-auth-oauthlib"
+    },
+    {
+      "id": "class:app/tools/toolkit/google/googlecalender.py:GoogleCalendarTool",
+      "type": "class",
+      "name": "GoogleCalendarTool",
+      "filePath": "app/tools/toolkit/google/googlecalender.py",
+      "summary": "Google Calendar management. 12 operations: list_calendars, list_events, get_event, search_events, create_event, update_event, delete_event, delete_events_bulk, move_event, quick_add, free_busy, get_recurring_instances.",
+      "tags": ["tool", "google-calendar", "google-api"]
+    },
+    {
+      "id": "file:app/tools/workflowtool.py",
+      "type": "file",
+      "name": "workflowtool.py",
+      "filePath": "app/tools/workflowtool.py",
+      "summary": "Durable multi-step workflow management tool. Exposes WorkflowEngine for creating, running, tracking, and advancing workflows with dependency chains.",
+      "tags": ["tools", "workflow", "automation", "orchestration"],
+      "complexity": "moderate",
+      "languageNotes": "Python, uses app.core.workflow_engine"
+    },
+    {
+      "id": "class:app/tools/workflowtool.py:WorkflowTool",
+      "type": "class",
+      "name": "WorkflowTool",
+      "filePath": "app/tools/workflowtool.py",
+      "summary": "Workflow management via WorkflowEngine. Operations: list_workflows, get_workflow, create_workflow, run_workflow, list_runs, advance_step. Supports triggers: manual, schedule, event.",
+      "tags": ["tool", "workflow", "automation"]
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:app/tools/websearch.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/webfetch.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/filetool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/writetool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/exectool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolCapability, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/gittool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/memorytool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/kgtool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/browsertool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolCapability, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/dockertool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/financetools.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/weathertool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/remindertool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/messagingtool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolCapability, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/smarthometool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/imagegentool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/sandbox.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolSchema, ToolParameter, ToolCapability",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/rssreadertool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/news/hackernews.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/music/spotify.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/toolkit/google/gmailtool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolCapability, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/toolkit/google/googlecalender.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolCapability, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/tools/workflowtool.py",
+      "target": "file:app/tools/base.py",
+      "type": "imports",
+      "label": "imports BaseTool, ToolCapability, ToolParameter, ToolSchema",
+      "weight": 0.7
+    },
+    {
+      "source": "class:app/tools/websearch.py:WebOperationTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/websearch.py:WebSearchTool",
+      "target": "class:app/tools/websearch.py:WebOperationTool",
+      "type": "inherits",
+      "label": "extends WebOperationTool (backwards-compat alias)",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/webfetch.py:WebFetchOperationTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/webfetch.py:WebFetchTool",
+      "target": "class:app/tools/webfetch.py:WebFetchOperationTool",
+      "type": "inherits",
+      "label": "extends WebFetchOperationTool (backwards-compat alias)",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/filetool.py:AdvancedFileOperationTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/writetool.py:WriteTodosTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/exectool.py:ExecTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/gittool.py:GitOperationTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/memorytool.py:MemoryTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/kgtool.py:KnowledgeGraphTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/browsertool.py:BrowserOperationTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/dockertool.py:DockerTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/financetools.py:StockQuoteTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/financetools.py:CryptoAlertTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/financetools.py:DNSLookupTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/financetools.py:HaveIBeenPwnedTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/financetools.py:URLVirusScanTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/financetools.py:CronManagerTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/weathertool.py:WeatherTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/remindertool.py:ReminderTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/messagingtool.py:PlatformMessagingTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/smarthometool.py:SmartHomeTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/imagegentool.py:ImageGenerationTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/sandbox.py:SandboxExecTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/rssreadertool.py:RSSReaderTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/news/hackernews.py:HackerNewsTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/music/spotify.py:SpotifyOperationTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/toolkit/google/gmailtool.py:GmailTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/toolkit/google/googlecalender.py:GoogleCalendarTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/workflowtool.py:WorkflowTool",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "inherits",
+      "label": "extends BaseTool",
+      "weight": 0.9
+    },
+    {
+      "source": "class:app/tools/websearch.py:WebOperationTool",
+      "target": "function:app/tools/websearch.py:_search_brave",
+      "type": "calls",
+      "label": "delegates to _search_brave for Brave provider",
+      "weight": 0.8
+    },
+    {
+      "source": "class:app/tools/websearch.py:WebOperationTool",
+      "target": "function:app/tools/websearch.py:_search_perplexity",
+      "type": "calls",
+      "label": "delegates to _search_perplexity for Perplexity provider",
+      "weight": 0.8
+    },
+    {
+      "source": "class:app/tools/websearch.py:WebOperationTool",
+      "target": "function:app/tools/websearch.py:_search_gemini",
+      "type": "calls",
+      "label": "delegates to _search_gemini for Gemini provider",
+      "weight": 0.8
+    },
+    {
+      "source": "class:app/tools/websearch.py:WebOperationTool",
+      "target": "function:app/tools/websearch.py:_search_grok",
+      "type": "calls",
+      "label": "delegates to _search_grok for Grok provider",
+      "weight": 0.8
+    },
+    {
+      "source": "class:app/tools/websearch.py:WebOperationTool",
+      "target": "function:app/tools/websearch.py:_detect_provider",
+      "type": "calls",
+      "label": "calls _detect_provider for auto-detection",
+      "weight": 0.8
+    },
+    {
+      "source": "class:app/tools/websearch.py:WebOperationTool",
+      "target": "class:app/tools/base.py:ToolSchema",
+      "type": "depends_on",
+      "label": "uses ToolSchema for schema definition",
+      "weight": 0.6
+    },
+    {
+      "source": "class:app/tools/websearch.py:WebOperationTool",
+      "target": "class:app/tools/base.py:ToolParameter",
+      "type": "depends_on",
+      "label": "uses ToolParameter for schema definition",
+      "weight": 0.6
+    },
+    {
+      "source": "file:app/tools/webfetch.py",
+      "target": "class:app/tools/base.py:BaseTool",
+      "type": "depends_on",
+      "label": "WebFetchOperationTool inherits BaseTool",
+      "weight": 0.6
+    },
+    {
+      "source": "class:app/tools/exectool.py:ExecTool",
+      "target": "class:app/tools/base.py:ToolCapability",
+      "type": "depends_on",
+      "label": "uses ToolCapability for risk_level, permissions",
+      "weight": 0.6
+    },
+    {
+      "source": "class:app/tools/browsertool.py:BrowserOperationTool",
+      "target": "class:app/tools/base.py:ToolCapability",
+      "type": "depends_on",
+      "label": "uses ToolCapability for risk_level, permissions",
+      "weight": 0.6
+    },
+    {
+      "source": "class:app/tools/messagingtool.py:PlatformMessagingTool",
+      "target": "class:app/tools/base.py:ToolCapability",
+      "type": "depends_on",
+      "label": "uses ToolCapability for risk_level, permissions",
+      "weight": 0.6
+    },
+    {
+      "source": "class:app/tools/toolkit/google/gmailtool.py:GmailTool",
+      "target": "class:app/tools/base.py:ToolCapability",
+      "type": "depends_on",
+      "label": "uses ToolCapability for risk_level, permissions",
+      "weight": 0.6
+    },
+    {
+      "source": "class:app/tools/toolkit/google/googlecalender.py:GoogleCalendarTool",
+      "target": "class:app/tools/base.py:ToolCapability",
+      "type": "depends_on",
+      "label": "uses ToolCapability for risk_level, permissions",
+      "weight": 0.6
+    },
+    {
+      "source": "class:app/tools/workflowtool.py:WorkflowTool",
+      "target": "class:app/tools/base.py:ToolCapability",
+      "type": "depends_on",
+      "label": "uses ToolCapability for risk_level, permissions",
+      "weight": 0.6
+    },
+    {
+      "source": "class:app/tools/sandbox.py:SandboxExecTool",
+      "target": "class:app/tools/base.py:ToolCapability",
+      "type": "depends_on",
+      "label": "uses ToolCapability for risk_level, permissions",
+      "weight": 0.6
+    },
+    {
+      "source": "class:app/tools/websearch.py:WebOperationTool",
+      "target": "class:app/tools/resilience.py:ToolCircuitBreaker",
+      "type": "related",
+      "label": "conceptually related — resilience patterns available for all tools",
+      "weight": 0.5
+    },
+    {
+      "source": "class:app/tools/webfetch.py:WebFetchOperationTool",
+      "target": "class:app/tools/resilience.py:ToolCircuitBreaker",
+      "type": "related",
+      "label": "conceptually related — resilience patterns available for all tools",
+      "weight": 0.5
+    },
+    {
+      "source": "file:app/tools/resilience.py",
+      "target": "file:app/tools/base.py",
+      "type": "related",
+      "label": "provides decorators and utilities consumed by all tools",
+      "weight": 0.5
+    },
+    {
+      "source": "file:app/tools/sandbox.py",
+      "target": "file:app/tools/exectool.py",
+      "type": "related",
+      "label": "alternative sandbox implementations (Docker vs bubblewrap)",
+      "weight": 0.5
+    },
+    {
+      "source": "class:app/tools/base.py:ToolSchema",
+      "target": "class:app/tools/base.py:ToolParameter",
+      "type": "contains",
+      "label": "ToolSchema contains list of ToolParameter",
+      "weight": 1.0
+    },
+    {
+      "source": "file:app/tools/news/hackernews.py",
+      "target": "file:app/tools/webfetch.py",
+      "type": "related",
+      "label": "both serve web content retrieval — HN for tech news, webfetch for general URLs",
+      "weight": 0.5
+    },
+    {
+      "source": "file:app/tools/weathertool.py",
+      "target": "file:app/tools/smarthometool.py",
+      "type": "related",
+      "label": "both integrate with external APIs for IoT/home context",
+      "weight": 0.5
+    },
+    {
+      "source": "class:app/tools/financetools.py:URLVirusScanTool",
+      "target": "class:app/tools/financetools.py:HaveIBeenPwnedTool",
+      "type": "related",
+      "label": "both are security/intelligence tools in financetools module",
+      "weight": 0.5
+    },
+    {
+      "source": "class:app/tools/financetools.py:StockQuoteTool",
+      "target": "class:app/tools/financetools.py:CryptoAlertTool",
+      "type": "related",
+      "label": "both are financial market data tools",
+      "weight": 0.5
+    },
+    {
+      "source": "class:app/tools/financetools.py:CronManagerTool",
+      "target": "class:app/tools/remindertool.py:ReminderTool",
+      "type": "related",
+      "label": "both provide scheduling/cron functionality",
+      "weight": 0.5
+    },
+    {
+      "source": "class:app/tools/toolkit/google/gmailtool.py:GmailTool",
+      "target": "class:app/tools/toolkit/google/googlecalender.py:GoogleCalendarTool",
+      "type": "related",
+      "label": "both are Google Workspace integrations with shared auth pattern",
+      "weight": 0.5
+    },
+    {
+      "source": "class:app/tools/workflowtool.py:WorkflowTool",
+      "target": "class:app/tools/remindertool.py:ReminderTool",
+      "type": "related",
+      "label": "both support scheduling — workflow for multi-step, reminder for one-shot/recurring",
+      "weight": 0.5
+    },
+    {
+      "source": "class:app/tools/exectool.py:ExecTool",
+      "target": "class:app/tools/sandbox.py:SandboxExecTool",
+      "type": "related",
+      "label": "both provide shell execution — bubblewrap vs Docker sandboxing",
+      "weight": 0.5
+    },
+    {
+      "source": "class:app/tools/dockertool.py:DockerTool",
+      "target": "class:app/tools/sandbox.py:SandboxExecTool",
+      "type": "related",
+      "label": "DockerTool manages containers, SandboxExecTool runs in containers",
+      "weight": 0.5
+    }
+  ]
+}

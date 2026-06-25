@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.system_health_check
+display_name: System Health Check
+version: "1.0.0"
+category: skill
+description: "Full system diagnostic: CPU, RAM, disk, network, running services, security."
+tags: [system, health, diagnostic, monitoring, sysadmin]
+capabilities: [system_stats_tool, network_tool, exec_tool]
+trust_level: system
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.94
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "system.*health|check.*system|diagnostic|server.*status"
+    confidence: 0.90

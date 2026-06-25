@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}LEARNED SKILLS — RAVEN{% endblock %}
+{% block head_extra %}
+<style>
+.fade-in { animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}
+{% block main %}
+<section class="space-y-4" x-data="learnedSkills()">
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <h1 class="text-zinc-100 text-sm tracking-wider uppercase">Learned Skills</h1>
+      <p class="text-zinc-500 text-[11px] mt-0.5">
+        Skills auto-created from execution traces — RAVEN learns from successful task completions.
+      </p>
+    </div>
+    <button type="button" @click="reload()"
+            class="text-[10px] text-zinc-400 hover:text-zinc-200 border border-ink-600 rounded px-2 py-1">
+      ↻ Refresh
+    </button>
+  </div>
+
+  <!-- Status -->
+  <div x-show="status" x-cloak x-transition
+       :class="statusOk ? 'border-emerald-700 bg-emerald-900/30 text-emerald-300' : 'border-rose-700 bg-rose-900/30 text-rose-300'"
+       class="border rounded p-2 text-[11px] fade-in" x-text="status"></div>
+
+  <!-- Summary cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Learned Skills</div>
+      <div class="mt-1 text-accent-500 text-lg font-semibold" x-text="skills.length"></div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Total Invocations</div>
+      <div class="mt-1 text-zinc-200 text-lg font-semibold" x-text="totalInvocations"></div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Avg Success Rate</div>
+      <div class="mt-1 text-zinc-200 text-lg font-semibold" x-text="avgSuccess + '%'"></div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Trace Buffer</div>
+      <div class="mt-1 text-zinc-200 text-lg font-semibold" x-text="traceCount"></div>
+    </div>
+  </div>
+
+  <!-- RL Stats card -->
+  <div class="border border-ink-600 bg-ink-800 rounded p-3" x-show="rlStats">
+    <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">Reinforcement Learning</div>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-[11px]">
+      <div><span class="text-zinc-500">Episodes</span><br><span class="text-zinc-200" x-text="rlStats.stats.total_episodes"></span></div>
+      <div><span class="text-zinc-500">Avg Reward</span><br><span class="text-zinc-200" x-text="rlStats.stats.avg_reward.toFixed(3)"></span></div>
+      <div><span class="text-zinc-500">Best Reward</span><br><span class="text-zinc-200" x-text="rlStats.stats.best_reward.toFixed(3)"></span></div>
+      <div><span class="text-zinc-500">Buffer Size</span><br><span class="text-zinc-200" x-text="rlStats.replay_buffer_size"></span></div>
+      <div><span class="text-zinc-500">States</span><br><span class="text-zinc-200" x-text="rlStats.state_count"></span></div>
+    </div>
+
+    <!-- Top Q-states -->
+    <div class="mt-3" x-show="rlStats.top_states && rlStats.top_states.length">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider mb-1">Top Learned State-Action Values</div>
+      <div class="overflow-x-auto max-h-48 overflow-y-auto text-[10px]">
+        <table class="w-full">
+          <thead>
+            <tr class="text-zinc-600 uppercase tracking-wider border-b border-ink-700">
+              <th class="text-left py-1 px-1">State</th>
+              <th class="text-left py-1 px-1">Action</th>
+              <th class="text-right py-1 px-1">Q-Value</th>
+              <th class="text-right py-1 px-1">Visits</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="s in rlStats.top_states" :key="s.state">
+              <template x-for="(a_data, a_name) in s.actions" :key="s.state + a_name">
+                <tr class="border-b border-ink-700/30 hover:bg-ink-700/30">
+                  <td class="py-0.5 px-1 text-zinc-400 font-mono" x-text="s.state"></td>
+                  <td class="py-0.5 px-1 text-zinc-300" x-text="a_name"></td>
+                  <td class="py-0.5 px-1 text-right" x-text="a_data.q"></td>
+                  <td class="py-0.5 px-1 text-right text-zinc-500" x-text="a_data.visits"></td>
+                </tr>
+              </template>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="flex gap-2">
+    <input type="text" x-model="searchQuery"
+           placeholder="Filter skills by name, tag, or trigger…"
+           class="flex-1 bg-ink-900 border border-ink-600 rounded px-2 py-1.5 text-zinc-200 text-[12px]" />
+    <select x-model="sortBy" class="bg-ink-900 border border-ink-600 rounded px-2 py-1.5 text-zinc-200 text-[11px]">
+      <option value="recency">Most Recent</option>
+      <option value="success">Highest Success Rate</option>
+      <option value="invocations">Most Invocations</option>
+    </select>
+  </div>
+
+  <!-- Skills list -->
+  <div class="space-y-2">
+    <template x-for="s in filteredSkills" :key="s.slug">
+      <div class="border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in">
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-accent-500 font-semibold truncate" x-text="s.display_name || s.slug"></span>
+              <span class="text-zinc-600 text-[10px] font-mono" x-text="s.slug"></span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded"
+                    :class="s.success_rate >= 0.8 ? 'bg-emerald-900/40 text-emerald-400' : s.success_rate >= 0.5 ? 'bg-warn-500/20 text-warn-500' : 'bg-rose-900/40 text-rose-400'"
+                    x-text="(s.success_rate * 100).toFixed(0) + '% success'"></span>
+            </div>
+            <div class="mt-1 text-zinc-400 text-[11px]" x-text="s.description || 'No description'"></div>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <template x-for="tag in (s.tags || [])" :key="tag">
+                <span class="text-[9px] px-1.5 py-0.5 bg-ink-700 text-zinc-400 rounded">#<span x-text="tag"></span></span>
+              </template>
+            </div>
+            <div class="mt-1 flex gap-3 text-[10px] text-zinc-600">
+              <span x-text="s.invocation_count + ' invocations'"></span>
+              <span x-text="s.origin"></span>
+              <span x-show="s.learned_from" x-text="'Learned: ' + s.learned_from"></span>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 shrink-0">
+            <button type="button" @click="promoteSkill(s.slug)"
+                    class="text-[10px] px-2 py-0.5 rounded border border-ink-600 text-zinc-400 hover:text-accent-500 hover:border-accent-500 transition-colors"
+                    x-show="s.origin === 'learned'" title="Promote to stable">Promote</button>
+            <button type="button" @click="archiveSkill(s.slug)"
+                    class="text-[10px] px-2 py-0.5 rounded border border-ink-600 text-zinc-400 hover:text-err-500 hover:border-err-500 transition-colors"
+                    x-show="s.origin === 'learned'" title="Archive skill">Archive</button>
+          </div>
+        </div>
+        <!-- Trigger patterns -->
+        <div class="mt-2" x-show="s.triggers && s.triggers.length">
+          <div class="text-zinc-600 text-[9px] uppercase tracking-wider mb-0.5">Triggers</div>
+          <div class="flex flex-wrap gap-1">
+            <template x-for="t in s.triggers" :key="t.pattern">
+              <span class="text-[10px] px-1.5 py-0.5 bg-ink-700/50 text-zinc-500 rounded font-mono" x-text="t.pattern"></span>
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
+    <div x-show="!filteredSkills.length" class="text-center py-8 text-zinc-600">
+      <div class="text-lg mb-1">No skills yet</div>
+      <div class="text-[11px]">Skills are auto-created when RAVEN completes complex multi-tool tasks. Interact with the assistant to build your skill library.</div>
+    </div>
+  </div>
+</section>
+
+<script>
+function learnedSkills() {
+  return {
+    skills: [],
+    rlStats: {},
+    traceCount: 0,
+    searchQuery: '',
+    sortBy: 'recency',
+    status: '',
+    statusOk: true,
+
+    init() { this.reload(); },
+
+    get totalInvocations() {
+      return this.skills.reduce((sum, s) => sum + (s.invocation_count || 0), 0);
+    },
+
+    get avgSuccess() {
+      const withRate = this.skills.filter(s => s.success_rate != null);
+      if (!withRate.length) return 0;
+      return (withRate.reduce((sum, s) => sum + s.success_rate, 0) / withRate.length * 100).toFixed(1);
+    },
+
+    get filteredSkills() {
+      let result = [...this.skills];
+      if (this.searchQuery) {
+        const q = this.searchQuery.toLowerCase();
+        result = result.filter(s =>
+          (s.display_name || '').toLowerCase().includes(q) ||
+          (s.slug || '').toLowerCase().includes(q) ||
+          (s.description || '').toLowerCase().includes(q) ||
+          (s.tags || []).some(t => t.toLowerCase().includes(q)) ||
+          (s.triggers || []).some(t => (t.pattern || '').toLowerCase().includes(q))
+        );
+      }
+      switch (this.sortBy) {
+        case 'success':
+          result.sort((a, b) => (b.success_rate || 0) - (a.success_rate || 0));
+          break;
+        case 'invocations':
+          result.sort((a, b) => (b.invocation_count || 0) - (a.invocation_count || 0));
+          break;
+        default:
+          result.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+      }
+      return result;
+    },
+
+    async reload() {
+      try {
+        const [skillsR, rlR] = await Promise.all([
+          fetch('/api/learned-skills'),
+          fetch('/api/reinforcement-learning'),
+        ]);
+        const skillsData = await skillsR.json();
+        const rlData = await rlR.json();
+
+        this.skills = skillsData.skills || [];
+        this.traceCount = skillsData.trace_count || 0;
+        this.rlStats = rlData || {};
+
+        const total = this.skills.length;
+        this.status = total + ' learned skill' + (total !== 1 ? 's' : '') + ', ' + this.traceCount + ' trace' + (this.traceCount !== 1 ? 's' : '') + ' in buffer';
+        this.statusOk = true;
+      } catch (e) {
+        this.status = 'Failed to load: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    async promoteSkill(slug) {
+      try {
+        const r = await fetch('/api/learned-skills/' + encodeURIComponent(slug) + '/promote', { method: 'POST' });
+        const j = await r.json();
+        this.status = j.ok ? 'Promoted ' + slug : 'Failed: ' + (j.error || 'unknown');
+        this.statusOk = j.ok;
+        if (j.ok) this.reload();
+      } catch (e) {
+        this.status = 'Error: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    async archiveSkill(slug) {
+      try {
+        const r = await fetch('/api/learned-skills/' + encodeURIComponent(slug) + '/archive', { method: 'POST' });
+        const j = await r.json();
+        this.status = j.ok ? 'Archived ' + slug : 'Failed: ' + (j.error || 'unknown');
+        this.statusOk = j.ok;
+        if (j.ok) this.reload();
+      } catch (e) {
+        this.status = 'Error: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+  };
+}
+</script>
+{% endblock %}

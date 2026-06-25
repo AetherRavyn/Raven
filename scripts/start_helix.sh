@@ -13,9 +13,9 @@ set -euo pipefail
 HELIX_BIN="${HELIX_BIN:-$HOME/.local/bin/helix}"
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "$0")" && pwd)}"
 IMAGE="ghcr.io/helixdb/enterprise-dev:latest"
-CONTAINER_NAME="helix-saras"
-PRIMARY_PORT="${SARAS_HELIX_PORT_PRIMARY:-6969}"
-FALLBACK_PORT="${SARAS_HELIX_PORT_FALLBACK:-8080}"
+CONTAINER_NAME="helix-raven"
+PRIMARY_PORT="${RAVEN_HELIX_PORT_PRIMARY:-6969}"
+FALLBACK_PORT="${RAVEN_HELIX_PORT_FALLBACK:-8080}"
 
 # Sanity: helix CLI on PATH?
 if ! command -v "$HELIX_BIN" >/dev/null 2>&1; then

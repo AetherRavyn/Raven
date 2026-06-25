@@ -18,8 +18,14 @@ from app.settings.config import Config
 logger = logging.getLogger(__name__)
 
 
-class MemoryConsolidator:
-    """Consolidates recent sessions and tasks into facts, preferences, and rules."""
+class SessionConsolidator:
+    """Consolidates recent sessions and tasks into facts, preferences, and rules.
+
+    This is distinct from ``app.core.memory_consolidation.MemoryConsolidator``
+    which handles low-level dedup/decay in the HelixDB vector store.
+    This class uses an LLM to extract structured knowledge from conversation
+    sessions and writes to UserProfileStore and StandingOrderStore.
+    """
 
     def __init__(self, workspace_dir: str | None = None) -> None:
         self.workspace_dir = workspace_dir if workspace_dir else Config.MEMORY_ROOT
@@ -133,8 +139,8 @@ Return ONLY valid JSON in this exact format:
                 result = await resilient(
                     messages=[{"role": "user", "content": prompt}],
                     preferred_models=[
-                        "google/gemini-2.5-flash:free",
-                        "qwen/qwen3-coder:free",
+                        "big-pickle",
+                        "deepseek-v4-flash-free",
                     ],
                     free_only_guard=True,
                 )
@@ -218,7 +224,7 @@ def register_memory_consolidator(
 
     async def _fire() -> None:
         try:
-            consolidator = MemoryConsolidator()
+            consolidator = SessionConsolidator()
             await consolidator.run_consolidation(user_id, interval_hours)
         except Exception as e:
             logger.error("Error in memory consolidation routine: %s", e)

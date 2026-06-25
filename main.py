@@ -22,7 +22,7 @@ def _setup_logging() -> None:
     """Configure rotating file handler + console handler."""
     workspace = Path("workspace")
     workspace.mkdir(exist_ok=True)
-    log_file = workspace / "saras.log"
+    log_file = workspace / "raven.log"
 
     root = logging.getLogger()
     root.setLevel(logging.INFO)
@@ -342,7 +342,7 @@ async def _main_async() -> None:
     botsignal = get_botsignal()
     orchestrator = MessageOrchestrator(botsignal)
     loop = asyncio.get_running_loop()
-    loop.set_default_executor(DaemonExecutor(thread_name_prefix="saras"))
+    loop.set_default_executor(DaemonExecutor(thread_name_prefix="raven"))
 
     def _request_shutdown() -> None:
         if not stop_event.is_set():
@@ -362,6 +362,39 @@ async def _main_async() -> None:
     await scheduler.start()
 
     register_proactive_routines(scheduler)
+
+    # ── A2A Module Protocol ────────────────────────────────────────
+    # Register A2A-compliant modules for inter-module communication
+    try:
+        from raven_protocol import get_registry
+        from raven_iot.a2a_server import create_iot_server
+        from app.voice.a2a_server import create_voice_server
+        from app.core.context_a2a_server import create_context_server
+        from app.core.memory_a2a_server import create_memory_server
+        from app.core.agent_a2a_server import create_agent_server
+        from app.core.scheduling_a2a_server import create_scheduling_server
+        from app.core.api_gateway_a2a_server import create_api_gateway_server
+
+        registry = get_registry()
+        iot_server = create_iot_server()
+        iot_server.start()
+        voice_server = create_voice_server()
+        voice_server.start()
+        context_server = create_context_server()
+        context_server.start()
+        memory_server = create_memory_server()
+        memory_server.start()
+        agent_server = create_agent_server()
+        agent_server.start()
+        scheduling_server = create_scheduling_server()
+        scheduling_server.start()
+        api_server = create_api_gateway_server()
+        api_server.start()
+
+        logger.info("A2A modules registered: %s",
+                    [c.name for c in registry.list_modules()])
+    except Exception as exc:
+        logger.warning("A2A module registration failed: %s", exc)
 
     # Keep a callable available for other startup code and future follow-up hooks.
     _ = schedule_follow_up

@@ -1,4 +1,4 @@
-"""Per-session conversation manager.
+"""Per-session conversation manager with SQLite persistence.
 
 A :class:`ConversationManager` is the runtime-facing wrapper
 around :class:`WorkingMemory`, :class:`Compressor`, and
@@ -12,15 +12,9 @@ calls on every turn:
   * :meth:`resolve_reference` — turn a "that thing"
     reference into a specific prior turn
 
-Compression is opt-in: the manager keeps a small recent
-window and runs the :class:`Compressor` when the deque
-grows past a threshold.  The compressor is deterministic by
-default; the runtime can swap in an LLM-backed
-``summary_fn`` via :meth:`set_summary_fn`.
-
-Persistence is *not* automatic.  Use :meth:`serialize` /
-:meth:`restore` to snapshot to disk.  The runtime wires
-those at the appropriate boundary.
+Persistence is automatic: every turn is checkpointed to SQLite,
+and sessions are restored on first access. Old sessions (>24h
+idle) are pruned periodically.
 """
 
 from __future__ import annotations
@@ -40,6 +34,7 @@ from app.core.conversation.memory import (
     Turn,
     WorkingMemory,
 )
+from app.core.conversation.persistence import ConversationPersistence
 from app.core.conversation.resolver import (
     FollowUpResolver,
     Resolved,
@@ -48,9 +43,6 @@ from app.core.conversation.resolver import (
 logger = logging.getLogger(__name__)
 
 
-# A summary function for the compressor.  Default to the
-# deterministic one; the runtime can swap in an LLM-backed
-# version via set_summary_fn().
 SummaryFn = Callable[[list[Turn], str], str]
 
 
@@ -61,8 +53,9 @@ class ConversationManager:
       * a map of session_id → WorkingMemory
       * a single Compressor (shared across sessions, stateless)
       * the current summary function (default deterministic)
+      * SQLite persistence for crash recovery
 
-    Thread-safe (RLock everywhere).
+    Thread-safe (RLock everywhere). Auto-checkpoints to SQLite.
     """
 
     def __init__(
@@ -72,20 +65,24 @@ class ConversationManager:
         window_size: int = 6,
         compress_threshold_multiplier: int = 2,
         summary_fn: SummaryFn | None = None,
+        persistence: ConversationPersistence | None = None,
     ) -> None:
         self._lock = threading.RLock()
         self._memories: dict[str, WorkingMemory] = {}
+        self._restored: set[str] = set()  # sessions just restored from SQLite
+        self._dirty: set[str] = set()  # sessions needing checkpoint
         self._compressor = compressor or Compressor(window_size=window_size)
         self._window_size = window_size
         self._compress_threshold = window_size * compress_threshold_multiplier
         self._summary_fn: SummaryFn = summary_fn or deterministic_summary
-        # Make the compressor use the configured summary fn.
         self._compressor.summary_fn = self._summary_fn
+        self._persistence = persistence  # None = no persistence (default)
+        self._restored: set[str] = set()
+        self._prune_counter = 0
 
     # ---- configuration ----
 
     def set_summary_fn(self, fn: SummaryFn) -> None:
-        """Swap in a new summary function (e.g. an LLM-backed one)."""
         with self._lock:
             self._summary_fn = fn
             self._compressor.summary_fn = fn
@@ -101,18 +98,32 @@ class ConversationManager:
     def get_or_create(self, session_id: str, user_id: str = "") -> WorkingMemory:
         with self._lock:
             wm = self._memories.get(session_id)
-            if wm is None:
-                wm = WorkingMemory(user_id=user_id)
-                self._memories[session_id] = wm
+            if wm is not None:
+                return wm
+            # Try restoring from SQLite (if persistence enabled)
+            if self._persistence is not None:
+                data = self._persistence.load(session_id)
+                if data is not None:
+                    wm = WorkingMemory.from_dict(data)
+                    self._memories[session_id] = wm
+                    self._restored.add(session_id)
+                    logger.debug("Restored session %s from SQLite", session_id)
+                    return wm
+            wm = WorkingMemory(user_id=user_id)
+            self._memories[session_id] = wm
             return wm
 
     def clear(self, session_id: str) -> None:
         with self._lock:
             self._memories.pop(session_id, None)
+            self._dirty.discard(session_id)
+            if self._persistence is not None:
+                self._persistence.delete(session_id)
 
     def clear_all(self) -> None:
         with self._lock:
             self._memories.clear()
+            self._dirty.clear()
 
     def list_sessions(self) -> list[str]:
         with self._lock:
@@ -132,10 +143,13 @@ class ConversationManager:
     ) -> Turn:
         """Add a turn to the session's working memory.
 
-        Returns the turn for callers that want to chain.
-        Compresses if the deque grows past the threshold.
+        Auto-checkpoints to SQLite after each turn.
+        First turn on a restored session appends without overwrite.
         """
         wm = self.get_or_create(session_id, user_id=user_id)
+        was_restored = session_id in self._restored
+        if was_restored:
+            self._restored.discard(session_id)
         idx = len(wm.recent_turns)
         tid = turn_id or f"{session_id}:t{idx}"
         turn = Turn(
@@ -147,6 +161,8 @@ class ConversationManager:
         wm.add_turn(turn)
         if self._compressor.should_compress(len(wm.recent_turns)):
             self._maybe_compress_locked(wm)
+        # Checkpoint — safe because wm already has restored data merged with new turn
+        self._checkpoint(session_id, wm)
         return turn
 
     def _maybe_compress_locked(self, wm: WorkingMemory) -> Compressed | None:
@@ -170,9 +186,11 @@ class ConversationManager:
             return result
 
     def maybe_compress(self, session_id: str) -> Compressed | None:
-        """Public: run compression on a session if it's eligible."""
         wm = self.get_or_create(session_id)
-        return self._maybe_compress_locked(wm)
+        result = self._maybe_compress_locked(wm)
+        if result:
+            self._checkpoint(session_id, wm)
+        return result
 
     # ---- prompt construction ----
 
@@ -183,12 +201,6 @@ class ConversationManager:
         max_chars: int = 2000,
         max_facts: int = 20,
     ) -> str:
-        """Render the working memory as a string for the LLM prompt.
-
-        Returns an empty string if the session has no working
-        memory yet.  Caps total length to ``max_chars`` so
-        the prompt never blows up.
-        """
         wm = self._memories.get(session_id)
         if wm is None:
             return ""
@@ -230,6 +242,38 @@ class ConversationManager:
 
     # ---- persistence ----
 
+    def _checkpoint(self, session_id: str, wm: WorkingMemory) -> None:
+        """Save working memory to SQLite. Best-effort. No-op if persistence disabled."""
+        if self._persistence is None:
+            return
+        try:
+            data = wm.to_dict()
+            self._persistence.save(session_id, data, user_id=wm.user_id)
+            self._dirty.discard(session_id)
+        except Exception as exc:
+            logger.debug("Checkpoint failed for %s: %s", session_id, exc)
+
+    def sync(self, session_id: str | None = None) -> None:
+        """Force checkpoint one or all dirty sessions."""
+        with self._lock:
+            if session_id:
+                wm = self._memories.get(session_id)
+                if wm:
+                    self._checkpoint(session_id, wm)
+            else:
+                for sid in list(self._dirty):
+                    wm = self._memories.get(sid)
+                    if wm:
+                        self._checkpoint(sid, wm)
+        # Periodic prune (only if persistence enabled)
+        if self._persistence is not None:
+            self._prune_counter += 1
+            if self._prune_counter >= 100:
+                self._prune_counter = 0
+                pruned = self._persistence.prune_old()
+                if pruned:
+                    logger.info("Pruned %d old conversation sessions", pruned)
+
     def serialize(self, session_id: str) -> dict[str, Any] | None:
         wm = self._memories.get(session_id)
         if wm is None:
@@ -240,6 +284,7 @@ class ConversationManager:
         with self._lock:
             wm = WorkingMemory.from_dict(data)
             self._memories[session_id] = wm
+            self._checkpoint(session_id, wm)
             return wm
 
     # ---- diagnostics ----
@@ -257,4 +302,5 @@ class ConversationManager:
             "facts": dict(wm.facts),
             "entities_top": dict(wm.entities.most_common(5)),
             "current_topic": wm.current_topic,
+            "persisted": session_id not in self._dirty,
         }

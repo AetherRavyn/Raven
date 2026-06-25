@@ -99,20 +99,29 @@ def derive_device_id(user_id: str, kind: str) -> str:
 
 
 class IdentityRegistry:
-    """Thread-safe in-memory registry of users, devices, channels."""
+    """Thread-safe identity registry backed by SQLite for users.
 
-    def __init__(self) -> None:
+    Devices and channels stay in-memory (ephemeral).
+    User resolution delegates to UserIdentityStore (SQLite).
+    """
+
+    def __init__(self, user_store: Any | None = None) -> None:
+        from app.core.user_identity import UserIdentityStore
+
         self._lock = threading.RLock()
-        self._users: dict[str, UserIdentity] = {}
+        self._user_store = user_store or UserIdentityStore()
+        self._users: dict[str, UserIdentity] = {}  # in-memory cache for upserted users
         self._devices: dict[str, Device] = {}
         self._channels: dict[str, Channel] = {}
 
-    # ---- users ----
+    # ---- users (SQLite-backed with in-memory cache) ----
 
     def upsert_user(self, user: UserIdentity) -> UserIdentity:
         with self._lock:
             self._users[user.id] = user
-            return user
+        # Also register in SQLite store for cross-system resolution
+        self._user_store.resolve("internal", user.id)
+        return user
 
     def get_user(self, user_id: str) -> UserIdentity | None:
         with self._lock:
@@ -176,8 +185,12 @@ class IdentityRegistry:
     ) -> tuple[UserIdentity, Device, Channel]:
         """End-to-end: ensure user + device + channel exist for the given handle.
 
-        Returns the (user, device, channel) tuple.  Idempotent.
+        User resolution is persisted to SQLite via UserIdentityStore.
+        Devices and channels stay in-memory.
         """
+        # Register in SQLite store for cross-system resolution
+        self._user_store.resolve(platform, chat_id)
+
         channel_meta = metadata or {}
         with self._lock:
             user = self._users.get(user_id)

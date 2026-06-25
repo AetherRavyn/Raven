@@ -126,6 +126,13 @@ class RouteRequest:
     # Identifiers used by the ledger for attribution.
     user_id: str | None = None
     plan_id: str | None = None
+    # Phase 5.4 — provenance.  ``source_id`` is the name of the
+    # channel/tool that produced the prompt; ``source_trust`` is the
+    # caller-supplied trust score in [0.0, 1.0].  When the router
+    # has a source-trust registry, it will lower ``max_tier`` based
+    # on the registry's view of ``source_id``.
+    source_id: str | None = None
+    source_trust: float | None = None
 
 
 @dataclass(slots=True)

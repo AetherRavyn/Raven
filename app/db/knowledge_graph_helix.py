@@ -1,11 +1,9 @@
-"""HelixDB-backed knowledge graph (Phase B).
+"""HelixDB-backed knowledge graph.
 
-This module replaces the Neo4j-backed ``KnowledgeGraphTool`` for
-environments that don't want a Neo4j dependency.  The graph data
-model is identical (entities with names, typed relations between
-them) and the public API mirrors the original tool so callers
-(``WorkspaceGraph``, ``MultimodalRetrieval``, ``Orchestrator``,
-``Reviewer``, ``KnowledgeGraphPopulator``) keep working unchanged.
+This module provides the knowledge graph backed by HelixDB
+(``app.db.knowledge_graph_helix.HelixKnowledgeGraph``).  Same
+``add_relationship`` / ``query_entity`` / ``find_path`` API
+and the same return shape, so callers don't change.
 
 Schema
 ------
@@ -37,8 +35,7 @@ form is correct and fast enough.
 Feature flag
 ------------
 ``KnowledgeGraphTool`` dispatches to this class when
-``KG_BACKEND=helix`` is set; the default remains ``neo4j`` for
-backwards compatibility.
+``KG_BACKEND=helix`` is set.
 """
 
 from __future__ import annotations
@@ -78,7 +75,7 @@ class HelixKnowledgeGraph:
         from app.db.helix import HelixClient
 
         self._client: HelixClient = HelixClient(
-            base_url=helix_url or os.environ.get("SARAS_HELIX_URL", "http://localhost:6969")
+            base_url=helix_url or os.environ.get("RAVEN_HELIX_URL", "http://localhost:6969")
         )
         logger.info("HelixKnowledgeGraph: url=%s label=%s", self._client.base_url, _NODE_LABEL)
 
@@ -313,6 +310,65 @@ class HelixKnowledgeGraph:
             )
         )
         await self._client.execute(env_add)
+
+
+    # ------------------------------------------------------------------
+    # Dashboard helpers (v35)
+    # ------------------------------------------------------------------
+
+    async def list_entities(self, limit: int = 500) -> list[dict[str, Any]]:
+        """Return every entity in the graph (up to ``limit``).
+
+        Uses a Helix query that selects all ``KGEntity`` nodes and
+        returns their ``name``/``kind``/``edges`` properties.  Falls
+        back to an empty list if the query is unsupported on the
+        running Helix version — the dashboard handles that case
+        gracefully.
+        """
+        from app.db.helix import read_query
+
+        try:
+            env = read_query(
+                (
+                    "m",
+                    [
+                        {"N": [_NODE_LABEL]},
+                        {"Values": ["name", "kind", "user_id", "edges"]},
+                    ],
+                ),
+            )
+            res = await self._client.execute(env)
+            m = res.get("m")
+            if not isinstance(m, dict):
+                return []
+            props = m.get("properties") or []
+            out: list[dict[str, Any]] = []
+            for entry in props[:limit]:
+                if not isinstance(entry, dict):
+                    continue
+                entry["edges"] = _decode_edges(entry.get("edges"))
+                out.append(entry)
+            return out
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("helix kg list_entities failed: %s", exc)
+            return []
+
+    async def get_stats(self) -> dict[str, Any]:
+        """Return entity + relationship counts and health status."""
+        try:
+            healthy = (await self._client.health()).healthy
+        except Exception:
+            healthy = False
+
+        entities = await self.list_entities(limit=10_000) if healthy else []
+        relationship_count = sum(len(e.get("edges") or []) for e in entities)
+        return {
+            "entity_count": len(entities),
+            "relationship_count": relationship_count,
+            "backend": "helix",
+            "healthy": healthy,
+            "version": "1.0",
+        }
 
 
 # ---------------------------------------------------------------------------

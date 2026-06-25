@@ -6,13 +6,13 @@ import sys
 import logging
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-logger = logging.getLogger("SARAS_Launcher")
+logger = logging.getLogger("RAVEN_Launcher")
 
 # Keep track of background processes
 procs = []
 
 def signal_handler(sig, frame):
-    logger.info("Interrupt received, shutting down all SARAS services...")
+    logger.info("Interrupt received, shutting down all RAVEN services...")
     for p in procs:
         p.terminate()
     sys.exit(0)
@@ -21,7 +21,7 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 def main():
-    logger.info("Initializing SARAS Local Edge Server...")
+    logger.info("Initializing RAVEN Local Edge Server...")
     
     envs = os.environ.copy()
     # Ensure the parent directory is in PYTHONPATH so python can resolve our module paths
@@ -49,11 +49,11 @@ def main():
         # Run using python (or uv run python if preferred, but assuming standard venv/python context)
         p = subprocess.Popen([sys.executable, script_path], env=envs)
         procs.append(p)
-        # Give a slight stagger so Redis/Bus listeners initialize gracefully
+        # Give a slight stagger so Bus listeners initialize gracefully
         time.sleep(1.5)
         
     logger.info("==============================================")
-    logger.info("SARAS is now fully running.")
+    logger.info("RAVEN is now fully running.")
     logger.info("Dashboard available at: http://localhost:8000")
     logger.info("MCP Server available via stdio.")
     logger.info("Press Ctrl+C to stop all services.")

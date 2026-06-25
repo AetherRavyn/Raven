@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.meeting_summarizer
+display_name: Meeting Summarizer
+version: "1.0.0"
+category: skill
+description: "Transcribe and summarize meeting recordings or notes into action items."
+tags: [meeting, summary, transcription, notes, action-items]
+capabilities: [file_tool, voice]
+trust_level: system
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.88
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "summarize.*meeting|meeting.*notes|action items from"
+    confidence: 0.86

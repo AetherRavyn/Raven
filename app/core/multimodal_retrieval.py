@@ -85,12 +85,12 @@ class MultimodalRetriever:
 
         if request.image_urls:
             bundle.notes.append(
-                "Image attachments are available, but SARAS stays DB-only and does not run semantic image retrieval."
+                "Image attachments are available, but RAVEN stays DB-only and does not run semantic image retrieval."
             )
 
         if getattr(request, "video_path", None):
             bundle.notes.append(
-                "Video evidence stays inside monitoring; SARAS only consumes the stored metadata and anomaly summary."
+                "Video evidence stays inside monitoring; RAVEN only consumes the stored metadata and anomaly summary."
             )
 
         entities = self._extract_entities(request.text)

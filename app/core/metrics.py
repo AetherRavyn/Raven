@@ -1,28 +1,28 @@
 # app/core/metrics.py
-"""Prometheus metrics for SARAS observability."""
+"""Prometheus metrics for RAVEN observability."""
 
 from prometheus_client import Counter, Gauge, Histogram
 
 requests_total = Counter(
-    "saras_requests_total",
+    "raven_requests_total",
     "Total requests received",
     ["platform", "source_kind"],
 )
 
 requests_blocked = Counter(
-    "saras_requests_blocked_total",
+    "raven_requests_blocked_total",
     "Requests blocked by security guard or rate limiter",
     ["reason"],
 )
 
 llm_duration_seconds = Histogram(
-    "saras_llm_duration_seconds",
+    "raven_llm_duration_seconds",
     "LLM call latency in seconds",
     ["provider", "model"],
 )
 
 llm_calls_total = Counter(
-    "saras_llm_calls_total",
+    "raven_llm_calls_total",
     "LLM API calls",
     ["provider", "model"],
 )
@@ -31,12 +31,12 @@ llm_calls_total = Counter(
 llm_latency_seconds = llm_duration_seconds
 
 tool_calls_total = Counter(
-    "saras_tool_calls_total",
+    "raven_tool_calls_total",
     "Tool invocations",
     ["tool_name", "success"],
 )
 
 active_sessions = Gauge(
-    "saras_active_sessions",
+    "raven_active_sessions",
     "Number of active user sessions",
 )

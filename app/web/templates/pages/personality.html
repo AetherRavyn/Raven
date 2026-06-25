@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}PERSONALITY — RAVEN{% endblock %}
+{% block head_extra %}
+<style>
+.fade-in { animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.bar-bg { background: linear-gradient(90deg, #7cf08a33, transparent); }
+</style>
+{% endblock %}
+{% block main %}
+<section class="space-y-4" x-data="personalityDashboard()">
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <h1 class="text-zinc-100 text-sm tracking-wider uppercase">Personality</h1>
+      <p class="text-zinc-500 text-[11px] mt-0.5">
+        Dynamic emotional state, relationship progression, learned values, and personality drift.
+      </p>
+    </div>
+    <button type="button" @click="reload()"
+            class="text-[10px] text-zinc-400 hover:text-zinc-200 border border-ink-600 rounded px-2 py-1">
+      ↻ Refresh
+    </button>
+  </div>
+
+  <!-- Status -->
+  <div x-show="status" x-cloak x-transition
+       :class="statusOk ? 'border-emerald-700 bg-emerald-900/30 text-emerald-300' : 'border-rose-700 bg-rose-900/30 text-rose-300'"
+       class="border rounded p-2 text-[11px] fade-in" x-text="status"></div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <!-- Emotional State -->
+    <div class="border border-ink-600 bg-ink-800 rounded p-3 fade-in">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">Emotional State</div>
+      <div class="space-y-2 text-[12px]">
+        <div class="flex items-center justify-between">
+          <span class="text-zinc-500">Mood</span>
+          <span class="text-zinc-200 capitalize" x-text="state.mood"></span>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-0.5">
+            <span class="text-zinc-500">Confidence</span>
+            <span class="text-zinc-200" x-text="(state.confidence * 100).toFixed(0) + '%'"></span>
+          </div>
+          <div class="w-full h-1.5 bg-ink-700 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-500" :style="'width:' + (state.confidence * 100) + '%'"
+                 :class="state.confidence >= 0.7 ? 'bg-emerald-500' : state.confidence >= 0.4 ? 'bg-warn-500' : 'bg-err-500'"></div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-zinc-500">Energy</span>
+          <span class="text-zinc-200 capitalize" x-text="state.energy"></span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-zinc-500">Interactions Today</span>
+          <span class="text-zinc-200" x-text="state.interactions_today"></span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-zinc-500">Consecutive Errors</span>
+          <span class="text-zinc-200" x-text="state.consecutive_errors"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Relationship -->
+    <div class="border border-ink-600 bg-ink-800 rounded p-3 fade-in">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">User Relationship</div>
+      <template x-if="relationship">
+        <div class="space-y-2 text-[12px]">
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-500">Formality</span>
+            <span class="text-zinc-200 capitalize" x-text="relationship.formality"></span>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-0.5">
+              <span class="text-zinc-500">Trust</span>
+              <span class="text-zinc-200" x-text="(relationship.trust_level * 100).toFixed(0) + '%'"></span>
+            </div>
+            <div class="w-full h-1.5 bg-ink-700 rounded-full overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-500 bg-accent-500"
+                   :style="'width:' + (relationship.trust_level * 100) + '%'"></div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-500">Verbosity</span>
+            <span class="text-zinc-200 capitalize" x-text="relationship.verbosity"></span>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-0.5">
+              <span class="text-zinc-500">Humor Factor</span>
+              <span class="text-zinc-200" x-text="(relationship.humor_factor * 100).toFixed(0) + '%'"></span>
+            </div>
+            <div class="w-full h-1.5 bg-ink-700 rounded-full overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-500 bg-warn-500"
+                   :style="'width:' + (relationship.humor_factor * 100) + '%'"></div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-500">Interactions</span>
+            <span class="text-zinc-200" x-text="relationship.interaction_count"></span>
+          </div>
+          <div x-show="relationship.last_seen" class="flex items-center justify-between">
+            <span class="text-zinc-500">Last Seen</span>
+            <span class="text-zinc-200 text-[10px]" x-text="relationship.last_seen.split('T')[0]"></span>
+          </div>
+        </div>
+      </template>
+      <div x-show="!relationship" class="text-zinc-600 text-center py-4">No relationship data yet.</div>
+    </div>
+
+    <!-- Personality Drift -->
+    <div class="border border-ink-600 bg-ink-800 rounded p-3 fade-in">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">Personality Drift</div>
+      <template x-if="drift">
+        <div class="space-y-2 text-[12px]">
+          <div>
+            <div class="flex items-center justify-between mb-0.5">
+              <span class="text-zinc-500">Formality Drift</span>
+              <span class="text-zinc-200" x-text="drift.formality || 'professional'"></span>
+            </div>
+            <div class="w-full h-1 bg-ink-700 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" :style="'width: ' + formalityPercent + '%'"
+                   :class="formalityPercent > 60 ? 'bg-accent-500' : 'bg-zinc-500'"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-0.5">
+              <span class="text-zinc-500">Verbosity Drift</span>
+              <span class="text-zinc-200" x-text="drift.verbosity || 'concise'"></span>
+            </div>
+            <div class="w-full h-1 bg-ink-700 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" :style="'width: ' + verbosityPercent + '%'"
+                   :class="verbosityPercent > 50 ? 'bg-accent-500' : 'bg-zinc-500'"></div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-500">Humor Drift</span>
+            <span class="text-zinc-200" x-text="drift.humor || 'neutral'"></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-500">Drift Last Updated</span>
+            <span class="text-zinc-200 text-[10px]" x-text="drift.last_update ? new Date(drift.last_update).toLocaleDateString() : '—'"></span>
+          </div>
+        </div>
+      </template>
+      <div x-show="!drift" class="text-zinc-600 text-center py-4">No drift data yet. Interact with the assistant to establish patterns.</div>
+    </div>
+  </div>
+
+  <!-- Learned Values -->
+  <div class="border border-ink-600 bg-ink-800 rounded p-3 fade-in">
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider">Learned Values &amp; Principles</div>
+      <span class="text-zinc-600 text-[10px]" x-show="values.length" x-text="values.length + ' values'"></span>
+    </div>
+    <template x-if="values.length">
+      <div class="space-y-1.5">
+        <template x-for="v in values" :key="v.id">
+          <div class="flex items-center gap-2 px-2 py-1.5 bg-ink-700/50 rounded text-[12px]">
+            <span class="w-1.5 h-1.5 rounded-full bg-accent-500 shrink-0"></span>
+            <span class="text-zinc-300" x-text="v.content"></span>
+            <span class="ml-auto text-[10px]"
+                  :class="v.source === 'correction' ? 'text-warn-500' : 'text-zinc-600'"
+                  x-text="v.source"></span>
+            <span class="text-zinc-700 text-[9px]" x-text="v.created_at ? new Date(v.created_at).toLocaleDateString() : ''"></span>
+          </div>
+        </template>
+      </div>
+    </template>
+    <div x-show="!values.length" class="text-zinc-600 text-center py-4 text-[12px]">
+      No values learned yet. When you correct or give feedback to RAVEN, principles are extracted and stored here.
+    </div>
+  </div>
+
+  <!-- Relationship Arc -->
+  <div class="border border-ink-600 bg-ink-800 rounded p-3 fade-in">
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider">Relationship Arc</div>
+      <span class="text-zinc-600 text-[10px]" x-show="milestones.length" x-text="milestones.length + ' milestones'"></span>
+    </div>
+    <template x-if="milestones.length">
+      <div class="space-y-2">
+        <template x-for="(m, idx) in milestones" :key="m.id">
+          <div class="flex items-start gap-3">
+            <div class="flex flex-col items-center">
+              <div class="w-2.5 h-2.5 rounded-full"
+                   :class="m.type === 'positive' ? 'bg-emerald-500' : m.type === 'negative' ? 'bg-err-500' : 'bg-accent-500'"></div>
+              <div x-show="idx < milestones.length - 1" class="w-px h-4 bg-ink-600"></div>
+            </div>
+            <div class="flex-1 pb-2">
+              <div class="text-zinc-200 text-[12px]" x-text="m.title"></div>
+              <div class="text-zinc-500 text-[10px]" x-text="m.description || ''"></div>
+              <div class="text-zinc-700 text-[9px] mt-0.5" x-text="m.timestamp ? new Date(m.timestamp).toLocaleString() : ''"></div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+    <div x-show="!milestones.length" class="text-zinc-600 text-center py-4 text-[12px]">
+      Relationship milestones appear as you interact with RAVEN.
+    </div>
+  </div>
+
+  <!-- Recent Events -->
+  <div class="border border-ink-600 bg-ink-800 rounded p-3 fade-in">
+    <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">Recent Events</div>
+    <template x-if="state.recent_events && state.recent_events.length">
+      <div class="space-y-1">
+        <template x-for="e in state.recent_events" :key="e">
+          <div class="text-[11px] text-zinc-500 flex items-center gap-1">
+            <span class="text-zinc-700">·</span>
+            <span x-text="e"></span>
+          </div>
+        </template>
+      </div>
+    </template>
+    <div x-show="!state.recent_events || !state.recent_events.length" class="text-zinc-600 text-[12px]">No recent events.</div>
+  </div>
+</section>
+
+<script>
+function personalityDashboard() {
+  return {
+    state: { mood: 'neutral', confidence: 0.5, energy: 'calm', interactions_today: 0, consecutive_errors: 0, recent_events: [] },
+    relationship: null,
+    drift: null,
+    values: [],
+    milestones: [],
+    status: '',
+    statusOk: true,
+
+    init() { this.reload(); },
+
+    get formalityPercent() {
+      const map = { professional: 25, casual: 50, warm: 85 };
+      return map[this.drift?.formality] || 50;
+    },
+
+    get verbosityPercent() {
+      const map = { concise: 30, balanced: 50, detailed: 80 };
+      return map[this.drift?.verbosity] || 50;
+    },
+
+    async reload() {
+      try {
+        const r = await fetch('/api/personality');
+        const j = await r.json();
+        this.state = j.state || this.state;
+        this.relationship = j.relationship || null;
+        this.drift = j.drift || null;
+        this.values = j.values || [];
+        this.milestones = j.milestones || [];
+        this.status = 'Loaded — ' + this.state.mood + ', ' + this.relationship?.formality + ', ' + this.values.length + ' values';
+        this.statusOk = true;
+      } catch (e) {
+        this.status = 'Failed to load: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+  };
+}
+</script>
+{% endblock %}

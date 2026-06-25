@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}SKILLS — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">SKILLS</h1>
+  <p class="text-zinc-500 text-[11px]">Workspace skills discovered from skills/ · agent_reach/ · v32</p>
+  <div class="grid grid-cols-3 gap-3 text-[12px]" id="skills-summary">
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase">total</div>
+      <div class="text-zinc-100 text-2xl tabular-nums">{{ summary.count if summary else 0 }}</div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase">healthy</div>
+      <div class="text-accent-500 text-2xl tabular-nums">{{ summary.healthy if summary else 0 }}</div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase">onboarding</div>
+      <div class="text-warn-500 text-2xl tabular-nums">{{ summary.onboarding_queue if summary else 0 }}</div>
+    </div>
+  </div>
+  <div class="border border-ink-600 bg-ink-800 rounded">
+    <table class="w-full text-[12px]">
+      <thead class="text-zinc-500 border-b border-ink-600">
+        <tr>
+          <th class="text-left px-3 py-1.5">module_id</th>
+          <th class="text-left px-3 py-1.5">name</th>
+          <th class="text-left px-3 py-1.5">version</th>
+          <th class="text-left px-3 py-1.5">health</th>
+          <th class="text-left px-3 py-1.5">canonical</th>
+        </tr>
+      </thead>
+      <tbody id="skills-tbody">
+        {% if skills %}
+          {% for s in skills %}
+            <tr class="border-b border-ink-700 hover:bg-ink-700" data-skill-id="{{ s.get('module_id','') }}">
+              <td class="px-3 py-1.5 font-mono text-accent-500">{{ s.get("module_id", "?") }}</td>
+              <td class="px-3 py-1.5">{{ s.get("display_name", "?") }}</td>
+              <td class="px-3 py-1.5 text-zinc-400">{{ s.get("version", "?") }}</td>
+              <td class="px-3 py-1.5">
+                {% if s.get("health_state") == "healthy" %}
+                  <span class="text-accent-500">●</span> healthy
+                {% elif s.get("health_state") == "degraded" %}
+                  <span class="text-warn-500">●</span> degraded
+                {% else %}
+                  <span class="text-err-500">●</span> {{ s.get("health_state", "?") }}
+                {% endif %}
+              </td>
+              <td class="px-3 py-1.5 text-zinc-400">
+                {% if s.get("canonical_manifest") %}yes{% else %}<span class="text-zinc-600">inferred</span>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="5" class="px-3 py-3 text-zinc-600 text-center">[no skills discovered]</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

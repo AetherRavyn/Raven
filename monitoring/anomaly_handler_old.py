@@ -74,7 +74,7 @@ def load_config():
         "database": db_config,
         "cameras": camera_config,
         "storage": {
-            "clips_dir": os.getenv("CLIPS_DIR", "/var/lib/saras/anomalies"),
+            "clips_dir": os.getenv("CLIPS_DIR", "/var/lib/raven/anomalies"),
             "retention_days": 7,
         },
         "alerts": {
@@ -90,7 +90,7 @@ def load_config():
         },
         "flask": {
             "port": int(os.getenv("FLASK_PORT", "8080")),
-            "host": "0.0.0.0",
+            "host": "127.0.0.1",
             "debug": False,
         },
         "logging": {

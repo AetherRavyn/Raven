@@ -1,0 +1,22 @@
+{
+  "name": "raven-companion-shell",
+  "version": "0.1.0",
+  "private": true,
+  "description": "RAVEN — desktop companion shell (Tauri v2).",
+  "scripts": {
+    "tauri": "cargo tauri",
+    "dev": "cargo tauri dev",
+    "build": "cargo tauri build",
+    "build:sidecar": "bash ../scripts/build-desktop.sh --sidecar-only",
+    "build:shell": "bash ../scripts/build-desktop.sh --shell-only",
+    "build:debug": "bash ../scripts/build-desktop.sh --debug",
+    "icons": "python3 ../scripts/build-app-icons.py",
+    "lint:rust": "cargo clippy --lib --tests --all-targets --features tauri-runtime -- -D warnings",
+    "test:rust": "cargo test --lib",
+    "test:rust:tauri": "cargo test --lib --features tauri-runtime",
+    "test:wire": "cd .. && .venv/bin/python -m pytest tests/test_companion_shell_wire.py -v"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

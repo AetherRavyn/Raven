@@ -1,14 +1,14 @@
 # 02 - Modular Architecture Blueprint & Module Contract Plan
 
-**Project:** SARAS  
-**Goal:** Turn SARAS into a **modular, low-compute, JARVIS/FRIDAY-style personal intelligence system** that can grow safely over time.  
+**Project:** RAVEN  
+**Goal:** Turn RAVEN into a **modular, low-compute, JARVIS/FRIDAY-style personal intelligence system** that can grow safely over time.  
 **Date:** 2026-03-29
 
 ---
 
 ## 1. Why This Document Exists
 
-SARAS already has many important pieces:
+RAVEN already has many important pieces:
 
 - multi-platform connectors
 - orchestrator + agent runtime
@@ -36,14 +36,14 @@ This blueprint defines:
    - NemoClaw / NeMo Agent Toolkit style systems
    - ZeroClaw / PicoClaw style low-resource systems
    - MiroFish-style predictive simulation systems
-5. the implementation contracts needed to make SARAS a real long-term platform
+5. the implementation contracts needed to make RAVEN a real long-term platform
 
 ---
 
 # 2. Design Principles
 
 ## 2.1 One Brain, Many Bodies
-SARAS must feel like **one personality** everywhere:
+RAVEN must feel like **one personality** everywhere:
 
 - Telegram
 - Discord
@@ -77,7 +77,7 @@ This means we should be able to replace:
 without rewriting the whole system.
 
 ## 2.3 Low Compute First
-SARAS should be designed to work in **three compute tiers**:
+RAVEN should be designed to work in **three compute tiers**:
 
 ### Tier A — Ultra-light
 - CPU only
@@ -98,7 +98,7 @@ SARAS should be designed to work in **three compute tiers**:
 The architecture must degrade gracefully from C → B → A.
 
 ## 2.4 Predictive, Not Just Reactive
-Like MiroFish, SARAS should not only answer.  
+Like MiroFish, RAVEN should not only answer.  
 It should:
 
 - ingest real data
@@ -106,7 +106,7 @@ It should:
 - estimate outcomes
 - present confidence and alternative scenarios
 
-But unlike MiroFish, SARAS must do this in a **compute-aware** way:
+But unlike MiroFish, RAVEN must do this in a **compute-aware** way:
 - small simulations first
 - statistical forecasting first
 - only escalate to larger agent-world simulations when needed
@@ -125,7 +125,7 @@ It must have:
 So personality must be a **first-class module**, not a prompt afterthought.
 
 ## 2.6 Agent Reach Is the Internet Eye Layer
-`agent_reach/` should become SARAS's **Internet Observation Layer**.
+`agent_reach/` should become RAVEN's **Internet Observation Layer**.
 
 It is not just an external utility. It should be integrated as:
 - discovery layer
@@ -138,11 +138,11 @@ It is not just an external utility. It should be integrated as:
 
 # 3. Comparison Against Other Systems
 
-This section is practical: what others do well, what SARAS already has, and what SARAS still lacks.
+This section is practical: what others do well, what RAVEN already has, and what RAVEN still lacks.
 
 ---
 
-## 3.1 SARAS vs OpenClaw
+## 3.1 RAVEN vs OpenClaw
 
 ### OpenClaw strengths
 - huge channel ecosystem
@@ -152,7 +152,7 @@ This section is practical: what others do well, what SARAS already has, and what
 - large plugin/skill ecosystem
 - rich interaction surfaces
 
-### SARAS already has
+### RAVEN already has
 - multi-platform design
 - tool ecosystem
 - memory direction
@@ -161,7 +161,7 @@ This section is practical: what others do well, what SARAS already has, and what
 - stronger IoT/home/security ambitions
 - richer local research / deep investigation orientation
 
-### SARAS still lacks vs OpenClaw
+### RAVEN still lacks vs OpenClaw
 1. **Product-level cohesion**
    - more of a powerful system than a polished assistant product
 2. **consistent onboarding**
@@ -175,7 +175,7 @@ This section is practical: what others do well, what SARAS already has, and what
 
 ---
 
-## 3.2 SARAS vs NemoClaw / NeMo-style stacks
+## 3.2 RAVEN vs NemoClaw / NeMo-style stacks
 
 ### NemoClaw / NeMo-style strengths
 - observability
@@ -186,14 +186,14 @@ This section is practical: what others do well, what SARAS already has, and what
 - instrumented workflows
 - stronger governance
 
-### SARAS already has
+### RAVEN already has
 - some security controls
 - metrics beginnings
 - orchestrator + runtime split
 - modular potential
 - logging and diagnostics in places
 
-### SARAS still lacks
+### RAVEN still lacks
 1. **full tracing**
    - every request should produce a structured execution trace
 2. **evaluation harness**
@@ -209,7 +209,7 @@ This section is practical: what others do well, what SARAS already has, and what
 
 ---
 
-## 3.3 SARAS vs ZeroClaw
+## 3.3 RAVEN vs ZeroClaw
 
 ### ZeroClaw strengths
 - trait/interface-driven architecture
@@ -218,13 +218,13 @@ This section is practical: what others do well, what SARAS already has, and what
 - clean backend abstractions
 - lightweight systems mindset
 
-### SARAS already has
+### RAVEN already has
 - some modularity
 - separate connectors
 - distinct tool/runtime layers
 - replaceable providers in parts
 
-### SARAS still lacks
+### RAVEN still lacks
 1. **formal interface layer**
    - many modules are still concrete classes instead of stable contracts
 2. **uniform registry system**
@@ -237,7 +237,7 @@ This section is practical: what others do well, what SARAS already has, and what
 
 ---
 
-## 3.4 SARAS vs PicoClaw
+## 3.4 RAVEN vs PicoClaw
 
 ### PicoClaw strengths
 - tiny runtime
@@ -246,13 +246,13 @@ This section is practical: what others do well, what SARAS already has, and what
 - simple architecture
 - cloud-offload strategy
 
-### SARAS already has
+### RAVEN already has
 - CPU-friendly paths in some areas
 - optional cloud/provider model use
 - edge/IoT ambition
 - distributed thinking in docs
 
-### SARAS still lacks
+### RAVEN still lacks
 1. **true edge modules**
    - tiny sensor/voice/observer nodes
 2. **lightweight sidecar services**
@@ -275,7 +275,7 @@ This section is practical: what others do well, what SARAS already has, and what
 
 ---
 
-## 3.5 SARAS vs MiroFish
+## 3.5 RAVEN vs MiroFish
 
 ### MiroFish strengths
 - real-data ingestion
@@ -284,7 +284,7 @@ This section is practical: what others do well, what SARAS already has, and what
 - predictive scenario generation
 - alternative futures, not just answers
 
-### SARAS already has
+### RAVEN already has
 - agents
 - tools
 - memory direction
@@ -292,7 +292,7 @@ This section is practical: what others do well, what SARAS already has, and what
 - internet search/fetch capability
 - `agent_reach` as a strong future feed layer
 
-### SARAS still lacks
+### RAVEN still lacks
 1. **prediction engine**
    - first-class forecasting subsystem does not exist yet
 2. **scenario model layer**
@@ -301,7 +301,7 @@ This section is practical: what others do well, what SARAS already has, and what
    - rule/statistical forecast → agent scenario simulation
 4. **confidence, uncertainty, and scenario branching**
 5. **forecast dashboard**
-   - visual explanation of why SARAS predicts something
+   - visual explanation of why RAVEN predicts something
 6. **event ingestion pipeline**
    - continuously ingest news, feeds, market signals, sensor changes, user context
 7. **forecast evaluation loop**
@@ -348,7 +348,7 @@ Needed:
 
 ### D. Modular UI Personality Layer
 Needed:
-- interface that shows SARAS as a character
+- interface that shows RAVEN as a character
 - status, speaking state, mood/state indicators
 - memory cards, active goals, alerts, forecasts
 - voice and waveform presentation
@@ -399,12 +399,12 @@ The target architecture should be:
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│                      SARAS CONTROL PLANE                    │
+│                      RAVEN CONTROL PLANE                    │
 │  module registry • policy • observability • eval • config   │
 └──────────────────────────────────────────────────────────────┘
                               │
 ┌──────────────────────────────────────────────────────────────┐
-│                    SARAS COGNITIVE CORE                     │
+│                    RAVEN COGNITIVE CORE                     │
 │ orchestration • personality • memory • planning • context   │
 └──────────────────────────────────────────────────────────────┘
                               │
@@ -460,7 +460,7 @@ Output:
 
 ## 6.2 Personality Modules
 
-These define how SARAS feels.
+These define how RAVEN feels.
 
 ### Core submodules
 - Identity module
@@ -634,7 +634,7 @@ Prediction must happen in levels:
 - feed the event graph
 
 ### Missing today
-- direct integration into SARAS event bus
+- direct integration into RAVEN event bus
 - continuous watcher mode
 - source scoring and deduplication
 - ingestion to memory and forecast modules
@@ -677,7 +677,7 @@ Prediction must happen in levels:
 - module manager UI
 
 ### Responsibilities
-- make SARAS visible
+- make RAVEN visible
 - make personality visible
 - make reasoning inspectable
 - make forecasts understandable
@@ -714,7 +714,7 @@ Prediction must happen in levels:
 
 # 7. Canonical Module Contract
 
-Every module in SARAS should implement a common contract.
+Every module in RAVEN should implement a common contract.
 
 ## 7.1 Required Metadata
 
@@ -865,7 +865,7 @@ This is critical for:
 This section is essential.
 
 A JARVIS-like system can become too expensive or too heavy.  
-So SARAS should be designed as a **layered intelligence stack**.
+So RAVEN should be designed as a **layered intelligence stack**.
 
 ## 10.1 Compute routing policy
 
@@ -941,7 +941,7 @@ This order should be enforced by the control plane.
 
 # 11. Personality System Blueprint
 
-To achieve JARVIS/FRIDAY feel, SARAS needs a real personality framework.
+To achieve JARVIS/FRIDAY feel, RAVEN needs a real personality framework.
 
 ## 11.1 Personality dimensions
 - warmth
@@ -1111,7 +1111,7 @@ This is the practical phased plan.
 - resource profiles
 
 ### Result
-SARAS becomes a true platform, not just a growing app.
+RAVEN becomes a true platform, not just a growing app.
 
 ---
 
@@ -1127,12 +1127,12 @@ SARAS becomes a true platform, not just a growing app.
 - evaluation harness skeleton
 
 ### Result
-SARAS becomes inspectable, governable, and safer.
+RAVEN becomes inspectable, governable, and safer.
 
 ---
 
 ## Phase 3 — Personality Engine
-**Goal:** make SARAS feel like one coherent assistant
+**Goal:** make RAVEN feel like one coherent assistant
 
 ### Build
 - personality state model
@@ -1147,7 +1147,7 @@ JARVIS/FRIDAY feel becomes real.
 ---
 
 ## Phase 4 — Agent Reach Integration
-**Goal:** give SARAS continuous internet eyes
+**Goal:** give RAVEN continuous internet eyes
 
 ### Build
 - `agent_reach` adapter module
@@ -1157,7 +1157,7 @@ JARVIS/FRIDAY feel becomes real.
 - watchlists and topic monitors
 
 ### Result
-SARAS gets persistent awareness of the external world.
+RAVEN gets persistent awareness of the external world.
 
 ---
 
@@ -1173,7 +1173,7 @@ SARAS gets persistent awareness of the external world.
 - outcome tracking
 
 ### Result
-SARAS stops being only reactive.
+RAVEN stops being only reactive.
 
 ---
 
@@ -1204,7 +1204,7 @@ advanced predictive intelligence without making every request expensive.
 - operator controls
 
 ### Result
-SARAS feels alive, inspectable, and premium.
+RAVEN feels alive, inspectable, and premium.
 
 ---
 
@@ -1219,7 +1219,7 @@ SARAS feels alive, inspectable, and premium.
 - phone/edge offload experiments
 
 ### Result
-SARAS becomes deployable anywhere.
+RAVEN becomes deployable anywhere.
 
 ---
 
@@ -1265,18 +1265,18 @@ This is the clean checklist version.
 
 The right path is **not** to copy OpenClaw, NemoClaw, PicoClaw, ZeroClaw, or MiroFish directly.
 
-The right path is to build SARAS as a **hybrid**:
+The right path is to build RAVEN as a **hybrid**:
 
 - **OpenClaw-like** in assistant presence and channel reach
 - **Nemo-style** in observability, evaluation, and safety
 - **ZeroClaw-like** in strong modular interfaces
 - **PicoClaw-like** in low-compute and edge design
 - **MiroFish-like** in predictive scenario intelligence
-- **SARAS-like** in ambient intelligence, home awareness, personality, and deep investigation
+- **RAVEN-like** in ambient intelligence, home awareness, personality, and deep investigation
 
 That combination is stronger than any one of them alone.
 
-SARAS should become:
+RAVEN should become:
 
 > a modular personal intelligence operating system with one personality, many interfaces, real-world awareness, low-compute defaults, and predictive foresight.
 

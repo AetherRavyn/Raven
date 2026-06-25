@@ -41,7 +41,7 @@ def get_privacy_manager() -> PrivacyManager:
 def set_privacy_manager(manager: PrivacyManager | None) -> None:
     """Replace the singleton.  Pass ``None`` to clear it.
 
-    The runtime wires this in its ``__init__`` when ``SARAS_PRIVACY_V2``
+    The runtime wires this in its ``__init__`` when ``RAVEN_PRIVACY_V2``
     is set.  Tests use it to inject mocks.
     """
     global _MANAGER
@@ -60,7 +60,7 @@ def reset_privacy() -> None:
 def _build_default() -> PrivacyManager:
     """Build a default privacy manager with sane defaults.
 
-    If a HelixDB client is reachable and ``SARAS_PRIVACY_HELIX`` is
+    If a HelixDB client is reachable and ``RAVEN_PRIVACY_HELIX`` is
     enabled (default), the manager is wired with a
     :class:`HelixPrivacyStore` that mirrors consent/retention
     writes to durable storage.  If Helix is unavailable the
@@ -98,8 +98,8 @@ def _try_build_helix_store(
     """
     import os
 
-    if os.environ.get("SARAS_PRIVACY_HELIX", "1").lower() in ("0", "false", "no"):
-        logger.info("HelixPrivacyStore disabled by SARAS_PRIVACY_HELIX=0")
+    if os.environ.get("RAVEN_PRIVACY_HELIX", "1").lower() in ("0", "false", "no"):
+        logger.info("HelixPrivacyStore disabled by RAVEN_PRIVACY_HELIX=0")
         return None
     try:
         from app.core.privacy.persistence import HelixPrivacyStore

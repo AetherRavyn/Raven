@@ -1,0 +1,180 @@
+name: desktop-build
+
+on:
+  push:
+    branches: [main, develop, "feat/**"]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, develop, "feat/**"]
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Target platform"
+        required: true
+        default: "all"
+        type: choice
+        options: [all, macos, windows, linux]
+
+# Don't cancel mid-build (PyInstaller + Tauri take a while).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.12"
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # ---------------------------------------------------------------------
+  # macOS (universal binary: aarch64 + x86_64)
+  # ---------------------------------------------------------------------
+  macos:
+    name: desktop (macOS)
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos' || github.event_name != 'workflow_dispatch' }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[all]
+          python -m pip install pyinstaller
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: companion-shell/src-tauri -> target
+
+      - name: Build desktop (PyInstaller + Tauri)
+        run: bash scripts/build-desktop.sh --shell-only
+        env:
+          RAVEN_BUILD_TARGET: universal2
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: raven-desktop-macos
+          path: |
+            companion-shell/src-tauri/target/**/bundle/dmg/*.dmg
+            companion-shell/src-tauri/target/**/bundle/macos/*.app
+          if-no-files-found: warn
+          retention-days: 14
+
+  # ---------------------------------------------------------------------
+  # Windows (MSVC)
+  # ---------------------------------------------------------------------
+  windows:
+    name: desktop (Windows)
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows' || github.event_name != 'workflow_dispatch' }}
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[all]
+          python -m pip install pyinstaller
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: companion-shell/src-tauri -> target
+
+      - name: Build desktop
+        shell: bash
+        run: bash scripts/build-desktop.sh --shell-only
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: raven-desktop-windows
+          path: |
+            companion-shell/src-tauri/target/**/bundle/msi/*.msi
+            companion-shell/src-tauri/target/**/bundle/nsis/*.exe
+          if-no-files-found: warn
+          retention-days: 14
+
+  # ---------------------------------------------------------------------
+  # Linux (webkit2gtk-4.1)
+  # ---------------------------------------------------------------------
+  linux:
+    name: desktop (Linux)
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' || github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[all]
+          python -m pip install pyinstaller
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: companion-shell/src-tauri -> target
+
+      - name: Build desktop
+        run: bash scripts/build-desktop.sh --shell-only
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: raven-desktop-linux
+          path: |
+            companion-shell/src-tauri/target/**/bundle/appimage/*.AppImage
+            companion-shell/src-tauri/target/**/bundle/deb/*.deb
+          if-no-files-found: warn
+          retention-days: 14

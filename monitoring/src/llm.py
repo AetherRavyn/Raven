@@ -7,14 +7,14 @@ from typing import Any, Dict
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ResourceTemplate
 
-# Import SARAS configuration and components
+# Import RAVEN configuration and components
 from monitoring.config.settings import llm_config
 from monitoring.src.message_bus import MessageBus
 
 logger = logging.getLogger(__name__)
 
 # Create the MCP Server instance
-mcp_server = FastMCP("SARAS_Higher_Intelligence_Uplink")
+mcp_server = FastMCP("RAVEN_Higher_Intelligence_Uplink")
 
 # We hold a global reference to the message bus so MCP tools can query the living system
 _global_bus = None
@@ -24,7 +24,7 @@ def init_llm_uplink(bus: MessageBus):
     """Initializes the MCP server context with the live message bus."""
     global _global_bus
     _global_bus = bus
-    logger.info("SARAS Higher Intelligence Uplink (MCP) Initialized.")
+    logger.info("RAVEN Higher Intelligence Uplink (MCP) Initialized.")
 
     # Subscribe to alerts to catch CRITICAL events for potential proactive push
     bus.subscribe("alerts.generated", _handle_alerts)
@@ -47,12 +47,12 @@ def _handle_alerts(payload: Dict[str, Any]):
 
 # ─── MCP RESOURCES ─────────────────────────────────────────────────────────────
 
-@mcp_server.resource("saras://system/status")
+@mcp_server.resource("raven://system/status")
 def get_system_status() -> str:
-    """Returns the current operational status of the SARAS Node."""
+    """Returns the current operational status of the RAVEN Node."""
     return json.dumps({"status": "Online", "mode": "Central Master", "role": "Surveillance Node"})
 
-@mcp_server.resource("saras://events/critical/recent")
+@mcp_server.resource("raven://events/critical/recent")
 def get_recent_critical_events() -> str:
     """Returns the payload of the most recent CRITICAL alerts for LLM context."""
     return json.dumps(_recent_critical_events, indent=2)
@@ -61,7 +61,7 @@ def get_recent_critical_events() -> str:
 
 @mcp_server.tool()
 def query_camera_status(camera_id: str) -> str:
-    """Queries the status of a specific camera connected to the SARAS node."""
+    """Queries the status of a specific camera connected to the RAVEN node."""
     # In reality, this would query Neo4j or SQLite
     return json.dumps({
         "camera_id": camera_id,
@@ -73,7 +73,7 @@ def query_camera_status(camera_id: str) -> str:
 @mcp_server.tool()
 def actuate_esp_device(target_esp: str, command: str, value: Any = None) -> str:
     """
-    Commands the SARAS central node to dispatch an actuation command to a 
+    Commands the RAVEN central node to dispatch an actuation command to a 
     specific IoT ESP device (e.g., locking a door, turning on a light).
     """
     if not _global_bus:
@@ -114,5 +114,5 @@ if __name__ == "__main__":
     # If run autonomously, start the FastMCP StdIO server processing loop.
     # LLMs (like Claude via Cursor or Claude Desktop) connect to this via standard I/O streams.
     logging.basicConfig(level=logging.INFO)
-    logger.info("Starting SARAS MCP Server via stdio...")
+    logger.info("Starting RAVEN MCP Server via stdio...")
     mcp_server.run(transport=llm_config.get("mcp_server_binding", "stdio"))

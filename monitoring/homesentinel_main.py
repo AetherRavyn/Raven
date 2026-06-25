@@ -200,5 +200,5 @@ signal.signal(signal.SIGTERM, _force_exit)
 
 if __name__ == "__main__":
     uvicorn.run(
-        "monitoring.homesentinel_main:app", host="0.0.0.0", port=8100, reload=False
+        "monitoring.homesentinel_main:app", host="127.0.0.1", port=8100, reload=False
     )

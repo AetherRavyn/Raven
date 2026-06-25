@@ -27,10 +27,30 @@ from app.core.planning.types import (
 logger = logging.getLogger(__name__)
 
 
+class _SubplanFailed(RuntimeError):
+    """Sentinel raised by :meth:`PlanExecutor._dispatch_subplan`
+    when the referenced sub-plan completed in a non-``COMPLETED``
+    state (failed, abandoned).
+
+    The parent step's :meth:`PlanExecutor._run_step` retry loop
+    treats this as a **non-retryable** terminal failure: the
+    sub-plan already exhausted its own retries, so re-running
+    it from the parent side would just re-trigger the same
+    failure.  The first attempt's error message is preserved
+    rather than overwritten by the third retry.
+    """
+
+
 # Dispatcher signatures
 ToolDispatcher = Callable[[str, dict[str, Any]], Awaitable[Any]]
 LLMDispatcher = Callable[[str], Awaitable[str]]
 AskUserDispatcher = Callable[[str], Awaitable[str]]
+# Sub-plan resolver: given a subplan_id, return the TaskPlan
+# to execute.  Returns ``None`` when the sub-plan is unknown.
+# Injected so the executor does not need a reference to the
+# PlanStore directly (avoids a circular import with
+# ``app.core.planning.store``).
+SubplanResolver = Callable[[str], Awaitable[TaskPlan | None] | TaskPlan | None]
 
 
 @dataclass(slots=True)
@@ -63,6 +83,19 @@ class PlanExecutor:
     tool_dispatcher: Optional[ToolDispatcher] = None
     llm_dispatcher: Optional[LLMDispatcher] = None
     ask_user_dispatcher: Optional[AskUserDispatcher] = None
+    # Resolver for sub-plan steps.  Called with the
+    # ``subplan_id`` from a step whose ``action == "subplan"``.
+    # When the resolver returns ``None`` the step fails with
+    # a "sub-plan not found" error; when the resolver itself
+    # raises the failure is propagated.
+    subplan_resolver: Optional[SubplanResolver] = None
+    # Optional dedicated executor for sub-plans.  When set,
+    # sub-plan dispatch recurses through this executor (so
+    # sub-plans get the same retry/checkpoint behaviour as
+    # top-level plans).  When ``None`` the executor recurses
+    # into its own ``execute()`` method, which is what tests
+    # and simple deployments want.
+    subplan_executor: Optional["PlanExecutor"] = None
     max_retries: int = 3
     retry_backoff_s: float = 0.5
     step_timeout_s: float = 120.0
@@ -167,6 +200,20 @@ class PlanExecutor:
                         await out
                 await self._checkpoint(plan)
                 return sr
+            except _SubplanFailed as e:
+                # A failed sub-plan is a terminal, non-retryable
+                # outcome — the sub-plan already exhausted its
+                # own retry budget, so re-running it from the
+                # parent would just re-trigger the same failure
+                # and overwrite this first attempt's error with
+                # an identical copy on attempt 2 and 3.  Bail
+                # immediately with the original error.
+                last_error = f"{type(e).__name__}: {e}"
+                logger.warning(
+                    "step %s sub-plan failed (non-retryable): %s",
+                    step.id, last_error,
+                )
+                break
             except Exception as e:  # noqa: BLE001
                 last_error = f"{type(e).__name__}: {e}"
                 logger.warning(
@@ -216,9 +263,101 @@ class PlanExecutor:
             await asyncio.sleep(min(secs, 60.0))  # cap at 60s in tests
             return f"waited {secs}s"
         if step.action == "subplan":
-            # Sub-plans are not in scope for v1.
-            raise NotImplementedError("subplan actions are not yet supported")
+            return await self._dispatch_subplan(step)
         raise ValueError(f"unknown action: {step.action}")
+
+    async def _dispatch_subplan(self, step: PlanStep) -> Any:
+        """Resolve a ``subplan`` step's referenced sub-plan and
+        execute it, propagating the sub-plan's result back as
+        the parent step's result.
+
+        Failure modes (all raised — the caller in :meth:`_run_step`
+        catches them and turns them into step failures):
+
+        * ``step.subplan_id`` is ``None`` or empty → ``ValueError``
+        * ``subplan_resolver`` is not wired → ``RuntimeError``
+        * the resolver returns ``None`` → ``RuntimeError`` with a
+          clear "sub-plan not found" message
+        * the resolved sub-plan is malformed (no steps) →
+          ``ValueError``
+
+        A sub-plan that reaches a terminal state during execution
+        is treated as follows:
+
+        * ``COMPLETED`` → the sub-plan's accumulated result (last
+          step's result, or the explicit ``subplan_result`` metadata
+          if set) becomes the parent step's ``result``.
+        * ``FAILED`` / ``ABANDONED`` → the sub-plan's first FAILED
+          step's error is raised, wrapped with the parent step id
+          for context.
+        """
+        subplan_id = (step.subplan_id or "").strip()
+        if not subplan_id:
+            raise ValueError(
+                f"subplan step {step.id!r} has no subplan_id",
+            )
+        if self.subplan_resolver is None:
+            raise RuntimeError(
+                f"subplan step {step.id!r} cannot dispatch: "
+                "no subplan_resolver wired",
+            )
+        resolved = self.subplan_resolver(subplan_id)
+        if asyncio.iscoroutine(resolved):
+            resolved = await resolved
+        if resolved is None:
+            raise RuntimeError(
+                f"subplan step {step.id!r} references unknown "
+                f"subplan_id {subplan_id!r}",
+            )
+        if not isinstance(resolved, TaskPlan):
+            raise ValueError(
+                f"subplan_resolver returned {type(resolved).__name__} "
+                f"for subplan_id {subplan_id!r}; expected TaskPlan",
+            )
+        if not resolved.steps:
+            raise ValueError(
+                f"subplan {subplan_id!r} has no steps to execute",
+            )
+        # Execute the sub-plan.  When a dedicated
+        # ``subplan_executor`` is configured, use that — the
+        # sub-plan gets its own retry / checkpoint / hook
+        # surface.  Otherwise recurse into this executor's
+        # ``execute()``, which keeps the sub-plan inside the
+        # same checkpoint stream (every sub-plan step also
+        # gets persisted via the parent store).
+        executor = self.subplan_executor or self
+        sub_result = await executor.execute(resolved)
+        if sub_result.plan.status == PlanStatus.COMPLETED:
+            # Surface a result that is meaningful to the
+            # parent plan.  Prefer the explicit
+            # ``subplan_result`` metadata if the planner
+            # set it; otherwise the last completed step's
+            # result; otherwise an empty summary.
+            if "subplan_result" in sub_result.plan.metadata:
+                return sub_result.plan.metadata["subplan_result"]
+            completed = sub_result.plan.completed_steps()
+            if completed:
+                return completed[-1].result
+            return {"status": "completed", "subplan_id": subplan_id}
+        # Sub-plan failed — propagate the first failed step's
+        # error with the parent step id for context.  Use the
+        # ``_SubplanFailed`` sentinel so the parent's retry
+        # loop does not re-execute the already-exhausted
+        # sub-plan three times (which would just re-trigger
+        # the same failure and overwrite the first attempt's
+        # error).
+        failed = [
+            s for s in resolved.steps
+            if s.status == StepStatus.FAILED
+        ]
+        first = failed[0] if failed else None
+        reason = (
+            f"subplan {subplan_id!r} (executed by step {step.id!r}) "
+            f"did not complete (status={sub_result.plan.status.value})"
+        )
+        if first is not None and first.error:
+            reason = f"{reason}; first failure: {first.error}"
+        raise _SubplanFailed(reason)
 
     async def _checkpoint(self, plan: TaskPlan) -> None:
         if self.store is None:

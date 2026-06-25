@@ -86,9 +86,7 @@ class OllamaProvider:
                         try:
                             chunk = _json.loads(payload)
                             delta = (
-                                chunk.get("choices", [{}])[0]
-                                .get("delta", {})
-                                .get("content", "")
+                                chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
                             )
                             if delta:
                                 yield delta
@@ -98,10 +96,17 @@ class OllamaProvider:
             logger.error("Ollama stream error: %s", exc)
 
     async def health(self) -> bool:
-        """Return True if the Ollama server is reachable."""
+        """Return True if the Ollama server is reachable and the model is available."""
         try:
             async with httpx.AsyncClient(timeout=5) as client:
-                resp = await client.get(f"{self._base_url}/api/version")
-                return resp.status_code == 200
+                version_resp = await client.get(f"{self._base_url}/api/version")
+                if version_resp.status_code != 200:
+                    return False
+                tags_resp = await client.get(f"{self._base_url}/api/tags")
+                if tags_resp.status_code != 200:
+                    return False
+                models = tags_resp.json().get("models", [])
+                model_names = {m.get("name", "") for m in models}
+                return self._model in model_names or bool(models)
         except Exception:
             return False

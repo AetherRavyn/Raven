@@ -9650,3 +9650,1015 @@ Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reas
 2026-04-20 16:41:31,372 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
 2026-04-20 16:41:31,372 __main__ INFO All bot tasks stopped.
 2026-04-20 16:41:31,372 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-21 22:43:56,107 app.settings.validate INFO ====================================================
+2026-06-21 22:43:56,107 app.settings.validate INFO SARAS Startup Configuration
+2026-06-21 22:43:56,107 app.settings.validate INFO ====================================================
+2026-06-21 22:43:56,107 app.settings.validate INFO   [OK]  Telegram               ready
+2026-06-21 22:43:56,107 app.settings.validate INFO   [OK]  Discord                ready
+2026-06-21 22:43:56,107 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-06-21 22:43:56,107 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-06-21 22:43:56,107 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-06-21 22:43:56,107 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-06-21 22:43:56,107 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-06-21 22:43:56,107 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-06-21 22:43:56,107 app.settings.validate INFO   [OK]  OpenWeatherMap         ready
+2026-06-21 22:43:56,107 app.settings.validate INFO   [OK]  Piper-TTS              ready (voice=autherRaven)
+2026-06-21 22:43:56,107 app.settings.validate INFO   [--]  whisper.cpp            missing model: 'workspace/models/whisper/ggml-tiny.bin'
+2026-06-21 22:43:56,107 app.settings.validate INFO ====================================================
+2026-06-21 22:43:59,190 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-06-21 22:43:59,459 huggingface_hub.utils._http WARNING Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-06-21 22:44:02,868 app.core.memory INFO MemoryStore: facts=0 tools=6
+2026-06-21 22:44:03,331 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-06-21 22:44:03,331 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-06-21 22:44:03,331 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-06-21 22:44:03,336 __main__ INFO Outbox recovery drain armed.
+2026-06-21 22:44:03,352 apscheduler.scheduler INFO Scheduler started
+2026-06-21 22:44:03,353 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-06-21 22:44:03,362 app.telegram.bot INFO Telegram bot configured successfully.
+2026-06-21 22:44:03,362 __main__ INFO Discord message content intent is enabled
+2026-06-21 22:44:03,362 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-06-21 22:44:03,413 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-06-21 22:44:03,418 app.core.ambient_loop INFO Self-Improvement: found 46 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-21 22:44:03,419 discord.client INFO logging in using static token
+2026-06-21 22:44:03,459 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 22:44:03,460 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-06-21 22:44:03,462 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-21 22:44:03,462 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-21 22:44:03,462 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-21 22:44:03,464 app.core.knowledge_manager WARNING KnowledgeManager.record_fact: KG write failed (('default', 'prefers', 'dark mode')) — asyncio.run() cannot be called from a running event loop
+2026-06-21 22:44:03,466 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-21 22:44:03,467 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 22:44:03,467 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 22:44:03,467 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-21 22:44:04,457 apscheduler.scheduler INFO Scheduler started
+2026-06-21 22:44:04,457 telegram.ext.Application INFO Application started
+2026-06-21 22:44:05,458 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 62fca1d9f641e7c7df7a01a4825a5824).
+2026-06-21 22:49:03,479 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 22:49:03,479 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 22:49:03,479 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 22:54:03,493 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 22:54:03,502 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-21 22:54:03,502 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-21 22:54:03,502 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-21 22:54:03,503 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 22:54:03,503 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 22:59:03,518 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 22:59:03,519 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 22:59:03,519 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:04:03,531 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 23:04:03,531 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-21 23:04:03,532 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-21 23:04:03,532 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-21 23:04:03,532 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 23:04:03,532 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:09:03,546 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 23:09:03,547 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 23:09:03,547 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:14:03,560 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 23:14:03,561 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-21 23:14:03,561 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-21 23:14:03,561 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-21 23:14:03,562 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 23:14:03,562 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:19:03,575 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 23:19:03,576 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 23:19:03,576 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:24:03,587 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 23:24:03,587 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-21 23:24:03,588 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-21 23:24:03,588 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-21 23:24:03,588 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 23:24:03,588 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:29:03,604 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 23:29:03,605 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 23:29:03,605 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:34:03,612 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 23:34:03,612 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-21 23:34:03,612 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-21 23:34:03,612 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-21 23:34:03,612 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 23:34:03,612 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:39:03,623 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 23:39:03,632 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 23:39:03,632 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:44:03,647 app.core.ambient_loop INFO Self-Improvement: found 46 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-21 23:44:03,652 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 23:44:03,653 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-21 23:44:03,653 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-21 23:44:03,653 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-21 23:44:03,654 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-21 23:44:03,654 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 23:44:03,655 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:44:03,655 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-21 23:49:03,683 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 23:49:03,684 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 23:49:03,685 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:54:03,698 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-21 23:54:03,699 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-21 23:54:03,700 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-21 23:54:03,700 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-21 23:54:03,701 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-21 23:54:03,701 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-21 23:58:23,062 __main__ INFO Shutdown signal received
+2026-06-21 23:58:23,071 __main__ INFO Graceful shutdown started
+2026-06-21 23:58:23,172 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-06-21 23:58:26,072 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-06-21 23:58:26,073 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-21 23:58:26,083 telegram.ext.Application INFO Application.stop() complete
+2026-06-21 23:58:31,072 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-06-21 23:58:31,072 __main__ INFO All bot tasks stopped.
+2026-06-21 23:58:31,078 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 00:56:26,253 app.settings.validate INFO ====================================================
+2026-06-22 00:56:26,253 app.settings.validate INFO SARAS Startup Configuration
+2026-06-22 00:56:26,253 app.settings.validate INFO ====================================================
+2026-06-22 00:56:26,253 app.settings.validate INFO   [OK]  Telegram               ready
+2026-06-22 00:56:26,253 app.settings.validate INFO   [OK]  Discord                ready
+2026-06-22 00:56:26,253 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-06-22 00:56:26,253 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-06-22 00:56:26,253 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-06-22 00:56:26,253 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-06-22 00:56:26,253 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-06-22 00:56:26,253 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-06-22 00:56:26,254 app.settings.validate INFO   [OK]  OpenWeatherMap         ready
+2026-06-22 00:56:26,254 app.settings.validate INFO   [OK]  Piper-TTS              ready (voice=autherRaven)
+2026-06-22 00:56:26,254 app.settings.validate INFO   [--]  whisper.cpp            missing model: 'workspace/models/whisper/ggml-tiny.bin'
+2026-06-22 00:56:26,254 app.settings.validate INFO ====================================================
+2026-06-22 00:56:30,045 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-06-22 00:56:30,621 huggingface_hub.utils._http WARNING Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-06-22 00:56:33,817 app.core.memory INFO MemoryStore: facts=0 tools=6
+2026-06-22 00:56:34,325 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-06-22 00:56:34,326 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-06-22 00:56:34,326 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-06-22 00:56:34,331 __main__ INFO Outbox recovery drain armed.
+2026-06-22 00:56:34,338 apscheduler.scheduler INFO Scheduler started
+2026-06-22 00:56:34,338 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-06-22 00:56:34,346 app.telegram.bot INFO Telegram bot configured successfully.
+2026-06-22 00:56:34,346 __main__ INFO Discord message content intent is enabled
+2026-06-22 00:56:34,347 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-06-22 00:56:34,397 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-06-22 00:56:34,399 app.core.ambient_loop INFO Self-Improvement: found 46 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 00:56:34,400 discord.client INFO logging in using static token
+2026-06-22 00:56:34,431 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-22 00:56:34,433 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-06-22 00:56:34,434 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 00:56:34,434 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 00:56:34,434 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 00:56:34,437 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 00:56:34,439 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 00:56:34,439 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 00:56:34,439 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-22 00:56:34,983 apscheduler.scheduler INFO Scheduler started
+2026-06-22 00:56:34,984 telegram.ext.Application INFO Application started
+2026-06-22 00:56:36,182 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 7f70d816f3e9ae8b5e75e4316d666532).
+2026-06-22 01:00:49,600 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1212854474121683034  text='hi'
+2026-06-22 01:00:49,636 app.core.security WARNING No ADMIN_USER_IDS configured. All privileged actions will be blocked.
+2026-06-22 01:00:49,640 app.core.dm_pairing INFO Generated pairing code HXFJV2 for u_ff69f412 on discord (expires 2026-06-21T19:10:49.640090+00:00)
+2026-06-22 01:00:49,655 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-06-22 01:00:50,592 app.runtime.outbox INFO outbox sent: key=botsignal:discord:1212854474121683034:bc40ad21469bc55978bd26c2539633759b288a0f871f8c0748ac061aa53503a4:116789637915843473047552 channel=discord target=1212854474121683034 (attempts=1)
+2026-06-22 01:01:34,457 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-22 01:01:34,458 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 01:01:34,458 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 01:03:43,517 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1212854474121683034  text='hi'
+2026-06-22 01:03:43,547 app.core.security WARNING No ADMIN_USER_IDS configured. All privileged actions will be blocked.
+2026-06-22 01:03:44,556 app.runtime.outbox INFO outbox sent: key=botsignal:discord:1212854474121683034:bc40ad21469bc55978bd26c2539633759b288a0f871f8c0748ac061aa53503a4:116789649312809987342337 channel=discord target=1212854474121683034 (attempts=1)
+2026-06-22 01:04:01,074 __main__ INFO Shutdown signal received
+2026-06-22 01:04:01,074 __main__ INFO Graceful shutdown started
+2026-06-22 01:04:01,176 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-06-22 01:04:01,574 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-06-22 01:04:01,574 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 01:04:01,584 telegram.ext.Application INFO Application.stop() complete
+2026-06-22 01:04:09,077 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-06-22 01:04:09,077 __main__ INFO All bot tasks stopped.
+2026-06-22 01:04:09,078 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 01:04:13,821 app.settings.validate INFO ====================================================
+2026-06-22 01:04:13,821 app.settings.validate INFO SARAS Startup Configuration
+2026-06-22 01:04:13,821 app.settings.validate INFO ====================================================
+2026-06-22 01:04:13,821 app.settings.validate INFO   [OK]  Telegram               ready
+2026-06-22 01:04:13,821 app.settings.validate INFO   [OK]  Discord                ready
+2026-06-22 01:04:13,821 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-06-22 01:04:13,821 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-06-22 01:04:13,821 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-06-22 01:04:13,821 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-06-22 01:04:13,821 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-06-22 01:04:13,821 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-06-22 01:04:13,821 app.settings.validate INFO   [OK]  OpenWeatherMap         ready
+2026-06-22 01:04:13,821 app.settings.validate INFO   [OK]  Piper-TTS              ready (voice=autherRaven)
+2026-06-22 01:04:13,821 app.settings.validate INFO   [--]  whisper.cpp            missing model: 'workspace/models/whisper/ggml-tiny.bin'
+2026-06-22 01:04:13,821 app.settings.validate INFO ====================================================
+2026-06-22 01:04:16,802 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-06-22 01:04:17,069 huggingface_hub.utils._http WARNING Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-06-22 01:04:20,585 app.core.memory INFO MemoryStore: facts=0 tools=6
+2026-06-22 01:04:21,082 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-06-22 01:04:21,082 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-06-22 01:04:21,082 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-06-22 01:04:21,087 __main__ INFO Outbox recovery drain armed.
+2026-06-22 01:04:21,102 apscheduler.scheduler INFO Scheduler started
+2026-06-22 01:04:21,103 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-06-22 01:04:21,112 app.telegram.bot INFO Telegram bot configured successfully.
+2026-06-22 01:04:21,112 __main__ INFO Discord message content intent is enabled
+2026-06-22 01:04:21,113 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-06-22 01:04:21,158 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-06-22 01:04:21,160 app.core.ambient_loop INFO Self-Improvement: found 46 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 01:04:21,161 discord.client INFO logging in using static token
+2026-06-22 01:04:21,189 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-22 01:04:21,192 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-06-22 01:04:21,193 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 01:04:21,193 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 01:04:21,193 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 01:04:21,198 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 01:04:21,734 apscheduler.scheduler INFO Scheduler started
+2026-06-22 01:04:21,734 telegram.ext.Application INFO Application started
+2026-06-22 01:04:24,104 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: be3cbe616687b9071bff0dffd8faf43a).
+2026-06-22 01:04:28,538 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1212854474121683034  text='hi'
+2026-06-22 01:04:28,570 app.core.security WARNING No ADMIN_USER_IDS configured. All privileged actions will be blocked.
+2026-06-22 01:04:28,587 app.core.ratelimit WARNING RedisRateLimiter error (falling back to allow): Error Multiple exceptions: [Errno 111] Connect call failed ('::1', 6379, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 6379) connecting to localhost:6379.
+2026-06-22 01:04:29,456 app.runtime.outbox INFO outbox sent: key=botsignal:discord:1212854474121683034:71e916704bd9f2d4c33b08eefe52f8f5fa8f1a2eb3d7c52884a124c10bd67262:116789652263997388423168 channel=discord target=1212854474121683034 (attempts=1)
+2026-06-22 01:05:40,284 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1212854474121683034  text='who are you ?'
+2026-06-22 01:05:40,316 app.core.security WARNING No ADMIN_USER_IDS configured. All privileged actions will be blocked.
+2026-06-22 01:05:41,508 app.runtime.outbox INFO outbox sent: key=botsignal:discord:1212854474121683034:f6470564d131fe1e43ead810410c3f359e846a0aaf6bb9b14d742b86431ea33c:116789656965393709924353 channel=discord target=1212854474121683034 (attempts=1)
+2026-06-22 01:05:50,033 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1212854474121683034  text='who is your master'
+2026-06-22 01:05:50,063 app.core.security WARNING No ADMIN_USER_IDS configured. All privileged actions will be blocked.
+2026-06-22 01:05:50,196 app.core.runtime INFO AGENT_RUNTIME  begin_react_loop  session=discord_1212854474121683034:1518331126291370085  tools=49
+2026-06-22 01:05:50,825 app.core.runtime WARNING AGENT_RUNTIME  primary_provider_failed  session=discord_1212854474121683034:1518331126291370085 provider=google
+2026-06-22 01:05:50,843 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518331126291370085  fallback_provider=opencode
+2026-06-22 01:05:50,847 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-06-22 01:05:53,723 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518331126291370085  fallback_provider=qwen_cli
+2026-06-22 01:05:53,724 app.provider.cli_proxy INFO CLI proxy: invoking qwen (tool=qwen)
+2026-06-22 01:06:00,604 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518331126291370085  fallback_provider=gemini_cli
+2026-06-22 01:06:00,604 app.provider.cli_proxy INFO CLI proxy: invoking gemini (tool=gemini)
+2026-06-22 01:06:07,965 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518331126291370085  fallback_provider=kilocode
+2026-06-22 01:06:07,965 app.provider.cli_proxy INFO CLI proxy: invoking kilocode (tool=kilocode)
+2026-06-22 01:07:21,204 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 01:07:21,204 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 01:08:09,319 app.provider.cli_proxy WARNING CLI proxy: kilocode timed out after 120s
+2026-06-22 01:08:09,320 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518331126291370085  fallback_provider=cli_proxy
+2026-06-22 01:08:09,320 app.provider.cli_proxy INFO CLI proxy: invoking gh (tool=gh-copilot)
+2026-06-22 01:08:10,043 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518331126291370085  fallback_provider=jules
+2026-06-22 01:08:10,044 app.provider.cli_proxy INFO CLI proxy: invoking jules (tool=jules)
+2026-06-22 01:08:10,466 app.provider.cli_proxy INFO CLI proxy: jules returned 70 chars of clean content
+2026-06-22 01:08:10,466 app.core.runtime INFO AGENT_RUNTIME  fallback_success  session=discord_1212854474121683034:1518331126291370085  fallback_provider=jules
+2026-06-22 01:08:10,484 app.core.runtime INFO AGENT_RUNTIME  final_response  session=discord_1212854474121683034:1518331126291370085  turn=1  len=120
+2026-06-22 01:08:11,825 app.runtime.outbox INFO outbox sent: key=botsignal:discord:1212854474121683034:265fde2160bb652a01ba9ad31ad903290ff7c561b666b2f1edaad5662f933dae:116789666806814450909186 channel=discord target=1212854474121683034 (attempts=1)
+2026-06-22 01:08:11,826 app.core.runtime WARNING AGENT_RUNTIME  verification_issue  session=discord_1212854474121683034:1518331126291370085  findings=['missing criterion: Objective is explicit.', 'missing criterion: Requested outcome is produced.', 'missing criterion: Output is internally consistent.']
+2026-06-22 01:08:11,947 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:08:11,949 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:08:11,952 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:08:11,954 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:08:11,956 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:08:11,957 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:08:11,959 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:08:11,960 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:08:11,961 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:08:11,963 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:09:21,208 app.core.ambient_loop WARNING AmbientLoop: 5 service(s) DOWN: redis, ollama, home_assistant, smtp, google_calendar
+2026-06-22 01:12:21,214 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 01:12:21,215 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 01:14:01,971 __main__ INFO Shutdown signal received
+2026-06-22 01:14:01,971 __main__ INFO Graceful shutdown started
+2026-06-22 01:14:02,072 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-06-22 01:14:02,467 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-06-22 01:14:02,467 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 01:14:02,478 telegram.ext.Application INFO Application.stop() complete
+2026-06-22 01:14:09,972 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-06-22 01:14:09,973 __main__ INFO All bot tasks stopped.
+2026-06-22 01:14:09,973 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 01:40:30,633 app.settings.validate INFO ====================================================
+2026-06-22 01:40:30,633 app.settings.validate INFO SARAS Startup Configuration
+2026-06-22 01:40:30,633 app.settings.validate INFO ====================================================
+2026-06-22 01:40:30,633 app.settings.validate INFO   [OK]  Telegram               ready
+2026-06-22 01:40:30,633 app.settings.validate INFO   [OK]  Discord                ready
+2026-06-22 01:40:30,633 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-06-22 01:40:30,633 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-06-22 01:40:30,633 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-06-22 01:40:30,634 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-06-22 01:40:30,634 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-06-22 01:40:30,634 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-06-22 01:40:30,634 app.settings.validate INFO   [OK]  OpenWeatherMap         ready
+2026-06-22 01:40:30,634 app.settings.validate INFO   [OK]  Piper-TTS              ready (voice=autherRaven)
+2026-06-22 01:40:30,634 app.settings.validate INFO   [--]  whisper.cpp            missing model: 'workspace/models/whisper/ggml-tiny.bin'
+2026-06-22 01:40:30,634 app.settings.validate INFO ====================================================
+2026-06-22 01:40:34,068 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-06-22 01:40:34,373 huggingface_hub.utils._http WARNING Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-06-22 01:40:37,786 app.core.memory INFO MemoryStore: facts=0 tools=7
+2026-06-22 01:40:38,330 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-06-22 01:40:38,330 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-06-22 01:40:38,330 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-06-22 01:40:38,335 __main__ INFO Outbox recovery drain armed.
+2026-06-22 01:40:38,343 apscheduler.scheduler INFO Scheduler started
+2026-06-22 01:40:38,344 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-06-22 01:40:38,352 app.telegram.bot INFO Telegram bot configured successfully.
+2026-06-22 01:40:38,352 __main__ INFO Discord message content intent is enabled
+2026-06-22 01:40:38,353 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-06-22 01:40:38,407 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-06-22 01:40:38,420 app.core.ambient_loop INFO Self-Improvement: found 46 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ExecTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'SandboxExecTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 01:40:38,422 discord.client INFO logging in using static token
+2026-06-22 01:40:38,449 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-06-22 01:40:38,454 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 01:40:38,455 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 01:40:38,455 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 01:40:38,463 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 01:40:38,466 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 01:40:38,466 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 01:40:38,961 apscheduler.scheduler INFO Scheduler started
+2026-06-22 01:40:38,962 telegram.ext.Application INFO Application started
+2026-06-22 01:40:40,296 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 9a1d92985207692dd59b1d9bada1404d).
+2026-06-22 01:43:45,302 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1212854474121683034  text='hi'
+2026-06-22 01:43:46,394 app.runtime.outbox INFO outbox sent: key=botsignal:discord:1212854474121683034:71e916704bd9f2d4c33b08eefe52f8f5fa8f1a2eb3d7c52884a124c10bd67262:116789806716821927100416 channel=discord target=1212854474121683034 (attempts=1)
+2026-06-22 01:43:52,471 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1212854474121683034  text='how are you ?'
+2026-06-22 01:43:53,522 app.runtime.outbox INFO outbox sent: key=botsignal:discord:1212854474121683034:3b14e2acb3ca46b15b5d9a277ea11e8d25ba0f5c291a5a698aedf88aef983388:116789807186111371345921 channel=discord target=1212854474121683034 (attempts=1)
+2026-06-22 01:44:02,643 app.discord.discordapp INFO Discord incoming  user=1073901749984837662  channel=1212854474121683034  text='who is your creator ?'
+2026-06-22 01:44:02,815 app.core.runtime INFO AGENT_RUNTIME  begin_react_loop  session=discord_1212854474121683034:1518340742609768448  tools=49
+2026-06-22 01:44:03,452 app.core.runtime WARNING AGENT_RUNTIME  primary_provider_failed  session=discord_1212854474121683034:1518340742609768448 provider=google
+2026-06-22 01:44:03,465 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518340742609768448  fallback_provider=opencode
+2026-06-22 01:44:03,468 app.provider.cli_proxy INFO CLI proxy: invoking opencode (tool=opencode)
+2026-06-22 01:44:06,221 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518340742609768448  fallback_provider=qwen_cli
+2026-06-22 01:44:06,222 app.provider.cli_proxy INFO CLI proxy: invoking qwen (tool=qwen)
+2026-06-22 01:44:12,934 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518340742609768448  fallback_provider=gemini_cli
+2026-06-22 01:44:12,934 app.provider.cli_proxy INFO CLI proxy: invoking gemini (tool=gemini)
+2026-06-22 01:44:20,113 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518340742609768448  fallback_provider=kilocode
+2026-06-22 01:44:20,115 app.provider.cli_proxy INFO CLI proxy: invoking kilocode (tool=kilocode)
+2026-06-22 01:45:38,481 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 01:45:38,481 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 01:46:21,671 app.provider.cli_proxy WARNING CLI proxy: kilocode timed out after 120s
+2026-06-22 01:46:21,672 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518340742609768448  fallback_provider=cli_proxy
+2026-06-22 01:46:21,672 app.provider.cli_proxy INFO CLI proxy: invoking gh (tool=gh-copilot)
+2026-06-22 01:46:22,303 app.core.runtime INFO AGENT_RUNTIME  trying_fallback  session=discord_1212854474121683034:1518340742609768448  fallback_provider=jules
+2026-06-22 01:46:22,304 app.provider.cli_proxy INFO CLI proxy: invoking jules (tool=jules)
+2026-06-22 01:46:22,432 app.provider.cli_proxy INFO CLI proxy: jules returned 70 chars of clean content
+2026-06-22 01:46:22,432 app.core.runtime INFO AGENT_RUNTIME  fallback_success  session=discord_1212854474121683034:1518340742609768448  fallback_provider=jules
+2026-06-22 01:46:22,469 app.core.runtime INFO AGENT_RUNTIME  final_response  session=discord_1212854474121683034:1518340742609768448  turn=1  len=120
+2026-06-22 01:46:23,391 app.runtime.outbox INFO outbox sent: key=botsignal:discord:1212854474121683034:1c4dc0afd09911764a6cbfd329d7c8f96754f0f783b2790a5b8796bc55a5430b:116789817014329842204674 channel=discord target=1212854474121683034 (attempts=1)
+2026-06-22 01:46:23,391 app.core.runtime WARNING AGENT_RUNTIME  verification_issue  session=discord_1212854474121683034:1518340742609768448  findings=['missing criterion: Objective is explicit.', 'missing criterion: Requested outcome is produced.', 'missing criterion: Output is internally consistent.']
+2026-06-22 01:46:23,479 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:46:23,480 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:46:23,481 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:46:23,482 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:46:23,483 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:46:23,483 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:46:23,484 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:46:23,485 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:46:23,485 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:46:23,486 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:46:23,487 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:46:23,487 app.tools.kgtool ERROR Neo4j Execution Error: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [Errno 111] Connect call failed ('::1', 7687, 0, 0))
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [Errno 111] Connect call failed ('127.0.0.1', 7687))
+2026-06-22 01:48:36,232 __main__ INFO Shutdown signal received
+2026-06-22 01:48:36,232 __main__ INFO Graceful shutdown started
+2026-06-22 01:48:36,333 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-06-22 01:48:36,735 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-06-22 01:48:36,735 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 01:48:36,746 telegram.ext.Application INFO Application.stop() complete
+2026-06-22 01:48:38,486 app.core.ambient_loop INFO AmbientLoop stopped
+2026-06-22 01:48:38,486 __main__ INFO All bot tasks stopped.
+2026-06-22 01:48:38,487 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 02:19:48,156 app.settings.validate INFO ====================================================
+2026-06-22 02:19:48,156 app.settings.validate INFO SARAS Startup Configuration
+2026-06-22 02:19:48,156 app.settings.validate INFO ====================================================
+2026-06-22 02:19:48,156 app.settings.validate INFO   [OK]  Telegram               ready
+2026-06-22 02:19:48,156 app.settings.validate INFO   [OK]  Discord                ready
+2026-06-22 02:19:48,156 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-06-22 02:19:48,156 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-06-22 02:19:48,156 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-06-22 02:19:48,156 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-06-22 02:19:48,156 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-06-22 02:19:48,156 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-06-22 02:19:48,156 app.settings.validate INFO   [OK]  OpenWeatherMap         ready
+2026-06-22 02:19:48,156 app.settings.validate INFO   [OK]  Piper-TTS              ready (voice=autherRaven)
+2026-06-22 02:19:48,156 app.settings.validate INFO   [--]  whisper.cpp            missing model: 'workspace/models/whisper/ggml-tiny.bin'
+2026-06-22 02:19:48,156 app.settings.validate INFO ====================================================
+2026-06-22 02:19:51,243 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-06-22 02:19:51,509 huggingface_hub.utils._http WARNING Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-06-22 02:19:54,974 app.core.memory INFO MemoryStore: facts=0 tools=8
+2026-06-22 02:19:55,698 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-06-22 02:19:55,699 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-06-22 02:19:55,699 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-06-22 02:19:55,706 __main__ INFO Outbox recovery drain armed.
+2026-06-22 02:19:55,722 apscheduler.scheduler INFO Scheduler started
+2026-06-22 02:19:55,723 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-06-22 02:19:55,732 app.telegram.bot INFO Telegram bot configured successfully.
+2026-06-22 02:19:55,732 __main__ INFO Discord message content intent is enabled
+2026-06-22 02:19:55,733 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-06-22 02:19:55,787 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-06-22 02:19:55,792 app.core.ambient_loop INFO Self-Improvement: found 44 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 02:19:55,793 discord.client INFO logging in using static token
+2026-06-22 02:19:55,817 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-06-22 02:19:55,821 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 02:19:55,821 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 02:19:55,821 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 02:19:55,829 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 02:19:55,832 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 02:19:55,832 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 02:19:55,832 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-22 02:19:56,325 apscheduler.scheduler INFO Scheduler started
+2026-06-22 02:19:56,325 telegram.ext.Application INFO Application started
+2026-06-22 02:19:57,633 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 9beba850b72aabdc3eece6238ad15306).
+2026-06-22 02:21:38,123 __main__ INFO Shutdown signal received
+2026-06-22 02:21:38,123 __main__ INFO Graceful shutdown started
+2026-06-22 02:21:38,224 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-06-22 02:21:38,622 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-06-22 02:21:38,622 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 02:21:38,632 telegram.ext.Application INFO Application.stop() complete
+2026-06-22 02:21:46,126 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-06-22 02:21:46,126 __main__ INFO All bot tasks stopped.
+2026-06-22 02:21:46,127 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 02:22:09,882 app.settings.validate INFO ====================================================
+2026-06-22 02:22:09,882 app.settings.validate INFO SARAS Startup Configuration
+2026-06-22 02:22:09,882 app.settings.validate INFO ====================================================
+2026-06-22 02:22:09,882 app.settings.validate INFO   [OK]  Telegram               ready
+2026-06-22 02:22:09,882 app.settings.validate INFO   [OK]  Discord                ready
+2026-06-22 02:22:09,882 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-06-22 02:22:09,882 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-06-22 02:22:09,882 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-06-22 02:22:09,882 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-06-22 02:22:09,882 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-06-22 02:22:09,882 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-06-22 02:22:09,882 app.settings.validate INFO   [OK]  OpenWeatherMap         ready
+2026-06-22 02:22:09,882 app.settings.validate INFO   [OK]  Piper-TTS              ready (voice=autherRaven)
+2026-06-22 02:22:09,882 app.settings.validate INFO   [--]  whisper.cpp            missing model: 'workspace/models/whisper/ggml-tiny.bin'
+2026-06-22 02:22:09,882 app.settings.validate INFO ====================================================
+2026-06-22 02:22:12,895 sentence_transformers.SentenceTransformer INFO Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-06-22 02:22:13,163 huggingface_hub.utils._http WARNING Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-06-22 02:22:16,616 app.core.memory INFO MemoryStore: facts=0 tools=8
+2026-06-22 02:22:17,178 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-06-22 02:22:17,179 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-06-22 02:22:17,179 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-06-22 02:22:17,183 __main__ INFO Outbox recovery drain armed.
+2026-06-22 02:22:17,188 apscheduler.scheduler INFO Scheduler started
+2026-06-22 02:22:17,189 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-06-22 02:22:17,197 app.telegram.bot INFO Telegram bot configured successfully.
+2026-06-22 02:22:17,197 __main__ INFO Discord message content intent is enabled
+2026-06-22 02:22:17,197 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-06-22 02:22:17,301 app.web.endpoints.audit_bridge INFO audit dashboard router mounted (9 endpoints)
+2026-06-22 02:22:17,301 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-06-22 02:22:17,305 app.core.ambient_loop INFO Self-Improvement: found 44 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 02:22:17,307 discord.client INFO logging in using static token
+2026-06-22 02:22:17,319 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-06-22 02:22:17,321 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 02:22:17,321 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 02:22:17,321 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 02:22:17,324 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 02:22:17,815 apscheduler.scheduler INFO Scheduler started
+2026-06-22 02:22:17,815 telegram.ext.Application INFO Application started
+2026-06-22 02:22:19,146 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 8131ca386e0fc6c9bee03036eecb34da).
+2026-06-22 02:22:25,901 app.web.server INFO Voice WS connected: user=anon-r7q6ldnx cid=ws-140087212255200 (sinks=1)
+2026-06-22 02:22:26,733 app.voice.piper INFO PiperTTS loaded voice=en_US-lessac-medium model=/home/swadhin/SARAS/app/voice/en_US-lessac-medium.onnx sample_rate=22050
+2026-06-22 02:22:29,171 app.web.server INFO Voice WS cleanup: user=anon-r7q6ldnx (sinks now=0)
+2026-06-22 02:25:17,329 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 02:25:17,330 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 02:25:42,068 app.web.endpoints.providers INFO providers_editor: HUGGINGFACE_API_KEY = hf_f…lY (via dashboard)
+2026-06-22 02:29:23,653 app.web.server INFO Voice WS connected: user=anon-r7q6ldnx cid=ws-140087209521904 (sinks=1)
+2026-06-22 02:29:44,239 pywhispercpp.utils ERROR Invalid model name `workspace/models/whisper/ggml-tiny.bin`, available models are: ['base', 'base-q5_1', 'base-q8_0', 'base.en', 'base.en-q5_1', 'base.en-q8_0', 'large-v1', 'large-v2', 'large-v2-q5_0', 'large-v2-q8_0', 'large-v3', 'large-v3-q5_0', 'large-v3-turbo', 'large-v3-turbo-q5_0', 'large-v3-turbo-q8_0', 'medium', 'medium-q5_0', 'medium-q8_0', 'medium.en', 'medium.en-q5_0', 'medium.en-q8_0', 'small', 'small-q5_1', 'small-q8_0', 'small.en', 'small.en-q5_1', 'small.en-q8_0', 'tiny', 'tiny-q5_1', 'tiny-q8_0', 'tiny.en', 'tiny.en-q5_1', 'tiny.en-q8_0']
+2026-06-22 02:29:44,239 pywhispercpp.model INFO Initializing the model ...
+2026-06-22 02:29:44,239 app.voice.transcribe INFO whisper.cpp loaded: model=workspace/models/whisper/ggml-tiny.bin language=en threads=2
+2026-06-22 02:29:44,346 pywhispercpp.model INFO Transcribing ...
+2026-06-22 02:30:24,047 app.settings.validate INFO ====================================================
+2026-06-22 02:30:24,047 app.settings.validate INFO SARAS Startup Configuration
+2026-06-22 02:30:24,047 app.settings.validate INFO ====================================================
+2026-06-22 02:30:24,047 app.settings.validate INFO   [OK]  Telegram               ready
+2026-06-22 02:30:24,047 app.settings.validate INFO   [OK]  Discord                ready
+2026-06-22 02:30:24,047 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-06-22 02:30:24,047 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-06-22 02:30:24,047 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-06-22 02:30:24,047 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-06-22 02:30:24,047 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-06-22 02:30:24,047 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-06-22 02:30:24,047 app.settings.validate INFO   [OK]  OpenWeatherMap         ready
+2026-06-22 02:30:24,047 app.settings.validate INFO   [OK]  Piper-TTS              ready (voice=autherRaven)
+2026-06-22 02:30:24,047 app.settings.validate INFO   [--]  whisper.cpp            missing model: 'workspace/models/whisper/ggml-tiny.bin'
+2026-06-22 02:30:24,047 app.settings.validate INFO ====================================================
+2026-06-22 02:30:24,074 app.db.memory_helix INFO HelixMemoryStore: url=http://localhost:6969 mode=sentence_transformer model=all-MiniLM-L6-v2 dim=384
+2026-06-22 02:30:24,665 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-06-22 02:30:24,665 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-06-22 02:30:24,665 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-06-22 02:30:24,670 __main__ INFO Outbox recovery drain armed.
+2026-06-22 02:30:24,676 apscheduler.scheduler INFO Scheduler started
+2026-06-22 02:30:24,676 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-06-22 02:30:24,685 app.telegram.bot INFO Telegram bot configured successfully.
+2026-06-22 02:30:24,686 __main__ INFO Discord message content intent is enabled
+2026-06-22 02:30:24,686 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-06-22 02:30:24,795 app.web.endpoints.audit_bridge INFO audit dashboard router mounted (9 endpoints)
+2026-06-22 02:30:24,796 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-06-22 02:30:24,798 app.core.ambient_loop INFO Self-Improvement: found 44 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 02:30:24,798 discord.client INFO logging in using static token
+2026-06-22 02:30:24,806 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-06-22 02:30:24,808 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 02:30:24,808 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 02:30:24,808 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 02:30:24,811 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 02:30:24,812 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 02:30:24,812 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 02:30:25,301 apscheduler.scheduler INFO Scheduler started
+2026-06-22 02:30:25,301 telegram.ext.Application INFO Application started
+2026-06-22 02:30:26,725 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: f725458ad4d001af71641d1ba6cf22cc).
+2026-06-22 02:31:01,239 app.web.server INFO Voice WS connected: user=anon-r7q6ldnx cid=ws-139637121029024 (sinks=1)
+2026-06-22 02:31:02,017 app.voice.piper INFO PiperTTS loaded voice=en_US-lessac-medium model=/home/swadhin/SARAS/app/voice/en_US-lessac-medium.onnx sample_rate=22050
+2026-06-22 02:35:24,819 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 02:35:24,819 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 02:40:24,825 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 02:40:24,825 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 02:40:24,825 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 02:40:24,825 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 02:40:24,825 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 02:45:24,829 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 02:45:24,829 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 02:50:24,838 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 02:50:24,838 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 02:50:24,838 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 02:50:24,838 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 02:50:24,838 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 02:55:24,844 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 02:55:24,844 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 02:56:50,489 app.web.server INFO Voice WS cleanup: user=anon-r7q6ldnx (sinks now=0)
+2026-06-22 02:56:53,976 app.web.server INFO Voice WS connected: user=anon-r7q6ldnx cid=ws-139637111519424 (sinks=1)
+2026-06-22 02:56:55,408 app.web.server INFO Voice WS cleanup: user=anon-r7q6ldnx (sinks now=0)
+2026-06-22 02:58:48,838 app.web.server INFO Voice WS connected: user=anon-r7q6ldnx cid=ws-139637111401040 (sinks=1)
+2026-06-22 02:58:56,149 app.web.server INFO Voice WS cleanup: user=anon-r7q6ldnx (sinks now=0)
+2026-06-22 02:58:58,286 app.web.server INFO Voice WS connected: user=anon-r7q6ldnx cid=ws-139637111479120 (sinks=1)
+2026-06-22 02:59:00,153 app.web.server INFO Voice WS cleanup: user=anon-r7q6ldnx (sinks now=0)
+2026-06-22 03:00:24,851 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 03:00:24,851 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 03:00:24,851 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 03:00:24,851 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:00:24,851 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:05:24,858 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:05:24,858 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:06:13,968 __main__ INFO Shutdown signal received
+2026-06-22 03:06:13,969 __main__ INFO Graceful shutdown started
+2026-06-22 03:06:14,069 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-06-22 03:06:14,070 app.web.server INFO Web dashboard server cancelled during shutdown
+2026-06-22 03:06:14,070 __main__ INFO Web dashboard shut down.
+2026-06-22 03:06:14,458 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-06-22 03:06:14,458 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 03:06:14,468 telegram.ext.Application INFO Application.stop() complete
+2026-06-22 03:06:21,970 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-06-22 03:06:21,970 __main__ INFO All bot tasks stopped.
+2026-06-22 03:06:21,970 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 03:06:27,415 app.settings.validate INFO ====================================================
+2026-06-22 03:06:27,415 app.settings.validate INFO SARAS Startup Configuration
+2026-06-22 03:06:27,415 app.settings.validate INFO ====================================================
+2026-06-22 03:06:27,415 app.settings.validate INFO   [OK]  Telegram               ready
+2026-06-22 03:06:27,415 app.settings.validate INFO   [OK]  Discord                ready
+2026-06-22 03:06:27,415 app.settings.validate INFO   [--]  Slack                  token(s) missing from .env
+2026-06-22 03:06:27,415 app.settings.validate INFO   [OK]  Gemini/Google          ready
+2026-06-22 03:06:27,415 app.settings.validate INFO   [--]  OpenAI                 missing (optional)
+2026-06-22 03:06:27,415 app.settings.validate INFO   [--]  xAI                    missing (optional)
+2026-06-22 03:06:27,415 app.settings.validate INFO   [OK]  VirusTotal             ready
+2026-06-22 03:06:27,415 app.settings.validate INFO   [--]  Deepgram               missing (optional)
+2026-06-22 03:06:27,415 app.settings.validate INFO   [OK]  OpenWeatherMap         ready
+2026-06-22 03:06:27,415 app.settings.validate INFO   [OK]  Piper-TTS              ready (voice=autherRaven)
+2026-06-22 03:06:27,415 app.settings.validate INFO   [--]  whisper.cpp            missing model: 'workspace/models/whisper/ggml-tiny.bin'
+2026-06-22 03:06:27,415 app.settings.validate INFO ====================================================
+2026-06-22 03:06:27,426 __main__ INFO Starting HelixDB sidecar...
+2026-06-22 03:06:37,219 __main__ INFO HelixDB started: Starting HelixDB via helix CLI on :6969
+HelixDB is healthy
+2026-06-22 03:06:37,248 app.db.memory_helix INFO HelixMemoryStore: url=http://localhost:6969 mode=sentence_transformer model=all-MiniLM-L6-v2 dim=384
+2026-06-22 03:06:37,804 app.core.orchestrator WARNING ObsidianOperationTool skipped — XAI_API_KEY is not configured
+2026-06-22 03:06:37,804 app.core.orchestrator WARNING SpotifyOperationTool skipped — Neither spogo nor spotify_player found in PATH.
+• Install spogo (preferred): cargo install spogo
+• Or spotify_player: cargo install spotify-player
+Then run: spogo auth import --browser chrome
+2026-06-22 03:06:37,805 app.core.orchestrator WARNING XAIImageUnderstandTool skipped — XAI_API_KEY is not configured
+2026-06-22 03:06:37,809 __main__ INFO Outbox recovery drain armed.
+2026-06-22 03:06:37,815 apscheduler.scheduler INFO Scheduler started
+2026-06-22 03:06:37,816 app.core.scheduler INFO SarasScheduler started. Pending jobs: 0
+2026-06-22 03:06:37,828 app.telegram.bot INFO Telegram bot configured successfully.
+2026-06-22 03:06:37,828 __main__ INFO Discord message content intent is enabled
+2026-06-22 03:06:37,828 __main__ WARNING Slack tokens not set (SLACK_BOT_TOKEN / SLACK_APP_TOKEN) — Slack connector skipped
+2026-06-22 03:06:37,951 app.web.endpoints.audit_bridge INFO audit dashboard router mounted (9 endpoints)
+2026-06-22 03:06:37,951 app.core.ambient_loop INFO AmbientLoop started — SARAS is now always-on 🟢
+2026-06-22 03:06:37,953 app.core.ambient_loop INFO Self-Improvement: found 44 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 03:06:37,954 discord.client INFO logging in using static token
+2026-06-22 03:06:37,965 app.core.ambient_loop INFO AmbientLoop: persona daily reset complete
+2026-06-22 03:06:37,966 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 03:06:37,966 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 03:06:37,966 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 03:06:37,969 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 03:06:38,472 apscheduler.scheduler INFO Scheduler started
+2026-06-22 03:06:38,472 telegram.ext.Application INFO Application started
+2026-06-22 03:06:40,012 discord.gateway INFO Shard ID None has connected to Gateway (Session ID: 48af8330e4787c43f8b98626f067eb86).
+2026-06-22 03:07:04,680 app.db.knowledge_graph_helix INFO HelixKnowledgeGraph: url=http://localhost:6969 label=KGEntity
+2026-06-22 03:07:04,723 app.db.knowledge_graph_helix INFO HelixKnowledgeGraph: url=http://localhost:6969 label=KGEntity
+2026-06-22 03:07:09,978 app.web.server INFO Voice WS connected: user=anon-r7q6ldnx cid=ws-140302833445408 (sinks=1)
+2026-06-22 03:07:10,806 app.voice.piper INFO PiperTTS loaded voice=en_US-lessac-medium model=/home/swadhin/SARAS/app/voice/en_US-lessac-medium.onnx sample_rate=22050
+2026-06-22 03:10:37,975 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:10:37,983 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:15:37,988 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:15:37,988 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:16:37,997 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 03:16:37,997 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 03:16:37,997 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 03:20:38,002 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:20:38,003 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:20:38,003 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-22 03:25:38,009 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:25:38,009 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:26:38,011 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 03:26:38,011 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 03:26:38,011 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 03:30:38,015 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:30:38,015 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:35:38,020 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:35:38,021 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:36:38,022 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 03:36:38,022 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 03:36:38,022 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 03:40:38,026 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:40:38,026 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:45:38,033 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:45:38,033 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:46:38,035 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 03:46:38,035 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 03:46:38,035 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 03:50:38,039 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:50:38,039 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:55:38,045 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 03:55:38,045 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 03:56:38,047 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 03:56:38,047 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 03:56:38,047 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 04:00:38,051 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:00:38,051 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:05:38,057 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:05:38,057 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:06:38,061 app.core.ambient_loop INFO Self-Improvement: found 44 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 04:06:38,061 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 04:06:38,061 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 04:06:38,061 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 04:06:38,062 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 04:10:38,066 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:10:38,067 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:15:38,071 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:15:38,071 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:16:38,073 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 04:16:38,073 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 04:16:38,073 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 04:20:38,079 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:20:38,079 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:20:38,079 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-22 04:25:38,085 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:25:38,085 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:26:38,086 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 04:26:38,086 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 04:26:38,086 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 04:30:38,090 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:30:38,090 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:35:38,095 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:35:38,095 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:36:38,096 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 04:36:38,097 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 04:36:38,097 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 04:40:38,102 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:40:38,102 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:45:38,107 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:45:38,107 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:46:37,539 discord.gateway INFO Shard ID None has successfully RESUMED session 48af8330e4787c43f8b98626f067eb86.
+2026-06-22 04:46:38,109 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 04:46:38,109 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 04:46:38,109 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 04:50:38,113 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:50:38,113 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:55:38,118 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 04:55:38,118 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 04:56:38,120 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 04:56:38,120 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 04:56:38,120 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 05:00:38,125 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:00:38,125 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:05:38,131 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:05:38,131 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:06:38,135 app.core.ambient_loop INFO Self-Improvement: found 44 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 05:06:38,136 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 05:06:38,136 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 05:06:38,136 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 05:06:38,137 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 05:10:38,142 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:10:38,142 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:15:38,149 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:15:38,149 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:16:38,151 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 05:16:38,151 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 05:16:38,151 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 05:20:38,156 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:20:38,156 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:20:38,156 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-22 05:25:38,161 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:25:38,161 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:26:38,164 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 05:26:38,164 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 05:26:38,164 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 05:30:38,167 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:30:38,167 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:35:38,173 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:35:38,173 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:36:38,175 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 05:36:38,175 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 05:36:38,175 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 05:40:38,180 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:40:38,180 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:45:38,185 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:45:38,185 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:46:38,187 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 05:46:38,187 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 05:46:38,187 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 05:50:38,190 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:50:38,190 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:55:38,195 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 05:55:38,195 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 05:56:38,197 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 05:56:38,197 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 05:56:38,197 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 06:00:38,202 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:00:38,202 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:05:38,209 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:05:38,209 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:06:38,211 app.core.ambient_loop INFO Self-Improvement: found 44 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 06:06:38,212 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 06:06:38,212 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 06:06:38,212 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 06:06:38,212 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 06:10:38,216 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:10:38,216 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:15:38,222 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:15:38,222 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:16:38,224 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 06:16:38,224 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 06:16:38,224 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 06:20:38,229 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:20:38,229 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:20:38,229 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-22 06:25:38,235 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:25:38,243 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:26:38,245 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 06:26:38,252 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 06:26:38,252 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 06:30:38,258 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:30:38,259 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:35:38,266 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:35:38,266 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:36:38,267 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 06:36:38,267 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 06:36:38,267 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 06:40:38,271 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:40:38,271 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:45:38,279 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:45:38,279 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:46:38,280 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 06:46:38,280 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 06:46:38,280 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 06:50:38,284 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:50:38,284 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:55:38,290 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 06:55:38,290 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 06:56:38,292 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 06:56:38,292 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 06:56:38,292 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 07:00:38,297 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:00:38,297 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:05:38,302 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:05:38,302 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:06:38,307 app.core.ambient_loop INFO Self-Improvement: found 44 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 07:06:38,308 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 07:06:38,308 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 07:06:38,308 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 07:06:38,309 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 07:10:38,313 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:10:38,314 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:15:38,323 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:15:38,323 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:16:38,324 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 07:16:38,324 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 07:16:38,324 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 07:20:38,329 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:20:38,329 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:20:38,329 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-22 07:25:38,333 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:25:38,333 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:25:46,292 discord.gateway INFO Shard ID None has successfully RESUMED session 48af8330e4787c43f8b98626f067eb86.
+2026-06-22 07:26:38,335 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 07:26:38,343 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 07:26:38,343 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 07:30:38,348 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:30:38,348 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:35:38,354 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:35:38,354 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:36:38,355 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 07:36:38,355 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 07:36:38,355 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 07:40:38,360 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:40:38,360 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:45:38,365 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:45:38,365 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:46:38,367 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 07:46:38,367 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 07:46:38,367 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 07:50:38,370 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:50:38,370 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:55:38,376 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 07:55:38,376 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 07:56:38,377 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 07:56:38,377 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 07:56:38,377 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 08:00:38,381 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:00:38,381 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:05:38,387 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:05:38,387 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:06:38,390 app.core.ambient_loop INFO Self-Improvement: found 44 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 08:06:38,391 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 08:06:38,391 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 08:06:38,391 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 08:06:38,392 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 08:10:38,396 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:10:38,396 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:15:38,403 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:15:38,403 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:16:38,405 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 08:16:38,405 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 08:16:38,405 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 08:20:38,410 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:20:38,410 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:20:38,410 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-22 08:25:38,418 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:25:38,418 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:26:38,420 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 08:26:38,420 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 08:26:38,420 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 08:30:38,425 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:30:38,425 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:35:38,430 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:35:38,430 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:36:38,432 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 08:36:38,432 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 08:36:38,432 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 08:40:38,434 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:40:38,434 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:45:38,439 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:45:38,439 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:46:38,440 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 08:46:38,441 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 08:46:38,441 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 08:50:38,445 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:50:38,445 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:55:38,450 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 08:55:38,450 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 08:56:38,452 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 08:56:38,452 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 08:56:38,452 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 09:00:38,457 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:00:38,457 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:05:38,461 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:05:38,462 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:06:38,464 app.core.ambient_loop INFO Self-Improvement: found 44 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 09:06:38,464 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 09:06:38,464 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 09:06:38,464 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 09:06:38,465 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 09:10:38,469 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:10:38,469 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:15:38,474 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:15:38,474 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:16:38,476 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 09:16:38,476 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 09:16:38,476 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 09:20:38,479 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:20:38,479 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:20:38,480 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-22 09:24:57,945 discord.gateway INFO Shard ID None has successfully RESUMED session 48af8330e4787c43f8b98626f067eb86.
+2026-06-22 09:25:38,486 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:25:38,486 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:26:38,487 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 09:26:38,487 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 09:26:38,487 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 09:30:38,491 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:30:38,491 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:35:38,498 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:35:38,498 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:36:38,500 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 09:36:38,500 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 09:36:38,500 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 09:40:38,506 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:40:38,506 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:45:38,511 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:45:38,511 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:46:38,513 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 09:46:38,513 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 09:46:38,513 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 09:50:38,517 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:50:38,517 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:53:38,481 discord.gateway INFO Shard ID None has successfully RESUMED session 48af8330e4787c43f8b98626f067eb86.
+2026-06-22 09:55:38,523 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 09:55:38,523 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 09:56:38,525 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 09:56:38,525 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 09:56:38,525 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 10:00:38,529 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 10:00:38,529 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 10:05:38,535 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 10:05:38,535 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 10:06:38,538 app.core.ambient_loop INFO Self-Improvement: found 44 unregistered tool classes: ['AdvancedFileOperationTool', 'GitOperationTool', 'WriteTodosTool', 'WebOperationTool', 'WebFetchOperationTool', 'XAIImageUnderstandTool', 'ApplyPatchTool', 'ElevatedModeTool', 'ObsidianOperationTool', 'BrowserOperationTool', 'MemoryTool', 'KnowledgeGraphTool', 'PlatformMessagingTool', 'SmartHomeTool', 'SensorReadTool', 'ImageGenerationTool', 'CameraSnapshotTool', 'WolframAlphaTool', 'SystemStatsTool', 'CryptoPriceTool', 'RSSReaderTool', 'AirQualityTool', 'TOTPGeneratorTool', 'TodoListTool', 'URLMetadataTool', 'SSLMonitorTool', 'DatabaseQueryTool', 'StockQuoteTool', 'CryptoAlertTool', 'DNSLookupTool', 'URLVirusScanTool', 'CronManagerTool', 'InternetIntelTool', 'EdgeDeviceTool', 'GovernanceTool', 'DockerExecTool', 'MyTool', 'MobileDeviceTool', 'DesktopControlTool', 'ScreenReaderTool', 'DeliverFileTool', 'AutonomyTool', 'AgencyDelegationTool', 'BaseResilientTool']
+2026-06-22 10:06:38,538 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 10:06:38,538 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 10:06:38,538 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 10:06:38,538 app.core.ambient_loop INFO AmbientLoop: learning summary — 0 skills, 0 tool calls, 0.0% success, velocity_30d=0
+2026-06-22 10:10:38,543 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 10:10:38,543 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 10:15:38,552 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 10:15:38,552 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 10:16:38,553 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 10:16:38,553 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 10:16:38,553 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 10:20:38,557 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 10:20:38,557 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 10:20:38,557 app.core.cron_engine INFO CronEngine: Triggering 'Self-Improvement Analysis' (every 60m)
+2026-06-22 10:25:38,562 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 10:25:38,562 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 10:26:38,563 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 10:26:38,563 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 10:26:38,563 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 10:30:38,567 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 10:30:38,567 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 10:35:38,572 app.core.cron_engine INFO CronEngine: Triggering 'Sentinel Digest Flush' (every 5m)
+2026-06-22 10:35:38,572 app.core.cron_engine INFO CronEngine: Triggering 'System Health Monitor' (every 5m)
+2026-06-22 10:36:38,574 app.core.auto_memory INFO MEMORY.md updated successfully
+2026-06-22 10:36:38,574 app.core.auto_memory INFO MEMORY.md updated from LifeContext for user default
+2026-06-22 10:36:38,574 app.core.ambient_loop INFO AmbientLoop: MEMORY.md auto-updated
+2026-06-22 10:38:50,464 app.web.server INFO Voice WS cleanup: user=anon-r7q6ldnx (sinks now=0)
+2026-06-22 10:38:50,811 app.web.server INFO Voice WS connected: user=anon-xg0qusp3 cid=ws-140302614047792 (sinks=1)
+2026-06-22 10:38:56,075 __main__ INFO Shutdown signal received
+2026-06-22 10:38:56,076 __main__ INFO Graceful shutdown started
+2026-06-22 10:38:56,077 app.web.server INFO Voice WS cleanup: user=anon-xg0qusp3 (sinks now=0)
+2026-06-22 10:38:56,176 app.sensors.webhook_server INFO Webhook server cancelled during shutdown
+2026-06-22 10:38:56,177 app.web.server INFO Web dashboard server cancelled during shutdown
+2026-06-22 10:38:56,177 __main__ INFO Web dashboard shut down.
+2026-06-22 10:38:59,077 telegram.ext.Application INFO Application is stopping. This might take a moment.
+2026-06-22 10:38:59,077 apscheduler.scheduler INFO Scheduler has been shut down
+2026-06-22 10:38:59,087 telegram.ext.Application INFO Application.stop() complete
+2026-06-22 10:39:04,076 __main__ WARNING Forcing shutdown; 0 task(s) still running: 
+2026-06-22 10:39:04,116 __main__ INFO HelixDB stopped: Stopping 'dev'
+[34m→[39m Instance 'dev' was not running
+HelixDB stopped
+2026-06-22 10:39:04,118 __main__ INFO All bot tasks stopped.
+2026-06-22 10:39:04,119 apscheduler.scheduler INFO Scheduler has been shut down

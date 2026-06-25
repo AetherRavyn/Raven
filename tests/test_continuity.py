@@ -144,13 +144,13 @@ class TestSessionSerialization:
         sess = mgr.start("u1", "telegram:123")
         mgr.append(sess.id, "user", "Hello", metadata={"x": 1})
         mgr.append(sess.id, "assistant", "Hi", metadata={"y": 2})
-        mgr.update_context(sess.id, project="saras", mood="curious")
+        mgr.update_context(sess.id, project="raven", mood="curious")
 
         data = sess.to_dict()
         restored = Session.from_dict(data)
         assert restored.id == sess.id
         assert restored.user_id == "u1"
-        assert restored.context == {"project": "saras", "mood": "curious"}
+        assert restored.context == {"project": "raven", "mood": "curious"}
         assert len(restored.events) == 2
         assert restored.events[0].content == "Hello"
 
@@ -225,9 +225,9 @@ class TestSessionManager:
 
         mgr = SessionManager()
         s = mgr.start("u1", "c1")
-        mgr.update_context(s.id, project="saras")
+        mgr.update_context(s.id, project="raven")
         mgr.update_context(s.id, mood="curious")
-        assert s.context == {"project": "saras", "mood": "curious"}
+        assert s.context == {"project": "raven", "mood": "curious"}
 
     def test_end_marks_ended(self) -> None:
         from app.core.continuity import SessionManager
@@ -360,9 +360,9 @@ class TestHandoff:
         from app.core.continuity import SessionManager, handoff_session
 
         mgr = SessionManager()
-        s = mgr.start("u1", "telegram:123", context={"project": "saras"})
+        s = mgr.start("u1", "telegram:123", context={"project": "raven"})
         target, _ = handoff_session(mgr, s.id, "voice:desk")
-        assert target.context.get("project") == "saras"
+        assert target.context.get("project") == "raven"
 
     def test_receipt_records_event_count(self) -> None:
         from app.core.continuity import SessionManager, handoff_session

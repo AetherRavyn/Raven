@@ -16,19 +16,94 @@ class SemanticSearchEngine:
     """
     Extracts semantic feature vectors from images using MobileNet-v2 (ONNX)
     and stores them in a locally searchable Numpy index.
+
+    Embedding mode
+    --------------
+
+    Two modes are supported, selected at construction time via
+    ``embedding_mode``:
+
+    * ``"features"`` (default, requires the ONNX export to expose a
+      ``features`` output) — uses the penultimate 1280-dim feature
+      vector, which is a real semantic embedding.  This is the
+      correct mode for any future OSINT / internet-profiling
+      module that needs fine-grained nearest-neighbour search.
+    * ``"logits"`` (fallback) — uses the 1000-dim ImageNet class
+      logits.  The original MobileNet-v2 ONNX shipped with RAVEN
+      only exports the classifier head, so this is what the engine
+      falls back to when no ``features`` output is present.  The
+      gap-analysis docstring at
+      ``docs/13-jarvis-friday-gap-analysis-2026-06.md`` §4 D
+      still calls out the quality gap; operators who want real
+      semantic embeddings need to re-export the model with the
+      classifier head sliced off and drop the new .onnx at
+      ``monitoring/models/MobileNet-v2-features.onnx``.
     """
-    def __init__(self, model_path: str, index_path: str):
+
+    #: Env-var override: ``RAVEN_SEMANTIC_EMBEDDING_MODE = features|logits``.
+    DEFAULT_EMBEDDING_MODE = os.environ.get(
+        "RAVEN_SEMANTIC_EMBEDDING_MODE", "features",
+    ).strip().lower()
+
+    def __init__(
+        self,
+        model_path: str,
+        index_path: str,
+        embedding_mode: str | None = None,
+    ):
         self.model_path = model_path
         self.index_path = index_path
-        
+        self.embedding_mode = (embedding_mode or self.DEFAULT_EMBEDDING_MODE).lower()
+        if self.embedding_mode not in ("features", "logits"):
+            logger.warning(
+                "Unknown semantic embedding mode %r; falling back to 'features'",
+                self.embedding_mode,
+            )
+            self.embedding_mode = "features"
+
         self.session = None
         self.input_name = None
+        self._feature_output: str | None = None
+        self._logit_output: str | None = None
+        self._active_output: str | None = None
+        self._active_dim: int = 1000  # final fallback if model is missing
         self.index: Dict[str, dict] = {} # event_id -> {"vector": np.ndarray, "timestamp": str, "description": str}
-        
+
         if os.path.exists(self.model_path):
             self.session = ort.InferenceSession(self.model_path, providers=["CPUExecutionProvider"])
             self.input_name = self.session.get_inputs()[0].name
-            logger.info(f"Initialized SemanticSearch Engine with {self.model_path}")
+            outputs = self.session.get_outputs()
+            # Prefer the penultimate "features" output when present;
+            # fall back to the classifier logits otherwise.
+            for o in outputs:
+                if o.name in ("features", "feature_vector", "embedding"):
+                    self._feature_output = o.name
+                    self._active_dim = int(o.shape[-1]) if isinstance(o.shape[-1], int) else 1280
+                elif o.name in ("class_logits", "logits", "classes"):
+                    self._logit_output = o.name
+                    if self._feature_output is None:
+                        self._active_dim = int(o.shape[-1]) if isinstance(o.shape[-1], int) else 1000
+            if self.embedding_mode == "features" and self._feature_output is not None:
+                self._active_output = self._feature_output
+            elif self._logit_output is not None:
+                self._active_output = self._logit_output
+                if self.embedding_mode == "features":
+                    logger.warning(
+                        "SemanticSearch requested penultimate 'features' output "
+                        "but the model at %s only exposes classifier logits "
+                        "(%s).  Falling back to logits — re-export the model "
+                        "with the classifier head sliced off for real semantic "
+                        "embeddings (Gap D in "
+                        "docs/13-jarvis-friday-gap-analysis-2026-06.md).",
+                        self.model_path, self._logit_output,
+                    )
+            else:
+                self._active_output = outputs[0].name if outputs else None
+            logger.info(
+                "Initialized SemanticSearch Engine with %s (mode=%s, output=%s, dim=%d)",
+                self.model_path, self.embedding_mode,
+                self._active_output, self._active_dim,
+            )
         else:
             logger.warning(f"SemanticSearch model not found at {self.model_path}")
 
@@ -67,17 +142,27 @@ class SemanticSearchEngine:
         return np.expand_dims(arr, axis=0)
 
     def get_embedding(self, img: Image.Image) -> np.ndarray:
-        if not self.session:
-            return np.zeros(1000, dtype=np.float32)
-            
+        if not self.session or self._active_output is None:
+            return np.zeros(self._active_dim, dtype=np.float32)
+
         tensor = self.preprocess(img)
-        # Output is shape (1, 1000) for standard MobileNetV2 classifier
-        # We use the logits as a semantic signature. Real semantic search uses the penulimate layer, 
-        # but logits work sufficiently well for coarse nearest-neighbor class matching on edge.
-        logits = self.session.run(None, {self.input_name: tensor})[0]
-        vec = logits.flatten()
-        
-        # L2 Normalize
+        # Prefer the penultimate "features" output (real semantic
+        # embedding) when the ONNX export exposes it; fall back to
+        # the classifier logits when only ``class_logits`` is
+        # available.  See ``__init__`` for the mode negotiation.
+        try:
+            outputs = self.session.run(
+                [self._active_output], {self.input_name: tensor},
+            )
+            vec = outputs[0].flatten()
+        except Exception as e:  # noqa: BLE001 - degrade gracefully
+            logger.error(
+                "SemanticSearch embedding extraction failed (output=%s): %s",
+                self._active_output, e,
+            )
+            return np.zeros(self._active_dim, dtype=np.float32)
+
+        # L2 Normalize — cosine similarity on the unit hypersphere
         norm = np.linalg.norm(vec)
         if norm > 0:
             vec = vec / norm

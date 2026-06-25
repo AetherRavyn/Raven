@@ -1,0 +1,173 @@
+/* ═══════════════════════════════════════════════════════
+   AetherRavyn — Floating HUD Overlay
+   Transparent, always-on-top, docked to right edge
+   ═══════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --hud-bg: rgba(13,17,23,0.88);
+  --hud-border: rgba(48,54,61,0.6);
+  --hud-fg: #e6edf3;
+  --hud-muted: #8b949e;
+  --hud-accent: #e05555;
+  --hud-accent-glow: rgba(224,85,85,0.3);
+  --hud-success: #3fb950;
+  --hud-panel: rgba(28,33,40,0.7);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--hud-fg);
+  -webkit-font-smoothing: antialiased;
+}
+
+.hud {
+  width: 280px;
+  padding: 14px;
+  background: var(--hud-bg);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid var(--hud-border);
+  border-radius: 14px;
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.5),
+    0 0 0 1px rgba(255,255,255,0.04) inset;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: hud-slide-in 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+
+@keyframes hud-slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Header ───────────────────────────────────── */
+.hud-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--hud-border);
+}
+.hud-logo { font-size: 18px; }
+.hud-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hud-accent);
+  letter-spacing: -0.02em;
+  flex: 1;
+}
+.hud-status {
+  font-size: 10px;
+  color: var(--hud-success);
+  animation: status-pulse 2s ease-in-out infinite;
+}
+@keyframes status-pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Sections ─────────────────────────────────── */
+.hud-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hud-muted);
+  margin-bottom: 6px;
+}
+
+/* Goal */
+.hud-goal {
+  padding: 8px 10px;
+  background: var(--hud-panel);
+  border: 1px solid var(--hud-border);
+  border-radius: 8px;
+}
+.hud-goal-title {
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-progress-bar {
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.hud-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--hud-accent), #ff8a80);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 6px var(--hud-accent-glow);
+}
+
+/* Memory */
+.hud-memory-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.hud-memory-item {
+  padding: 5px 8px;
+  background: var(--hud-panel);
+  border: 1px solid var(--hud-border);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--hud-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-memory-item::before {
+  content: '·';
+  color: var(--hud-accent);
+  margin-right: 6px;
+  font-weight: 700;
+}
+
+/* Last Response */
+.hud-last-response {
+  padding: 8px 10px;
+  background: var(--hud-panel);
+  border: 1px solid var(--hud-border);
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--hud-muted);
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+/* ── Footer ───────────────────────────────────── */
+.hud-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--hud-border);
+  font-size: 10px;
+  color: var(--hud-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.hud-divider { opacity: 0.3; }
+
+/* ── Scrollbar ────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(139,148,158,0.3);
+  border-radius: 2px;
+}

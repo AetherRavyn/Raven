@@ -102,7 +102,7 @@ class SearXNGTool(BaseTool):
             params["time_range"] = time_range
 
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(
                     f"{searxng_url}/search",
                     params=params,
@@ -138,6 +138,13 @@ class SearXNGTool(BaseTool):
                 "infoboxes": data.get("infoboxes", []),
             }
 
+        except httpx.ConnectError:
+            logger.debug("SearXNG server not reachable at %s", searxng_url)
+            return {
+                "success": False,
+                "error": f"SearXNG server not reachable at {searxng_url}. "
+                "Start the server or disable SearXNG in configuration.",
+            }
         except Exception as exc:
-            logger.exception("SearXNGTool error")
+            logger.debug("SearXNGTool error: %s", exc)
             return {"success": False, "error": str(exc)}

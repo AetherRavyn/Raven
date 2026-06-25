@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}MODELS — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3" x-data="configEditor()">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">MODELS</h1>
+  <p class="text-zinc-500 text-[11px]">
+    Active LLM, voice, memory, and dashboard settings.
+    <span class="text-accent-500">v34 editor — changes apply to the running process.</span>
+    Process-local overlay: restart to revert to <code>.env</code>.
+  </p>
+
+  <!-- Status banner -->
+  <div x-show="status" x-cloak
+       :class="statusOk ? 'border-emerald-700 bg-emerald-900/30 text-emerald-300' : 'border-rose-700 bg-rose-900/30 text-rose-300'"
+       class="border rounded p-2 text-[11px]"
+       x-text="status"></div>
+
+  <!-- Editor form -->
+  <form @submit.prevent="save()" class="border border-ink-600 bg-ink-800 rounded p-3 space-y-2 text-[12px]">
+    <template x-for="f in fields" :key="f.attr">
+      <div class="grid grid-cols-12 gap-2 items-center">
+        <div class="col-span-3">
+          <span class="text-zinc-500" x-text="f.env"></span>
+          <span x-show="f.overridden"
+                class="ml-1 text-[9px] text-amber-400 uppercase tracking-wider"
+                title="In-memory value differs from the .env file">
+            · override
+          </span>
+        </div>
+        <div class="col-span-7">
+          <template x-if="f.kind === 'bool'">
+            <select :name="f.attr" x-model="f.value"
+                    class="w-full bg-ink-900 border border-ink-600 rounded px-2 py-1 text-zinc-200">
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </template>
+          <template x-if="f.kind !== 'bool'">
+            <input :name="f.attr" x-model="f.value"
+                   :placeholder="f.env_value || ''"
+                   class="w-full bg-ink-900 border border-ink-600 rounded px-2 py-1 text-zinc-200 font-mono text-[11px]" />
+          </template>
+          <div class="text-zinc-600 text-[10px] mt-0.5" x-text="f.help"></div>
+        </div>
+        <div class="col-span-2 text-right text-[10px]">
+          <span x-show="f.kind === 'path' && f.path_exists === true"
+                class="text-emerald-500" title="File exists on disk">✓ exists</span>
+          <span x-show="f.kind === 'path' && f.path_exists === false"
+                class="text-rose-500" title="File not found on disk">✗ missing</span>
+        </div>
+      </div>
+    </template>
+
+    <div class="border-t border-ink-700 pt-2 flex gap-2 justify-end">
+      <button type="button" @click="reload()"
+              class="px-3 py-1 text-[11px] rounded border border-ink-600 text-zinc-300 hover:bg-ink-700">
+        Reload
+      </button>
+      <button type="button" @click="reset()"
+              class="px-3 py-1 text-[11px] rounded border border-amber-700 text-amber-300 hover:bg-amber-900/30"
+              title="Revert all fields to the .env values">
+        Reset to .env
+      </button>
+      <button type="submit" :disabled="busy"
+              class="px-3 py-1 text-[11px] rounded bg-accent-600 text-ink-900 font-semibold hover:bg-accent-500 disabled:opacity-50">
+        <span x-show="!busy">Save</span>
+        <span x-show="busy">Saving…</span>
+      </button>
+    </div>
+  </form>
+
+  <div class="text-zinc-600 text-[10px]">
+    In-flight turns are not interrupted — new turns use the new provider, old turns finish on the old.
+    Voice/STT engines cache their loaded model on first use; reloading the page re-evaluates
+    <code>Config.*</code> but does not unload cached onnx/ggml kernels (restart to free those).
+  </div>
+</section>
+
+<script>
+function configEditor() {
+  return {
+    fields: [],
+    busy: false,
+    status: '',
+    statusOk: true,
+    async init() {
+      await this.reload();
+    },
+    async reload() {
+      try {
+        const r = await fetch('/api/config/show');
+        const j = await r.json();
+        this.fields = (j.fields || []).map(f => ({
+          ...f,
+          value: f.value === null ? '' : String(f.value),
+        }));
+        this.status = `Loaded ${j.count} editable field(s).`;
+        this.statusOk = true;
+      } catch (e) {
+        this.status = 'Failed to load: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+    async save() {
+      this.busy = true;
+      try {
+        const body = new URLSearchParams();
+        for (const f of this.fields) {
+          // Skip booleans whose value is the same as the displayed
+          // env_value (no-op writes still go through but the API
+          // marks them ok=true so this is purely an optimisation).
+          body.append(f.attr, f.value);
+        }
+        const r = await fetch('/api/config/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        });
+        const j = await r.json();
+        const errs = j.errors || [];
+        if (j.ok) {
+          this.status = `Saved ${j.count} field(s) to the in-memory overlay.`;
+          this.statusOk = true;
+        } else if (errs.length) {
+          this.status = `Saved with errors: ${errs.map(e => e.field + ' (' + e.error + ')').join(', ')}`;
+          this.statusOk = false;
+        } else {
+          this.status = 'Save failed: ' + (j.error || 'unknown');
+          this.statusOk = false;
+        }
+        // Refresh field state (overridden flag, path_exists).
+        await this.reload();
+      } catch (e) {
+        this.status = 'Network error: ' + e.message;
+        this.statusOk = false;
+      } finally {
+        this.busy = false;
+      }
+    },
+    async reset() {
+      if (!confirm('Revert all dashboard-set fields to the .env values?')) return;
+      this.busy = true;
+      try {
+        const r = await fetch('/api/config/reset', { method: 'POST' });
+        const j = await r.json();
+        this.status = `Reverted ${j.count} field(s) to .env values.`;
+        this.statusOk = true;
+        await this.reload();
+      } catch (e) {
+        this.status = 'Reset failed: ' + e.message;
+        this.statusOk = false;
+      } finally {
+        this.busy = false;
+      }
+    },
+  };
+}
+</script>
+{% endblock %}

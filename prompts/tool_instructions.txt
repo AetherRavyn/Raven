@@ -1,4 +1,4 @@
-Tool-calling instructions for SARAS
+Tool-calling instructions for RAVEN
 
 General:
 - Decide first if a tool is required.

@@ -66,7 +66,7 @@ KNOWN_CREDENTIALS: list[tuple[str, str]] = [
     ("openrouter", "OPENROUTER_API_KEY"),
     ("groq", "GROQ_API_KEY"),
     ("xai", "XAI_API_KEY"),
-    ("killo", "KILLO_API_KEY"),
+    ("opencode_zen", "OPENCODE_ZEN_API_KEY"),
     ("virustotal", "VIRUSTOTAL_API_KEY"),
     ("telegram_bot", "TELEGRAM_BOT_TOKEN"),
     ("discord_bot", "DISCORD_BOT_TOKEN"),
@@ -86,14 +86,14 @@ def get_credentials_resolver() -> CredentialsResolver:
     """Return a process-wide resolver.
 
     On first use, this lazily constructs a :class:`SecretVault` if
-    ``SARAS_VAULT_ENABLED`` is set.  When the vault is not enabled,
+    ``RAVEN_VAULT_ENABLED`` is set.  When the vault is not enabled,
     the resolver falls back to env vars only.
     """
     global _DEFAULT_RESOLVER
     if _DEFAULT_RESOLVER is not None:
         return _DEFAULT_RESOLVER
     vault = None
-    if os.environ.get("SARAS_VAULT_ENABLED", "").lower() in {"1", "true", "yes", "on"}:
+    if os.environ.get("RAVEN_VAULT_ENABLED", "").lower() in {"1", "true", "yes", "on"}:
         try:
             from app.core.vault import SecretVault
 
@@ -104,6 +104,39 @@ def get_credentials_resolver() -> CredentialsResolver:
     return _DEFAULT_RESOLVER
 
 
+# ── Rotation hooks (P5.7) ────────────────────────────────────────────
+#
+# A credential is "rotated" when its underlying value changes —
+# usually because a secret manager (Vault, AWS SM, etc.) replaced
+# it, or an operator restarted the service with new env vars.
+#
+# Without an explicit rotation hook, ``CredentialsResolver.get`` will
+# happily return the *old* value for the lifetime of the process.
+# Tools that hold a credential across a long run (e.g. an LLM
+# provider client with a long-lived session) would silently keep
+# using the stale key — possibly causing 401s that look like outages.
+#
+# The fix: every call to :func:`resolve_credential` registers the
+# (name, env_var) pair in :data:`_ROTATION_REGISTRY`. An external
+# rotation source (admin CLI, vault webhook, SIGHUP handler) calls
+# :func:`rotate_credential` to record a rotation event. Tools can
+# then opt-in to a freshness check via :func:`is_credential_stale`
+# and re-fetch on stale.
+
+
+import time as _time
+from typing import Any, Dict, Optional
+
+_ROTATION_REGISTRY: Dict[str, Dict[str, Any]] = {}
+# {credential_key: {"last_fetched": float, "last_rotated": float,
+#                   "fetch_count": int, "name": str, "env_var": Optional[str]}}
+
+
+def _cred_key(name: str, env_var: str | None) -> str:
+    """Canonical key for a credential lookup."""
+    return f"{name}::{env_var or ''}"
+
+
 def resolve_credential(
     name: str, *, env_var: str | None = None, default: str | None = None
 ) -> str | None:
@@ -111,26 +144,122 @@ def resolve_credential(
 
     Use this in new code; legacy code that reads ``Config.X`` directly
     continues to work.
+
+    This call is recorded in the rotation registry. Operators can
+    call :func:`rotate_credential` to mark a credential as rotated
+    (forcing a re-read on the next call), or
+    :func:`is_credential_stale` to check freshness.
     """
-    return get_credentials_resolver().get(name, env_var=env_var, default=default)
+    key = _cred_key(name, env_var)
+    value = get_credentials_resolver().get(name, env_var=env_var, default=default)
+    _record_fetch(key, name, env_var)
+    return value
+
+
+def _record_fetch(key: str, name: str, env_var: str | None) -> None:
+    """Update the registry with a fresh fetch timestamp."""
+    prev = _ROTATION_REGISTRY.get(key, {})
+    _ROTATION_REGISTRY[key] = {
+        "name": name,
+        "env_var": env_var,
+        "last_fetched": _time.time(),
+        "last_rotated": prev.get("last_rotated", 0.0),
+        "fetch_count": prev.get("fetch_count", 0) + 1,
+    }
+
+
+def _record_rotate(key: str, name: str, env_var: str | None) -> None:
+    """Mark a credential as rotated (without recording a fetch)."""
+    prev = _ROTATION_REGISTRY.get(key, {})
+    _ROTATION_REGISTRY[key] = {
+        "name": name,
+        "env_var": env_var,
+        "last_rotated": _time.time(),
+        "last_fetched": prev.get("last_fetched", 0.0),
+        "fetch_count": prev.get("fetch_count", 0),
+    }
+
+
+def rotate_credential(name: str, *, env_var: str | None = None) -> str:
+    """Mark a credential as rotated.
+
+    After this call:
+    - the next :func:`resolve_credential` with the same ``name`` and
+      ``env_var`` will re-read from the vault / env;
+    - any cached downstream state (e.g. an LLM client) must be
+      refreshed by its owner.
+
+    The function returns the *new* value (re-read at call time) so
+    the rotation source can sanity-check the new credential
+    immediately.
+
+    Important: this function does **not** record a fetch — so the
+    credential is left "stale" until the caller actually does the
+    refresh via :func:`resolve_credential`.
+    """
+    key = _cred_key(name, env_var)
+    _record_rotate(key, name, env_var)
+    # Force the global resolver to be rebuilt so the new vault / env
+    # values are picked up on the next read.
+    global _DEFAULT_RESOLVER
+    _DEFAULT_RESOLVER = None
+    new_value = get_credentials_resolver().get(name, env_var=env_var)
+    logger.info(
+        "credential rotated: name=%s env_var=%s has_new_value=%s",
+        name, env_var, bool(new_value),
+    )
+    return new_value or ""
+
+
+def is_credential_stale(name: str, *, env_var: str | None = None) -> bool:
+    """Return True if the credential has been rotated since last read.
+
+    A long-lived client should call this periodically; if True,
+    drop any cached state and re-fetch via :func:`resolve_credential`.
+    """
+    key = _cred_key(name, env_var)
+    entry = _ROTATION_REGISTRY.get(key)
+    if not entry:
+        return False  # never read; nothing is "stale"
+    return entry.get("last_rotated", 0.0) > entry.get("last_fetched", 0.0)
+
+
+def rotation_registry() -> Dict[str, Dict[str, Any]]:
+    """Return a snapshot of the rotation registry (for diagnostics)."""
+    return {
+        k: dict(v) for k, v in _ROTATION_REGISTRY.items()
+    }
+
+
+def reset_rotation_registry() -> None:
+    """Drop the rotation registry.  Tests use this between cases."""
+    _ROTATION_REGISTRY.clear()
 
 
 class SecurityGuard:
     """
-    The central security and authorization module for SARAS.
+    The central security and authorization module for RAVEN.
     Handles Prompt Injection detection, Role-Based Access Control (RBAC),
     and execution sanitization.
     """
 
     # Common jailbreak phrasing and system prompt override attempts
     JAILBREAK_PATTERNS = [
-        r"(?i)\bignore all previous instructions\b",
-        r"(?i)\byou are now\b",
-        r"(?i)\bsystem prompt\b",
-        r"(?i)\bdisregard previous\b",
-        r"(?i)\bbypass restrictions\b",
-        r"(?i)\bdo not follow the rules\b",
-        r"(?i)\bsimulate a scenario where\b",
+        r"(?i)ignore\s+(all\s+)?previous\s+instructions",
+        r"(?i)disregard\s+(all\s+)?prior\s+directions",
+        r"(?i)disregard\s+(all\s+)?previous\s+instructions",
+        r"(?i)you\s+are\s+now\s+(?:a|an|the)",
+        r"(?i)forget\s+(all\s+)?(?:your|the)\s+(?:rules|instructions|guidelines)",
+        r"(?i)system\s*prompt\s*(?:override|injection|override)",
+        r"(?i)bypass\s+(?:all\s+)?(?:restrictions|safety|rules|guidelines)",
+        r"(?i)do\s+not\s+follow\s+(?:the\s+)?(?:rules|guidelines|instructions)",
+        r"(?i)act\s+as\s+if\s+(?:you\s+)?(?:have\s+)?(?:no|zero)\s+(?:restrictions|rules)",
+        r"(?i)\bpretend\s+(?:you\s+)?(?:are|have)\s+(?:no|zero)\s+(?:restrictions|rules)",
+        r"(?i)jailbreak",
+        r"(?i)DAN\s+mode",
+        r"(?i)developer\s+mode\s+(?:enabled|activated)",
+        r"(?i)\bdo\s+anything\s+now\b",
+        r"(?i)simulated\s+environment.*(?:no\s+rules|no\s+restrictions)",
     ]
 
     # Highly destructive bash commands that should never be run automatically
@@ -186,17 +315,15 @@ class SecurityGuard:
         """
         Check if a tool execution requires explicit operator approval based on config.
         Returns: (needs_approval, risk_level, reason)
-        """
-        config_path = os.path.expanduser("~/.saras/user_config.json")
-        approval_level = "Balanced"
 
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, "r") as f:
-                    cfg = json.load(f)
-                    approval_level = cfg.get("approval_level", approval_level)
-            except Exception:  # nosec  # fallback to defaults on bad config
-                pass
+        Phase 0.4 — reads through `policy_cache.get_approval_config()` which
+        caches the JSON read for 30 s. This avoids the per-call disk hit
+        and the race condition with simultaneous writes.
+        """
+        from app.core.policy_cache import get_approval_config
+
+        cfg = get_approval_config()
+        approval_level = cfg.get("approval_level", "Balanced")
 
         high_risk_tools = {
             "system_execute",
@@ -216,15 +343,16 @@ class SecurityGuard:
         }
 
         if approval_level.startswith("Autonomous"):
-            # Only ask for strictly destructive actions even in autonomous
-            if tool_name in ("system_execute", "bash_execute") and args.get(
-                "command", ""
-            ).startswith("rm "):
-                return (
-                    True,
-                    "High",
-                    "Destructive system command requires override even in autonomous mode.",
-                )
+            # Check for destructive commands even in autonomous mode
+            if tool_name in ("system_execute", "bash_execute", "sandbox_exec"):
+                from app.core.command_sanitizer import is_destructive_command
+                cmd = args.get("command", "").strip()
+                if cmd and is_destructive_command(cmd):
+                    return (
+                        True,
+                        "High",
+                        f"Destructive command requires override even in autonomous mode: {cmd[:60]}",
+                    )
             return False, "Low", "Autonomous mode enabled"
 
         if approval_level.startswith("Strict"):
@@ -373,7 +501,7 @@ class SecurityGuard:
 
     def _load_channel_config(self) -> dict:
         """Load channel permissions config from JSON."""
-        config_path = os.path.expanduser("~/.saras/channel_permissions.json")
+        config_path = os.path.expanduser("~/.raven/channel_permissions.json")
         if os.path.exists(config_path):
             try:
                 with open(config_path, "r") as f:
@@ -384,7 +512,7 @@ class SecurityGuard:
 
     def _save_channel_config(self, config: dict) -> None:
         """Save channel permissions config to JSON."""
-        config_path = os.path.expanduser("~/.saras/channel_permissions.json")
+        config_path = os.path.expanduser("~/.raven/channel_permissions.json")
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
         try:
             with open(config_path, "w") as f:

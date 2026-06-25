@@ -1,4 +1,4 @@
-"""app/slack/slackapp.py — SARAS Slack bot connector.
+"""app/slack/slackapp.py — RAVEN Slack bot connector.
 
 Uses Slack Bolt (AsyncApp) + Socket Mode so no public HTTP endpoint is needed.
 
@@ -228,15 +228,15 @@ class SlackBot:
             # ── Long text → upload as a snippet ─────────────────────────────
             if len(content_text) > _SLACK_TEXT_LIMIT and not payload.animation_url:
                 fd, temp_file_path = tempfile.mkstemp(
-                    prefix="saras_output_", suffix=".txt", text=True
+                    prefix="raven_output_", suffix=".txt", text=True
                 )
                 with os.fdopen(fd, "w", encoding="utf-8") as fh:
                     fh.write(content_text)
                 await self._client.files_upload_v2(
                     channel=channel,
                     file=temp_file_path,
-                    filename="saras_response.txt",
-                    title="SARAS Response",
+                    filename="raven_response.txt",
+                    title="RAVEN Response",
                     initial_comment="Output exceeded message limit — sent as file.",
                     thread_ts=thread_ts,
                 )

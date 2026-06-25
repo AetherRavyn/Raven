@@ -1,0 +1,81 @@
+[package]
+name = "raven-companion"
+version = "0.1.0"
+description = "RAVEN — desktop companion shell"
+authors = ["RAVEN Engineering"]
+edition = "2021"
+rust-version = "1.75"
+
+# Library + binary.  The binary is the Tauri entry point; the
+# library exposes the protocol types so they can be round-tripped
+# in unit tests without spinning up Tauri.
+[lib]
+name = "raven_companion_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "raven-companion"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Pure-stdlib (well, plus the usual deps).  The library builds on
+# any host with cargo; webkit2gtk / WebKit only matters for the
+# `tauri` feature below.
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time", "sync", "process", "net"] }
+tokio-tungstenite = { version = "0.23", features = ["connect"] }
+tungstenite = "0.23"
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+anyhow = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+
+# Tauri is gated behind a feature so the library builds + tests
+# on any cargo host (CI on Linux without webkit2gtk included).
+# Operators on macOS / Linux-with-webkit2gtk opt in with:
+#     cargo build --features tauri-runtime
+tauri = { version = "2", optional = true, features = ["tray-icon"] }
+tauri-build = { version = "2", optional = true }
+tauri-plugin-notification = { version = "2", optional = true }
+tauri-plugin-shell = { version = "2", optional = true }
+tauri-plugin-window-state = { version = "2", optional = true }
+tauri-plugin-single-instance = { version = "2", optional = true, features = ["deep-link"] }
+tauri-plugin-deep-link = { version = "2", optional = true }
+tauri-plugin-updater = { version = "2", optional = true }
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-autostart = { version = "2", optional = true }
+tauri-plugin-fs = { version = "2", optional = true }
+tauri-plugin-log = { version = "2", optional = true }
+
+[features]
+default = []
+# Enable this feature to build the Tauri shell binary.  Requires
+# webkit2gtk-4.1 on Linux or WebKit on macOS.
+tauri-runtime = [
+    "dep:tauri",
+    "dep:tauri-build",
+    "dep:tauri-plugin-notification",
+    "dep:tauri-plugin-shell",
+    "dep:tauri-plugin-window-state",
+    "dep:tauri-plugin-single-instance",
+    "dep:tauri-plugin-deep-link",
+    "dep:tauri-plugin-updater",
+    "dep:tauri-plugin-dialog",
+    "dep:tauri-plugin-autostart",
+    "dep:tauri-plugin-fs",
+    "dep:tauri-plugin-log",
+]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

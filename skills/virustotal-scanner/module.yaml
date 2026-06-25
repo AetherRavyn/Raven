@@ -4,9 +4,9 @@ display_name: VirusTotal Scanner
 version: "1.0.0"
 category: integration
 description: Passive and active VirusTotal reputation checks for URLs, domains, IPs, hashes, and files.
-owner: saras
+owner: raven
 maintainers:
-  - saras
+  - raven
 tags:
   - security
   - reputation

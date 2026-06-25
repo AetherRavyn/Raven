@@ -1,4 +1,4 @@
-"""Structured JSON logging for SARAS (A5).
+"""Structured JSON logging for RAVEN (A5).
 
 Wraps :mod:`structlog` (or stdlib :mod:`logging` as a fallback)
 and produces one JSON object per log line, suitable for shipping
@@ -16,8 +16,8 @@ The key features:
 - **Bound context**: callers can attach a context dict that
   travels with every log line until cleared (think request id,
   user id, trace id).
-- **Env-driven**: ``SARAS_LOG_LEVEL`` (default ``INFO``) and
-  ``SARAS_LOG_JSON`` (default ``true``) control behaviour.
+- **Env-driven**: ``RAVEN_LOG_LEVEL`` (default ``INFO``) and
+  ``RAVEN_LOG_JSON`` (default ``true``) control behaviour.
 
 The module is import-safe even if structlog is missing — it
 falls back to plain ``logging`` with the same JSON formatter.
@@ -47,12 +47,12 @@ _USE_STRUCTLOG: bool = False
 
 
 def _env_log_level() -> int:
-    name = os.environ.get("SARAS_LOG_LEVEL", "INFO").strip().upper()
+    name = os.environ.get("RAVEN_LOG_LEVEL", "INFO").strip().upper()
     return getattr(logging, name, logging.INFO)
 
 
 def _env_json_enabled() -> bool:
-    v = os.environ.get("SARAS_LOG_JSON", "true").strip().lower()
+    v = os.environ.get("RAVEN_LOG_JSON", "true").strip().lower()
     return v in {"1", "true", "yes", "on"}
 
 
@@ -290,7 +290,7 @@ def _redact_processor(_, __, event_dict):  # type: ignore[no-untyped-def]
 
 
 def get_logger(name: str | None = None) -> Any:
-    """Return a logger that respects SARAS settings.
+    """Return a logger that respects RAVEN settings.
 
     If structlog is available, returns a structlog logger that
     automatically merges the bound context.  Otherwise returns
@@ -304,7 +304,7 @@ def get_logger(name: str | None = None) -> Any:
             return structlog.get_logger(name)
         except ImportError:
             pass
-    return logging.getLogger(name or "saras")
+    return logging.getLogger(name or "raven")
 
 
 def bind_context(**kwargs: Any) -> None:

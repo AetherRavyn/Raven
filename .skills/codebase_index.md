@@ -1,4 +1,4 @@
-# SARAS Intelligence OS — Codebase Index
+# RAVEN Intelligence OS — Codebase Index
 
 > Auto-generated system map for AI comprehension. Updated after Phase 1–7 transformation + device automation.
 
@@ -27,7 +27,7 @@
 | `persona.py` | Dynamic personality — mood/trust/humor affect response style | `PersonaEngine`, `get_persona_engine()` |
 | `output_router.py` | Smart output routing by priority (CRITICAL→voice, LOW→inbox) | `OutputRouter`, `Priority` |
 | `health.py` | Dependency health monitor (Redis, Ollama, HA, SMTP, GCal) | `HealthMonitor`, `get_health_monitor()` |
-| `sentinel_bridge.py` | HomeSentinel camera/sensor → SARAS event bridge via Redis | `SentinelBridge`, `SentinelEvent` |
+| `sentinel_bridge.py` | HomeSentinel camera/sensor → RAVEN event bridge via Redis | `SentinelBridge`, `SentinelEvent` |
 | `user_identity.py` | Cross-platform user identity resolution (SQLite) | `UserIdentityStore` |
 | `session.py` | JSONL-backed conversation session persistence | `SessionManager` |
 | `memory.py` | ChromaDB/pgvector semantic memory | `MemoryStore` |

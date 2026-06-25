@@ -2,13 +2,13 @@
 
 ## Overview
 
-SARAS is reachable from any platform you already use. Each connector is an async
+RAVEN is reachable from any platform you already use. Each connector is an async
 Python class that translates platform-specific events into the unified message format,
 and translates outgoing messages into platform-specific formatting.
 
 ```
 ┌───────────────────────────────────────────────────────────────────────┐
-│  You can talk to SARAS from:                                         │
+│  You can talk to RAVEN from:                                         │
 │                                                                       │
 │  📱 Telegram       - Text, voice notes, photos, files, commands      │
 │  🎮 Discord        - Text, voice channels, slash commands, embeds    │
@@ -17,9 +17,9 @@ and translates outgoing messages into platform-specific formatting.
 │  🌐 Web Dashboard  - Browser-based chat + admin panel                │
 │  🔌 HTTP API       - For custom integrations, scripts, other bots    │
 │                                                                       │
-│  SARAS responds on the SAME platform you talked from.                │
-│  If you send a voice note on Telegram, SARAS replies with a voice    │
-│  note. If you type in Discord, SARAS types back.                     │
+│  RAVEN responds on the SAME platform you talked from.                │
+│  If you send a voice note on Telegram, RAVEN replies with a voice    │
+│  note. If you type in Discord, RAVEN types back.                     │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -51,7 +51,7 @@ from telegram.ext import Application, MessageHandler, CommandHandler, filters
 import io, os
 
 class TelegramConnector:
-    def __init__(self, brain: SarasBrain, token: str):
+    def __init__(self, brain: RavenBrain, token: str):
         self.brain = brain
         self.app = Application.builder().token(token).build()
         self._register_handlers()
@@ -106,7 +106,7 @@ class TelegramConnector:
         file = await context.bot.get_file(voice.file_id)
 
         # Download voice note
-        audio_path = f"/tmp/saras_voice_{update.message.message_id}.ogg"
+        audio_path = f"/tmp/raven_voice_{update.message.message_id}.ogg"
         await file.download_to_drive(audio_path)
 
         # Transcribe (STT handles OGG natively)
@@ -155,7 +155,7 @@ class TelegramConnector:
         photo = update.message.photo[-1]  # Largest resolution
         file = await context.bot.get_file(photo.file_id)
 
-        image_path = f"/tmp/saras_photo_{update.message.message_id}.jpg"
+        image_path = f"/tmp/raven_photo_{update.message.message_id}.jpg"
         await file.download_to_drive(image_path)
 
         # Get VLM description of the image
@@ -242,7 +242,7 @@ class TelegramConnector:
 
 ## Connector 2: Discord Bot
 
-Discord adds **voice channel** support -- SARAS can join a voice channel and talk
+Discord adds **voice channel** support -- RAVEN can join a voice channel and talk
 in real-time, like another person in the call.
 
 ### Capabilities
@@ -268,7 +268,7 @@ import asyncio
 import numpy as np
 
 class DiscordConnector:
-    def __init__(self, brain: SarasBrain, token: str):
+    def __init__(self, brain: RavenBrain, token: str):
         self.brain = brain
         self.token = token
         intents = discord.Intents.default()
@@ -306,7 +306,7 @@ class DiscordConnector:
                 await ctx.voice_client.disconnect()
                 await ctx.respond("Bye!")
 
-        @self.bot.slash_command(name="ask", description="Ask SARAS anything")
+        @self.bot.slash_command(name="ask", description="Ask RAVEN anything")
         async def ask(ctx, question: str):
             await ctx.defer()  # Show "thinking..."
             message = self._make_message(ctx, question)
@@ -367,7 +367,7 @@ class DiscordConnector:
                 ctx.voice_client.play(audio_source)
 
                 # Also post text in the text channel for reference
-                await ctx.channel.send(f"🗣️ **SARAS:** {response.text}")
+                await ctx.channel.send(f"🗣️ **RAVEN:** {response.text}")
 
             os.unlink(audio_path)
 
@@ -384,7 +384,7 @@ is Node.js-only. We run a small Express server that bridges to Python.
 
 ```
 ┌──────────────────┐    HTTP     ┌──────────────────┐
-│  SARAS Python    │◄──────────▶│  Baileys Bridge   │
+│  RAVEN Python    │◄──────────▶│  Baileys Bridge   │
 │  (main process)  │            │  (Node.js)        │
 │                  │            │                    │
 │  Posts incoming   │            │  - Connects to    │
@@ -408,7 +408,7 @@ const app = express();
 app.use(express.json());
 
 let sock;
-const SARAS_URL = process.env.SARAS_URL || 'http://localhost:8080';
+const RAVEN_URL = process.env.RAVEN_URL || 'http://localhost:8080';
 
 async function startWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
@@ -450,9 +450,9 @@ async function startWhatsApp() {
                 text = msg.message.imageMessage.caption || '';
             }
 
-            // Forward to SARAS Python server
+            // Forward to RAVEN Python server
             try {
-                const response = await fetch(`${SARAS_URL}/api/incoming`, {
+                const response = await fetch(`${RAVEN_URL}/api/incoming`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -482,7 +482,7 @@ async function startWhatsApp() {
                 }
 
             } catch (err) {
-                console.error('Error forwarding to SARAS:', err);
+                console.error('Error forwarding to RAVEN:', err);
                 await sock.sendMessage(jid, {
                     text: "Sorry, I'm having trouble right now. Try again in a moment."
                 });
@@ -491,7 +491,7 @@ async function startWhatsApp() {
     });
 }
 
-// API endpoint for SARAS to send proactive messages (alerts, reminders)
+// API endpoint for RAVEN to send proactive messages (alerts, reminders)
 app.post('/send', async (req, res) => {
     const { jid, text, audio_path } = req.body;
     try {
@@ -519,7 +519,7 @@ startWhatsApp();
 
 ## Connector 4: Voice I/O (Microphone / Speaker)
 
-For devices directly connected to the SARAS server -- a Raspberry Pi with a mic
+For devices directly connected to the RAVEN server -- a Raspberry Pi with a mic
 and speaker, a desktop with a USB microphone, or any computer running the bot.
 
 This connector provides **always-on voice** with wake-word detection.
@@ -533,11 +533,11 @@ from collections import deque
 class VoiceIOConnector:
     """Direct microphone/speaker connector for local voice interaction.
 
-    Listens continuously. Detects wake word ("Hey SARAS") or uses
+    Listens continuously. Detects wake word ("Hey RAVEN") or uses
     push-to-talk mode. Speaks responses through local speakers.
     """
 
-    def __init__(self, brain: SarasBrain, mic_device: str = "default",
+    def __init__(self, brain: RavenBrain, mic_device: str = "default",
                  speaker_device: str = "default"):
         self.brain = brain
         self.mic_device = mic_device
@@ -552,7 +552,7 @@ class VoiceIOConnector:
         self.vad = SileroVAD(threshold=0.5)
 
         # Wake word detector (uses a small keyword-spotting model)
-        self.wake_word_detector = WakeWordDetector(wake_word="saras")
+        self.wake_word_detector = WakeWordDetector(wake_word="raven")
 
         # State
         self.is_listening = False       # Actively recording user speech
@@ -572,7 +572,7 @@ class VoiceIOConnector:
             input_device_index=self._find_device(pa, self.mic_device),
         )
 
-        logger.info(f"Voice I/O started. Say 'Hey SARAS' to begin.")
+        logger.info(f"Voice I/O started. Say 'Hey RAVEN' to begin.")
 
         try:
             while True:
@@ -679,17 +679,17 @@ import openwakeword
 from openwakeword.model import Model as OWWModel
 
 class WakeWordDetector:
-    """Detect 'Hey SARAS' using openWakeWord (open-source).
+    """Detect 'Hey RAVEN' using openWakeWord (open-source).
 
     openWakeWord uses small neural networks (~1MB) trained for
-    specific wake words. We can train a custom "Hey SARAS" model
+    specific wake words. We can train a custom "Hey RAVEN" model
     using their training pipeline with ~50 positive examples.
     """
 
-    def __init__(self, wake_word: str = "saras"):
+    def __init__(self, wake_word: str = "raven"):
         # Use a pre-trained model or custom-trained
         self.model = OWWModel(
-            wakeword_models=["hey_saras"],  # Custom trained
+            wakeword_models=["hey_raven"],  # Custom trained
             inference_framework="onnx"
         )
         self.threshold = 0.7
@@ -697,7 +697,7 @@ class WakeWordDetector:
     def detect(self, audio_chunk: np.ndarray) -> bool:
         """Process an audio chunk and return True if wake word detected."""
         prediction = self.model.predict(audio_chunk)
-        scores = prediction.get("hey_saras", 0)
+        scores = prediction.get("hey_raven", 0)
         if isinstance(scores, (list, np.ndarray)):
             return any(s > self.threshold for s in scores)
         return scores > self.threshold
@@ -714,10 +714,10 @@ and a web-based chat interface.
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.staticfiles import StaticFiles
 
-app = FastAPI(title="SARAS API")
+app = FastAPI(title="RAVEN API")
 
 class WebAPIConnector:
-    def __init__(self, brain: SarasBrain, port: int = 8080):
+    def __init__(self, brain: RavenBrain, port: int = 8080):
         self.brain = brain
         self.port = port
 
@@ -767,7 +767,7 @@ class WebAPIConnector:
         @app.get("/api/status")
         async def status():
             return {
-                "bot_name": "SARAS",
+                "bot_name": "RAVEN",
                 "uptime_seconds": self.brain.uptime_seconds,
                 "active_connectors": self.brain.active_connectors,
                 "total_messages_processed": self.brain.message_count,

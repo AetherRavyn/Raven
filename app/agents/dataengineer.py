@@ -102,8 +102,10 @@ class ArchivistAgent(BaseAgent):
 
     @property
     def provider_name(self) -> str:
-        return "killo"
+        # v34: defer to AutoModelRouter so the dashboard-pasted
+        # API key on /page/providers is honoured on every dispatch.
+        return "auto"
 
     @property
     def model_name(self) -> str:
-        return "qwen/qwen3-coder:free"
+        return ""

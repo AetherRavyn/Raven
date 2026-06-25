@@ -2,7 +2,7 @@
 
 ## Deployment Overview
 
-SARAS runs as a single-server deployment. Every component -- the Python async bot process,
+RAVEN runs as a single-server deployment. Every component -- the Python async bot process,
 the WhatsApp bridge, the databases, the ML models -- lives on one machine. There is no
 service mesh, no container orchestration platform, no multi-node cluster. A single GPU
 server handles everything.
@@ -15,10 +15,10 @@ server handles everything.
 │  │                          APPLICATION LAYER                                 │  │
 │  │                                                                            │  │
 │  │  ┌──────────────────────────┐    ┌──────────────────────────────────────┐  │  │
-│  │  │  saras-bot (Python)      │    │  whatsapp-bridge (Node.js)           │  │  │
+│  │  │  raven-bot (Python)      │    │  whatsapp-bridge (Node.js)           │  │  │
 │  │  │                          │    │                                      │  │  │
 │  │  │  - Async event loop      │    │  - Baileys library                   │  │  │
-│  │  │  - All connectors        │    │  - WebSocket link to saras-bot      │  │  │
+│  │  │  - All connectors        │    │  - WebSocket link to raven-bot      │  │  │
 │  │  │    (Telegram, Discord,   │    │  - Runs as separate process         │  │  │
 │  │  │     Voice, Web API)      │    │                                      │  │  │
 │  │  │  - Brain / LLM caller    │    └──────────────────────────────────────┘  │  │
@@ -63,10 +63,10 @@ server handles everything.
 
 Two processes compose the application:
 
-1. **saras-bot** -- the single Python async process that handles all connectors, the brain,
-   memory, tool execution, STT/TTS, IoT, and metrics. This is the core of SARAS.
+1. **raven-bot** -- the single Python async process that handles all connectors, the brain,
+   memory, tool execution, STT/TTS, IoT, and metrics. This is the core of RAVEN.
 2. **whatsapp-bridge** -- a small Node.js process running Baileys. It connects to WhatsApp
-   Web and forwards messages to saras-bot over a local WebSocket.
+   Web and forwards messages to raven-bot over a local WebSocket.
 
 Everything else (PostgreSQL, Redis, Mosquitto, SearXNG, Caddy, Prometheus, Grafana)
 is off-the-shelf infrastructure.
@@ -168,11 +168,11 @@ version: "3.8"
 services:
   # ── Application ──────────────────────────────────────────────
 
-  saras-bot:
+  raven-bot:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: saras-bot
+    container_name: raven-bot
     restart: unless-stopped
     deploy:
       resources:
@@ -182,7 +182,7 @@ services:
               count: 1
               capabilities: [gpu]
     environment:
-      DATABASE_URL: "postgresql+asyncpg://saras:${POSTGRES_PASSWORD}@postgres:5432/saras"
+      DATABASE_URL: "postgresql+asyncpg://raven:${POSTGRES_PASSWORD}@postgres:5432/raven"
       REDIS_URL: "redis://redis:6379/0"
       MQTT_BROKER_HOST: "mosquitto"
       MQTT_BROKER_PORT: "1883"
@@ -198,8 +198,8 @@ services:
       - ./config.yaml:/app/config.yaml:ro
       - ./models:/app/models:ro
       - model_cache:/root/.cache/huggingface
-      - saras_data:/app/data
-      - saras_logs:/app/logs
+      - raven_data:/app/data
+      - raven_logs:/app/logs
     ports:
       - "127.0.0.1:8500:8500"    # Web API (behind Caddy)
       - "127.0.0.1:9090:9090"    # Prometheus metrics endpoint
@@ -217,7 +217,7 @@ services:
       retries: 5
       start_period: 120s
     networks:
-      - saras
+      - raven
 
   whatsapp-bridge:
     build:
@@ -226,7 +226,7 @@ services:
     container_name: whatsapp-bridge
     restart: unless-stopped
     environment:
-      SARAS_BOT_URL: "ws://saras-bot:8500/ws/whatsapp"
+      RAVEN_BOT_URL: "ws://raven-bot:8500/ws/whatsapp"
       AUTH_DIR: "/data/auth"
       LOG_LEVEL: "info"
     volumes:
@@ -238,17 +238,17 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - saras
+      - raven
 
   # ── Databases ────────────────────────────────────────────────
 
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: saras-postgres
+    container_name: raven-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: saras
-      POSTGRES_USER: saras
+      POSTGRES_DB: raven
+      POSTGRES_USER: raven
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -256,7 +256,7 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U saras -d saras"]
+      test: ["CMD-SHELL", "pg_isready -U raven -d raven"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -272,11 +272,11 @@ services:
       - "-c"
       - "maintenance_work_mem=128MB"
     networks:
-      - saras
+      - raven
 
   redis:
     image: redis:7-alpine
-    container_name: saras-redis
+    container_name: raven-redis
     restart: unless-stopped
     command: >
       redis-server
@@ -295,13 +295,13 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - saras
+      - raven
 
   # ── Infrastructure Services ──────────────────────────────────
 
   mosquitto:
     image: eclipse-mosquitto:2
-    container_name: saras-mosquitto
+    container_name: raven-mosquitto
     restart: unless-stopped
     ports:
       - "1883:1883"
@@ -311,11 +311,11 @@ services:
       - mosquitto_data:/mosquitto/data
       - mosquitto_logs:/mosquitto/log
     networks:
-      - saras
+      - raven
 
   searxng:
     image: searxng/searxng:latest
-    container_name: saras-searxng
+    container_name: raven-searxng
     restart: unless-stopped
     environment:
       SEARXNG_BASE_URL: "http://searxng:8080/"
@@ -324,13 +324,13 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     networks:
-      - saras
+      - raven
 
   # ── Reverse Proxy ────────────────────────────────────────────
 
   caddy:
     image: caddy:2-alpine
-    container_name: saras-caddy
+    container_name: raven-caddy
     restart: unless-stopped
     ports:
       - "80:80"
@@ -340,13 +340,13 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     networks:
-      - saras
+      - raven
 
   # ── Monitoring ───────────────────────────────────────────────
 
   prometheus:
     image: prom/prometheus:v2.51.0
-    container_name: saras-prometheus
+    container_name: raven-prometheus
     restart: unless-stopped
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -358,11 +358,11 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.retention.time=30d"
     networks:
-      - saras
+      - raven
 
   grafana:
     image: grafana/grafana:10.4.0
-    container_name: saras-grafana
+    container_name: raven-grafana
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD}"
@@ -375,7 +375,7 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     networks:
-      - saras
+      - raven
 
 volumes:
   postgres_data:
@@ -383,8 +383,8 @@ volumes:
   mosquitto_data:
   mosquitto_logs:
   model_cache:
-  saras_data:
-  saras_logs:
+  raven_data:
+  raven_logs:
   whatsapp_auth:
   caddy_data:
   caddy_config:
@@ -392,7 +392,7 @@ volumes:
   grafana_data:
 
 networks:
-  saras:
+  raven:
     driver: bridge
 ```
 
@@ -406,7 +406,7 @@ POSTGRES_PASSWORD=changeme-use-a-strong-password
 TELEGRAM_BOT_TOKEN=123456:ABC-your-telegram-bot-token
 DISCORD_BOT_TOKEN=your-discord-bot-token
 GRAFANA_PASSWORD=changeme-grafana-admin
-DOMAIN=saras.yourdomain.com
+DOMAIN=raven.yourdomain.com
 ```
 
 ### Starting the Stack
@@ -419,10 +419,10 @@ docker compose up -d --build
 docker compose ps
 
 # View logs
-docker compose logs -f saras-bot
+docker compose logs -f raven-bot
 
 # Restart just the bot after config changes
-docker compose restart saras-bot
+docker compose restart raven-bot
 
 # Full stop
 docker compose down
@@ -465,13 +465,13 @@ sudo apt-get install -y nvidia-cuda-toolkit
 
 ```bash
 # Create a dedicated user
-sudo useradd -r -m -s /bin/bash saras
+sudo useradd -r -m -s /bin/bash raven
 
 # Set up the project
-sudo -u saras bash -c '
-  cd /home/saras
-  git clone https://github.com/your-org/saras.git
-  cd saras
+sudo -u raven bash -c '
+  cd /home/raven
+  git clone https://github.com/your-org/raven.git
+  cd raven
   python3.11 -m venv .venv
   source .venv/bin/activate
   pip install --upgrade pip
@@ -479,28 +479,28 @@ sudo -u saras bash -c '
 '
 ```
 
-### Systemd Service: saras-bot
+### Systemd Service: raven-bot
 
 ```ini
-# /etc/systemd/system/saras-bot.service
+# /etc/systemd/system/raven-bot.service
 [Unit]
-Description=SARAS AI Companion Bot
+Description=RAVEN AI Companion Bot
 After=network.target postgresql.service redis-server.service mosquitto.service
 Wants=postgresql.service redis-server.service mosquitto.service
 
 [Service]
 Type=exec
-User=saras
-Group=saras
-WorkingDirectory=/home/saras/saras
-ExecStart=/home/saras/saras/.venv/bin/python -m saras.main
+User=raven
+Group=raven
+WorkingDirectory=/home/raven/raven
+ExecStart=/home/raven/raven/.venv/bin/python -m raven.main
 Restart=on-failure
 RestartSec=10
 TimeoutStartSec=180
 
 # Environment
-EnvironmentFile=/home/saras/saras/.env
-Environment=CONFIG_PATH=/home/saras/saras/config.yaml
+EnvironmentFile=/home/raven/raven/.env
+Environment=CONFIG_PATH=/home/raven/raven/config.yaml
 Environment=LOG_LEVEL=INFO
 Environment=LOG_FORMAT=json
 
@@ -508,7 +508,7 @@ Environment=LOG_FORMAT=json
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/saras/saras/data /home/saras/saras/logs /tmp
+ReadWritePaths=/home/raven/raven/data /home/raven/raven/logs /tmp
 PrivateTmp=true
 
 # Resource limits
@@ -518,7 +518,7 @@ MemoryMax=8G
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=saras-bot
+SyslogIdentifier=raven-bot
 
 [Install]
 WantedBy=multi-user.target
@@ -527,35 +527,35 @@ WantedBy=multi-user.target
 ### Systemd Service: whatsapp-bridge
 
 ```ini
-# /etc/systemd/system/saras-whatsapp.service
+# /etc/systemd/system/raven-whatsapp.service
 [Unit]
-Description=SARAS WhatsApp Bridge (Baileys)
-After=network.target saras-bot.service
-Wants=saras-bot.service
+Description=RAVEN WhatsApp Bridge (Baileys)
+After=network.target raven-bot.service
+Wants=raven-bot.service
 
 [Service]
 Type=exec
-User=saras
-Group=saras
-WorkingDirectory=/home/saras/saras/whatsapp-bridge
+User=raven
+Group=raven
+WorkingDirectory=/home/raven/raven/whatsapp-bridge
 ExecStart=/usr/bin/node src/index.js
 Restart=on-failure
 RestartSec=5
 
-EnvironmentFile=/home/saras/saras/.env
-Environment=SARAS_BOT_URL=ws://127.0.0.1:8500/ws/whatsapp
-Environment=AUTH_DIR=/home/saras/saras/data/whatsapp-auth
+EnvironmentFile=/home/raven/raven/.env
+Environment=RAVEN_BOT_URL=ws://127.0.0.1:8500/ws/whatsapp
+Environment=AUTH_DIR=/home/raven/raven/data/whatsapp-auth
 Environment=LOG_LEVEL=info
 
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/saras/saras/data
+ReadWritePaths=/home/raven/raven/data
 PrivateTmp=true
 
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=saras-whatsapp
+SyslogIdentifier=raven-whatsapp
 
 [Install]
 WantedBy=multi-user.target
@@ -565,12 +565,12 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable saras-bot saras-whatsapp
-sudo systemctl start saras-bot saras-whatsapp
+sudo systemctl enable raven-bot raven-whatsapp
+sudo systemctl start raven-bot raven-whatsapp
 
 # Check status
-sudo systemctl status saras-bot
-sudo journalctl -u saras-bot -f
+sudo systemctl status raven-bot
+sudo journalctl -u raven-bot -f
 ```
 
 ---
@@ -634,7 +634,7 @@ Everything else (STT, TTS, memory, connectors, IoT) still runs locally.
 
 ### How VRAM Is Allocated
 
-SARAS loads three GPU-accelerated models simultaneously. They share a single GPU.
+RAVEN loads three GPU-accelerated models simultaneously. They share a single GPU.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -741,33 +741,33 @@ context), or loading additional models (vision model, safety classifier on GPU).
 
 ```bash
 #!/usr/bin/env bash
-# scripts/backup.sh -- daily backup for SARAS
-# Run via cron: 0 3 * * * /home/saras/saras/scripts/backup.sh
+# scripts/backup.sh -- daily backup for RAVEN
+# Run via cron: 0 3 * * * /home/raven/raven/scripts/backup.sh
 
 set -euo pipefail
 
-BACKUP_DIR="/home/saras/backups"
+BACKUP_DIR="/home/raven/backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RETENTION_DAYS=14
 
 mkdir -p "${BACKUP_DIR}"
 
-echo "[${TIMESTAMP}] Starting SARAS backup..."
+echo "[${TIMESTAMP}] Starting RAVEN backup..."
 
 # ── PostgreSQL dump ────────────────────────────────────────
 echo "Backing up PostgreSQL..."
 if command -v docker &> /dev/null; then
     # Docker deployment
-    docker exec saras-postgres pg_dump \
-        -U saras \
-        -d saras \
+    docker exec raven-postgres pg_dump \
+        -U raven \
+        -d raven \
         --format=custom \
         --compress=9 \
         > "${BACKUP_DIR}/postgres_${TIMESTAMP}.dump"
 else
     # Native deployment
     sudo -u postgres pg_dump \
-        -d saras \
+        -d raven \
         --format=custom \
         --compress=9 \
         > "${BACKUP_DIR}/postgres_${TIMESTAMP}.dump"
@@ -776,9 +776,9 @@ fi
 # ── Redis snapshot ─────────────────────────────────────────
 echo "Backing up Redis..."
 if command -v docker &> /dev/null; then
-    docker exec saras-redis redis-cli BGSAVE
+    docker exec raven-redis redis-cli BGSAVE
     sleep 5
-    docker cp saras-redis:/data/dump.rdb "${BACKUP_DIR}/redis_${TIMESTAMP}.rdb"
+    docker cp raven-redis:/data/dump.rdb "${BACKUP_DIR}/redis_${TIMESTAMP}.rdb"
 else
     redis-cli BGSAVE
     sleep 5
@@ -788,15 +788,15 @@ fi
 # ── WhatsApp auth ─────────────────────────────────────────
 echo "Backing up WhatsApp auth..."
 if command -v docker &> /dev/null; then
-    docker cp saras-whatsapp-bridge:/data/auth "${BACKUP_DIR}/whatsapp_auth_${TIMESTAMP}"
+    docker cp raven-whatsapp-bridge:/data/auth "${BACKUP_DIR}/whatsapp_auth_${TIMESTAMP}"
 else
-    cp -r /home/saras/saras/data/whatsapp-auth "${BACKUP_DIR}/whatsapp_auth_${TIMESTAMP}"
+    cp -r /home/raven/raven/data/whatsapp-auth "${BACKUP_DIR}/whatsapp_auth_${TIMESTAMP}"
 fi
 
 # ── Config files ──────────────────────────────────────────
 echo "Backing up config..."
 tar czf "${BACKUP_DIR}/config_${TIMESTAMP}.tar.gz" \
-    -C /home/saras/saras \
+    -C /home/raven/raven \
     config.yaml \
     config/ \
     .env \
@@ -805,7 +805,7 @@ tar czf "${BACKUP_DIR}/config_${TIMESTAMP}.tar.gz" \
 
 # ── Compress everything into one archive ──────────────────
 echo "Creating final archive..."
-tar czf "${BACKUP_DIR}/saras_full_${TIMESTAMP}.tar.gz" \
+tar czf "${BACKUP_DIR}/raven_full_${TIMESTAMP}.tar.gz" \
     -C "${BACKUP_DIR}" \
     "postgres_${TIMESTAMP}.dump" \
     "redis_${TIMESTAMP}.rdb" \
@@ -820,44 +820,44 @@ rm -f "${BACKUP_DIR}/config_${TIMESTAMP}.tar.gz"
 
 # ── Prune old backups ─────────────────────────────────────
 echo "Pruning backups older than ${RETENTION_DAYS} days..."
-find "${BACKUP_DIR}" -name "saras_full_*.tar.gz" -mtime +${RETENTION_DAYS} -delete
+find "${BACKUP_DIR}" -name "raven_full_*.tar.gz" -mtime +${RETENTION_DAYS} -delete
 
 # ── Optional: copy to remote storage ─────────────────────
 # Uncomment and configure one of these:
-# rsync -az "${BACKUP_DIR}/saras_full_${TIMESTAMP}.tar.gz" user@backup-server:/backups/saras/
-# aws s3 cp "${BACKUP_DIR}/saras_full_${TIMESTAMP}.tar.gz" s3://your-bucket/saras-backups/
-# rclone copy "${BACKUP_DIR}/saras_full_${TIMESTAMP}.tar.gz" remote:saras-backups/
+# rsync -az "${BACKUP_DIR}/raven_full_${TIMESTAMP}.tar.gz" user@backup-server:/backups/raven/
+# aws s3 cp "${BACKUP_DIR}/raven_full_${TIMESTAMP}.tar.gz" s3://your-bucket/raven-backups/
+# rclone copy "${BACKUP_DIR}/raven_full_${TIMESTAMP}.tar.gz" remote:raven-backups/
 
-FINAL_SIZE=$(du -h "${BACKUP_DIR}/saras_full_${TIMESTAMP}.tar.gz" | cut -f1)
-echo "[$(date +%Y%m%d_%H%M%S)] Backup complete: saras_full_${TIMESTAMP}.tar.gz (${FINAL_SIZE})"
+FINAL_SIZE=$(du -h "${BACKUP_DIR}/raven_full_${TIMESTAMP}.tar.gz" | cut -f1)
+echo "[$(date +%Y%m%d_%H%M%S)] Backup complete: raven_full_${TIMESTAMP}.tar.gz (${FINAL_SIZE})"
 ```
 
 ### Cron Setup
 
 ```bash
 # Install the cron job
-chmod +x /home/saras/saras/scripts/backup.sh
-(crontab -l 2>/dev/null; echo "0 3 * * * /home/saras/saras/scripts/backup.sh >> /home/saras/backups/backup.log 2>&1") | crontab -
+chmod +x /home/raven/raven/scripts/backup.sh
+(crontab -l 2>/dev/null; echo "0 3 * * * /home/raven/raven/scripts/backup.sh >> /home/raven/backups/backup.log 2>&1") | crontab -
 ```
 
 ### Restore Procedure
 
 ```bash
 # Extract the archive
-tar xzf saras_full_20260212_030000.tar.gz
+tar xzf raven_full_20260212_030000.tar.gz
 
 # Restore PostgreSQL
-docker exec -i saras-postgres pg_restore \
-    -U saras -d saras --clean --if-exists \
+docker exec -i raven-postgres pg_restore \
+    -U raven -d raven --clean --if-exists \
     < postgres_20260212_030000.dump
 
 # Restore Redis
 docker compose stop redis
-docker cp redis_20260212_030000.rdb saras-redis:/data/dump.rdb
+docker cp redis_20260212_030000.rdb raven-redis:/data/dump.rdb
 docker compose start redis
 
 # Restore WhatsApp auth
-docker cp whatsapp_auth_20260212_030000/. saras-whatsapp-bridge:/data/auth/
+docker cp whatsapp_auth_20260212_030000/. raven-whatsapp-bridge:/data/auth/
 docker compose restart whatsapp-bridge
 ```
 
@@ -867,11 +867,11 @@ docker compose restart whatsapp-bridge
 
 ### Prometheus Metrics in the Bot
 
-The saras-bot process exposes metrics via `prometheus_client` on port 9090.
+The raven-bot process exposes metrics via `prometheus_client` on port 9090.
 
 ```python
-# saras/metrics.py
-"""Prometheus metrics for SARAS bot."""
+# raven/metrics.py
+"""Prometheus metrics for RAVEN bot."""
 
 from prometheus_client import (
     Counter,
@@ -882,21 +882,21 @@ from prometheus_client import (
 )
 
 # ── Bot info ───────────────────────────────────────────────
-SARAS_INFO = Info("saras", "SARAS bot instance information")
+RAVEN_INFO = Info("raven", "RAVEN bot instance information")
 
 # ── Message metrics ────────────────────────────────────────
 MESSAGES_RECEIVED = Counter(
-    "saras_messages_received_total",
+    "raven_messages_received_total",
     "Total messages received",
     ["platform", "message_type"],
 )
 MESSAGES_SENT = Counter(
-    "saras_messages_sent_total",
+    "raven_messages_sent_total",
     "Total messages sent",
     ["platform"],
 )
 MESSAGE_PROCESSING_TIME = Histogram(
-    "saras_message_processing_seconds",
+    "raven_message_processing_seconds",
     "End-to-end message processing time",
     ["platform"],
     buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0],
@@ -904,76 +904,76 @@ MESSAGE_PROCESSING_TIME = Histogram(
 
 # ── LLM metrics ───────────────────────────────────────────
 LLM_INFERENCE_TIME = Histogram(
-    "saras_llm_inference_seconds",
+    "raven_llm_inference_seconds",
     "LLM inference latency (time to first token)",
     buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0],
 )
 LLM_TOKENS_GENERATED = Counter(
-    "saras_llm_tokens_generated_total",
+    "raven_llm_tokens_generated_total",
     "Total tokens generated by LLM",
 )
 LLM_TOKENS_PER_SECOND = Gauge(
-    "saras_llm_tokens_per_second",
+    "raven_llm_tokens_per_second",
     "Current LLM generation speed",
 )
 
 # ── STT metrics ────────────────────────────────────────────
 STT_PROCESSING_TIME = Histogram(
-    "saras_stt_processing_seconds",
+    "raven_stt_processing_seconds",
     "Speech-to-text processing time",
     buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0],
 )
 STT_AUDIO_DURATION = Histogram(
-    "saras_stt_audio_duration_seconds",
+    "raven_stt_audio_duration_seconds",
     "Duration of audio processed by STT",
     buckets=[1, 2, 5, 10, 30, 60],
 )
 
 # ── TTS metrics ────────────────────────────────────────────
 TTS_PROCESSING_TIME = Histogram(
-    "saras_tts_processing_seconds",
+    "raven_tts_processing_seconds",
     "Text-to-speech synthesis time",
     buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0],
 )
 TTS_CHARACTERS_PROCESSED = Counter(
-    "saras_tts_characters_total",
+    "raven_tts_characters_total",
     "Total characters synthesized by TTS",
 )
 
 # ── IoT metrics ────────────────────────────────────────────
 IOT_SENSOR_COUNT = Gauge(
-    "saras_iot_sensors_active",
+    "raven_iot_sensors_active",
     "Number of active IoT sensors",
 )
 IOT_COMMANDS_TOTAL = Counter(
-    "saras_iot_commands_total",
+    "raven_iot_commands_total",
     "Total IoT commands executed",
     ["command_type", "status"],
 )
 IOT_MQTT_MESSAGES = Counter(
-    "saras_iot_mqtt_messages_total",
+    "raven_iot_mqtt_messages_total",
     "Total MQTT messages received",
     ["topic_prefix"],
 )
 
 # ── Error metrics ──────────────────────────────────────────
 ERRORS_TOTAL = Counter(
-    "saras_errors_total",
+    "raven_errors_total",
     "Total errors",
     ["component", "error_type"],
 )
 
 # ── GPU metrics ────────────────────────────────────────────
 GPU_MEMORY_USED = Gauge(
-    "saras_gpu_memory_used_bytes",
+    "raven_gpu_memory_used_bytes",
     "GPU memory used in bytes",
 )
 GPU_MEMORY_TOTAL = Gauge(
-    "saras_gpu_memory_total_bytes",
+    "raven_gpu_memory_total_bytes",
     "Total GPU memory in bytes",
 )
 GPU_UTILIZATION = Gauge(
-    "saras_gpu_utilization_percent",
+    "raven_gpu_utilization_percent",
     "GPU utilization percentage",
 )
 
@@ -1004,7 +1004,7 @@ def update_gpu_metrics() -> None:
 
 def start_metrics_server(port: int = 9090) -> None:
     """Start the Prometheus metrics HTTP server."""
-    SARAS_INFO.info({"version": "0.1.0", "python": "3.11"})
+    RAVEN_INFO.info({"version": "0.1.0", "python": "3.11"})
     start_http_server(port)
 ```
 
@@ -1017,9 +1017,9 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: "saras-bot"
+  - job_name: "raven-bot"
     static_configs:
-      - targets: ["saras-bot:9090"]
+      - targets: ["raven-bot:9090"]
     scrape_interval: 10s
 
   - job_name: "node-exporter"
@@ -1044,21 +1044,21 @@ alerting:
 ### Alert Rules
 
 ```yaml
-# config/alerts/saras-alerts.yml
+# config/alerts/raven-alerts.yml
 groups:
-  - name: saras-critical
+  - name: raven-critical
     rules:
-      - alert: SarasBotDown
-        expr: up{job="saras-bot"} == 0
+      - alert: RavenBotDown
+        expr: up{job="raven-bot"} == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "SARAS bot process is down"
-          description: "The saras-bot metrics endpoint has been unreachable for 1 minute."
+          summary: "RAVEN bot process is down"
+          description: "The raven-bot metrics endpoint has been unreachable for 1 minute."
 
       - alert: LLMLatencyHigh
-        expr: histogram_quantile(0.95, rate(saras_llm_inference_seconds_bucket[5m])) > 5
+        expr: histogram_quantile(0.95, rate(raven_llm_inference_seconds_bucket[5m])) > 5
         for: 3m
         labels:
           severity: warning
@@ -1066,7 +1066,7 @@ groups:
           summary: "LLM inference P95 latency above 5 seconds"
 
       - alert: MessageProcessingLatencyHigh
-        expr: histogram_quantile(0.95, rate(saras_message_processing_seconds_bucket[5m])) > 10
+        expr: histogram_quantile(0.95, rate(raven_message_processing_seconds_bucket[5m])) > 10
         for: 3m
         labels:
           severity: warning
@@ -1074,7 +1074,7 @@ groups:
           summary: "End-to-end message processing P95 above 10 seconds"
 
       - alert: GPUMemoryNearOOM
-        expr: saras_gpu_memory_used_bytes / saras_gpu_memory_total_bytes > 0.92
+        expr: raven_gpu_memory_used_bytes / raven_gpu_memory_total_bytes > 0.92
         for: 5m
         labels:
           severity: critical
@@ -1083,7 +1083,7 @@ groups:
           description: "Consider reducing vLLM gpu_memory_utilization or switching to a smaller Whisper model."
 
       - alert: HighErrorRate
-        expr: rate(saras_errors_total[5m]) > 0.5
+        expr: rate(raven_errors_total[5m]) > 0.5
         for: 3m
         labels:
           severity: warning
@@ -1091,7 +1091,7 @@ groups:
           summary: "Error rate above 0.5/s across all components"
 
       - alert: STTLatencyHigh
-        expr: histogram_quantile(0.95, rate(saras_stt_processing_seconds_bucket[5m])) > 3
+        expr: histogram_quantile(0.95, rate(raven_stt_processing_seconds_bucket[5m])) > 3
         for: 3m
         labels:
           severity: warning
@@ -1106,8 +1106,8 @@ Import this JSON as a Grafana dashboard. It provides the key operational panels.
 ```json
 {
   "dashboard": {
-    "title": "SARAS Operations",
-    "uid": "saras-ops",
+    "title": "RAVEN Operations",
+    "uid": "raven-ops",
     "panels": [
       {
         "title": "Messages Received (rate/min)",
@@ -1115,7 +1115,7 @@ Import this JSON as a Grafana dashboard. It provides the key operational panels.
         "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
         "targets": [
           {
-            "expr": "sum(rate(saras_messages_received_total[5m])) by (platform) * 60",
+            "expr": "sum(rate(raven_messages_received_total[5m])) by (platform) * 60",
             "legendFormat": "{{ platform }}"
           }
         ]
@@ -1126,15 +1126,15 @@ Import this JSON as a Grafana dashboard. It provides the key operational panels.
         "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.50, rate(saras_message_processing_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.50, rate(raven_message_processing_seconds_bucket[5m]))",
             "legendFormat": "p50"
           },
           {
-            "expr": "histogram_quantile(0.95, rate(saras_message_processing_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.95, rate(raven_message_processing_seconds_bucket[5m]))",
             "legendFormat": "p95"
           },
           {
-            "expr": "histogram_quantile(0.99, rate(saras_message_processing_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.99, rate(raven_message_processing_seconds_bucket[5m]))",
             "legendFormat": "p99"
           }
         ]
@@ -1145,11 +1145,11 @@ Import this JSON as a Grafana dashboard. It provides the key operational panels.
         "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.50, rate(saras_llm_inference_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.50, rate(raven_llm_inference_seconds_bucket[5m]))",
             "legendFormat": "p50"
           },
           {
-            "expr": "histogram_quantile(0.95, rate(saras_llm_inference_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.95, rate(raven_llm_inference_seconds_bucket[5m]))",
             "legendFormat": "p95"
           }
         ]
@@ -1159,7 +1159,7 @@ Import this JSON as a Grafana dashboard. It provides the key operational panels.
         "type": "gauge",
         "gridPos": { "h": 8, "w": 4, "x": 8, "y": 8 },
         "targets": [
-          { "expr": "saras_gpu_utilization_percent" }
+          { "expr": "raven_gpu_utilization_percent" }
         ],
         "fieldConfig": {
           "defaults": {
@@ -1180,11 +1180,11 @@ Import this JSON as a Grafana dashboard. It provides the key operational panels.
         "gridPos": { "h": 8, "w": 4, "x": 12, "y": 8 },
         "targets": [
           {
-            "expr": "saras_gpu_memory_used_bytes / 1024 / 1024",
+            "expr": "raven_gpu_memory_used_bytes / 1024 / 1024",
             "legendFormat": "Used (MB)"
           },
           {
-            "expr": "saras_gpu_memory_total_bytes / 1024 / 1024",
+            "expr": "raven_gpu_memory_total_bytes / 1024 / 1024",
             "legendFormat": "Total (MB)"
           }
         ]
@@ -1195,11 +1195,11 @@ Import this JSON as a Grafana dashboard. It provides the key operational panels.
         "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, rate(saras_stt_processing_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.95, rate(raven_stt_processing_seconds_bucket[5m]))",
             "legendFormat": "STT p95"
           },
           {
-            "expr": "histogram_quantile(0.95, rate(saras_tts_processing_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.95, rate(raven_tts_processing_seconds_bucket[5m]))",
             "legendFormat": "TTS p95"
           }
         ]
@@ -1210,7 +1210,7 @@ Import this JSON as a Grafana dashboard. It provides the key operational panels.
         "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
         "targets": [
           {
-            "expr": "sum(rate(saras_errors_total[5m])) by (component) * 60",
+            "expr": "sum(rate(raven_errors_total[5m])) by (component) * 60",
             "legendFormat": "{{ component }}"
           }
         ]
@@ -1220,7 +1220,7 @@ Import this JSON as a Grafana dashboard. It provides the key operational panels.
         "type": "stat",
         "gridPos": { "h": 8, "w": 4, "x": 12, "y": 16 },
         "targets": [
-          { "expr": "saras_iot_sensors_active" }
+          { "expr": "raven_iot_sensors_active" }
         ]
       },
       {
@@ -1229,11 +1229,11 @@ Import this JSON as a Grafana dashboard. It provides the key operational panels.
         "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
         "targets": [
           {
-            "expr": "sum(rate(saras_iot_commands_total{status='success'}[5m])) * 60",
+            "expr": "sum(rate(raven_iot_commands_total{status='success'}[5m])) * 60",
             "legendFormat": "success/min"
           },
           {
-            "expr": "sum(rate(saras_iot_commands_total{status='error'}[5m])) * 60",
+            "expr": "sum(rate(raven_iot_commands_total{status='error'}[5m])) * 60",
             "legendFormat": "error/min"
           }
         ]
@@ -1280,7 +1280,7 @@ jobs:
         run: ruff format --check .
 
       - name: Type check
-        run: mypy saras/ --ignore-missing-imports
+        run: mypy raven/ --ignore-missing-imports
 
   test:
     runs-on: ubuntu-latest
@@ -1289,12 +1289,12 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_DB: saras_test
-          POSTGRES_USER: saras
+          POSTGRES_DB: raven_test
+          POSTGRES_USER: raven
           POSTGRES_PASSWORD: testpassword
         ports: ["5432:5432"]
         options: >-
-          --health-cmd="pg_isready -U saras"
+          --health-cmd="pg_isready -U raven"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -1319,9 +1319,9 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: "postgresql+asyncpg://saras:testpassword@localhost:5432/saras_test"
+          DATABASE_URL: "postgresql+asyncpg://raven:testpassword@localhost:5432/raven_test"
           REDIS_URL: "redis://localhost:6379/0"
-        run: pytest tests/ -v --cov=saras --cov-report=xml --cov-fail-under=70
+        run: pytest tests/ -v --cov=raven --cov-report=xml --cov-fail-under=70
 
       - name: Upload coverage
         if: github.event_name == 'pull_request'
@@ -1344,14 +1344,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push saras-bot
+      - name: Build and push raven-bot
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/saras-bot:${{ github.sha }}
-            ghcr.io/${{ github.repository }}/saras-bot:latest
+            ghcr.io/${{ github.repository }}/raven-bot:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/raven-bot:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -1381,10 +1381,10 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            cd /home/saras/saras
+            cd /home/raven/raven
             git pull origin main
-            docker compose pull saras-bot whatsapp-bridge
-            docker compose up -d --build saras-bot whatsapp-bridge
+            docker compose pull raven-bot whatsapp-bridge
+            docker compose up -d --build raven-bot whatsapp-bridge
             docker compose ps
             echo "Waiting for health check..."
             sleep 30
@@ -1435,9 +1435,9 @@ pre-commit install
 # scripts/deploy.sh -- pull latest code, rebuild, and restart
 set -euo pipefail
 
-DEPLOY_DIR="/home/saras/saras"
+DEPLOY_DIR="/home/raven/raven"
 
-echo "=== SARAS Deployment ==="
+echo "=== RAVEN Deployment ==="
 echo "Time: $(date)"
 
 cd "${DEPLOY_DIR}"
@@ -1448,10 +1448,10 @@ git pull origin main
 
 # Rebuild and restart application containers only
 echo "Rebuilding containers..."
-docker compose build saras-bot whatsapp-bridge
+docker compose build raven-bot whatsapp-bridge
 
 echo "Restarting services..."
-docker compose up -d saras-bot whatsapp-bridge
+docker compose up -d raven-bot whatsapp-bridge
 
 # Wait for health check
 echo "Waiting for health check..."
@@ -1462,7 +1462,7 @@ for i in $(seq 1 30); do
     fi
     if [ "$i" -eq 30 ]; then
         echo "ERROR: Health check failed after 30s. Rolling back."
-        docker compose logs --tail=50 saras-bot
+        docker compose logs --tail=50 raven-bot
         exit 1
     fi
     sleep 1
@@ -1478,12 +1478,12 @@ docker compose ps
 
 ### Structured Logging Configuration
 
-SARAS uses `structlog` for structured JSON logging. Every log entry includes the
+RAVEN uses `structlog` for structured JSON logging. Every log entry includes the
 timestamp, log level, component name, and request context.
 
 ```python
-# saras/logging_config.py
-"""Logging configuration for SARAS."""
+# raven/logging_config.py
+"""Logging configuration for RAVEN."""
 
 import logging
 import sys
@@ -1566,18 +1566,18 @@ async def handle_message(message):
 For native systemd deployments where logs go to files:
 
 ```
-# /etc/logrotate.d/saras
-/home/saras/saras/logs/*.log {
+# /etc/logrotate.d/raven
+/home/raven/raven/logs/*.log {
     daily
     missingok
     rotate 14
     compress
     delaycompress
     notifempty
-    create 0640 saras saras
+    create 0640 raven raven
     sharedscripts
     postrotate
-        systemctl reload saras-bot 2>/dev/null || true
+        systemctl reload raven-bot 2>/dev/null || true
     endscript
 }
 ```
@@ -1605,23 +1605,23 @@ For Docker deployments, view logs with:
 docker compose logs -f
 
 # Specific service, last 100 lines
-docker compose logs -f --tail=100 saras-bot
+docker compose logs -f --tail=100 raven-bot
 
 # Search logs for errors
-docker compose logs saras-bot 2>&1 | grep '"level":"error"'
+docker compose logs raven-bot 2>&1 | grep '"level":"error"'
 ```
 
 For systemd deployments:
 
 ```bash
 # Follow bot logs
-journalctl -u saras-bot -f
+journalctl -u raven-bot -f
 
 # Errors only, last hour
-journalctl -u saras-bot --since "1 hour ago" -p err
+journalctl -u raven-bot --since "1 hour ago" -p err
 
-# All SARAS services
-journalctl -u 'saras-*' -f
+# All RAVEN services
+journalctl -u 'raven-*' -f
 ```
 
 ---
@@ -1660,7 +1660,7 @@ Ports that should NOT be exposed to the internet:
 | 5432 | PostgreSQL | Database should only be accessed locally |
 | 6379 | Redis | No authentication by default |
 | 8080 | SearXNG | Internal search proxy only |
-| 8500 | saras-bot API | Behind Caddy reverse proxy |
+| 8500 | raven-bot API | Behind Caddy reverse proxy |
 | 9090 | Prometheus metrics | Internal monitoring |
 | 9091 | Prometheus UI | Internal monitoring |
 | 3000 | Grafana | Accessed through Caddy |
@@ -1675,13 +1675,13 @@ Caddy automatically obtains and renews TLS certificates from Let's Encrypt.
     email your-email@example.com
 }
 
-saras.yourdomain.com {
+raven.yourdomain.com {
     # Bot API and WebSocket
     handle /api/* {
-        reverse_proxy saras-bot:8500
+        reverse_proxy raven-bot:8500
     }
     handle /ws/* {
-        reverse_proxy saras-bot:8500
+        reverse_proxy raven-bot:8500
     }
 
     # Grafana dashboard
@@ -1712,35 +1712,35 @@ PermitRootLogin no
 PasswordAuthentication no
 PubkeyAuthentication yes
 MaxAuthTries 3
-AllowUsers saras
+AllowUsers raven
 
 # Restart SSH
 sudo systemctl restart sshd
 ```
 
-Ensure you have your SSH public key in `/home/saras/.ssh/authorized_keys` before
+Ensure you have your SSH public key in `/home/raven/.ssh/authorized_keys` before
 disabling password authentication.
 
 ### Non-Root User for All Services
 
-Never run SARAS as root. The systemd service files above specify `User=saras`.
+Never run RAVEN as root. The systemd service files above specify `User=raven`.
 For Docker, the Dockerfile should use a non-root user:
 
 ```dockerfile
 # In Dockerfile
 FROM python:3.11-slim
 
-RUN useradd -m -r -s /bin/bash saras
+RUN useradd -m -r -s /bin/bash raven
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN chown -R saras:saras /app
+RUN chown -R raven:raven /app
 
-USER saras
-CMD ["python", "-m", "saras.main"]
+USER raven
+CMD ["python", "-m", "raven.main"]
 ```
 
 ### Secrets Management

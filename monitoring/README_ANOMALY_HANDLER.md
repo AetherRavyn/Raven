@@ -79,7 +79,7 @@ A lightweight, ARM-optimized Python service that extends Frigate NVR with real-t
 ssh pi@$RPI_IP
 
 # 2. Clone/navigate to monitoring directory
-cd /home/saras/monitoring
+cd /home/raven/monitoring
 
 # 3. Run installation script
 bash install.sh
@@ -87,7 +87,7 @@ bash install.sh
 # 4. Edit configuration
 sudo nano /etc/systemd/system/anomaly-handler.service
 # Update:
-#   - POSTGRES_URL: postgresql://saras:YOUR_PASSWORD@localhost/5432/saras
+#   - POSTGRES_URL: postgresql://raven:YOUR_PASSWORD@localhost/5432/raven
 #   - FRIGATE_MQTT_HOST, FRIGATE_API_URL
 #   - Optional: TELEGRAM_TOKEN, ANOMALY_WEBHOOK_URL
 
@@ -123,13 +123,13 @@ FRIGATE_RTSP_URL=rtsp://localhost:8554 # For live stream proxy
 ### Database
 
 ```bash
-POSTGRES_URL=postgresql://saras:pass@localhost/saras
+POSTGRES_URL=postgresql://raven:pass@localhost/raven
 ```
 
 ### Storage
 
 ```bash
-CLIPS_DIR=/var/lib/saras/anomalies    # Where to save clips/snapshots
+CLIPS_DIR=/var/lib/raven/anomalies    # Where to save clips/snapshots
 ```
 
 ### Anomaly Thresholds
@@ -289,7 +289,7 @@ journalctl -u anomaly-handler.service -n 20
 
 # Expected output:
 # [INFO] Anomaly detected: loitering on cam_01
-# [INFO] Snapshot saved: /var/lib/saras/anomalies/cam_01_2025...jpg
+# [INFO] Snapshot saved: /var/lib/raven/anomalies/cam_01_2025...jpg
 # [INFO] Webhook alert sent: test_event_1
 # [INFO] Telegram alert sent: test_event_1
 ```
@@ -312,8 +312,8 @@ sudo systemctl restart anomaly-handler.service
 | Issue                               | Solution                                                                           |
 | ----------------------------------- | ---------------------------------------------------------------------------------- |
 | MQTT connection failing             | Check Frigate MQTT broker is running: `mosquitto_pub -h localhost -t test -m "ok"` |
-| PostgreSQL connection error         | Verify user/password: `psql -h localhost -U saras -d saras`                        |
-| Permission denied on /var/lib/saras | Fix ownership: `sudo chown -R saras:saras /var/lib/saras`                          |
+| PostgreSQL connection error         | Verify user/password: `psql -h localhost -U raven -d raven`                        |
+| Permission denied on /var/lib/raven | Fix ownership: `sudo chown -R raven:raven /var/lib/raven`                          |
 | Memory limit exceeded               | Increase MemoryMax in systemd service or disable YOLO                              |
 | Flask port already in use           | Change FLASK_PORT environment variable                                             |
 
@@ -347,12 +347,12 @@ CPU:    60-80% (media encoding, YOLO inference)
 ## Production Deployment Checklist
 
 - [ ] Database: Create user, set secure password, verify connectivity
-- [ ] Storage: Create `/var/lib/saras/anomalies` with proper permissions
+- [ ] Storage: Create `/var/lib/raven/anomalies` with proper permissions
 - [ ] MQTT: Verify Frigate MQTT broker is running
-- [ ] Service user: Create `saras` user with correct shell
+- [ ] Service user: Create `raven` user with correct shell
 - [ ] Systemd: Install and enable service file
 - [ ] Config: Set all environment variables in service file
-- [ ] Logs: Configure log rotation in `/var/log/saras`
+- [ ] Logs: Configure log rotation in `/var/log/raven`
 - [ ] Firewall: Open port 8080 for dashboard (restrict to LAN if needed)
 - [ ] Backup: Schedule database backups (PostgreSQL `pg_dump`)
 - [ ] Monitoring: Set up alerting on systemd service failures
@@ -376,10 +376,10 @@ CPU:    60-80% (media encoding, YOLO inference)
 
 ```
 2025-02-21 10:35:12 [INFO] [AnomalyHandler] Anomaly detected: loitering on cam_01
-2025-02-21 10:35:13 [INFO] [AnomalyHandler] Snapshot saved: /var/lib/saras/anomalies/cam_01_20250221_103513_snap.jpg
+2025-02-21 10:35:13 [INFO] [AnomalyHandler] Snapshot saved: /var/lib/raven/anomalies/cam_01_20250221_103513_snap.jpg
 2025-02-21 10:35:13 [INFO] [AnomalyHandler] Webhook alert sent: evt_abc123
 2025-02-21 10:35:14 [INFO] [AnomalyHandler] Telegram alert sent: evt_abc123
-2025-02-21 10:35:25 [INFO] [AnomalyHandler] Clip saved: /var/lib/saras/anomalies/cam_01_20250221_103513_clip.mp4
+2025-02-21 10:35:25 [INFO] [AnomalyHandler] Clip saved: /var/lib/raven/anomalies/cam_01_20250221_103513_clip.mp4
 ```
 
 ### Service Shutdown
@@ -444,6 +444,6 @@ with self.neo4j_driver.session() as session:
 
 ## License & Support
 
-SARAS Surveillance System - Production Deployment Documentation
+RAVEN Surveillance System - Production Deployment Documentation
 
 Last Updated: 2025-02-21

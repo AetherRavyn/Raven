@@ -7,18 +7,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-_SARAS_WEBHOOK_URL = "http://127.0.0.1:8765/internal/camera-alert"
+_RAVEN_WEBHOOK_URL = "http://127.0.0.1:8765/internal/camera-alert"
 
 
-async def _notify_saras(event: dict) -> None:
-    """POST a camera alert event to the SARAS webhook server (best-effort)."""
+async def _notify_raven(event: dict) -> None:
+    """POST a camera alert event to the RAVEN webhook server (best-effort)."""
     try:
         import httpx
 
         async with httpx.AsyncClient() as client:
-            await client.post(_SARAS_WEBHOOK_URL, json=event, timeout=5)
+            await client.post(_RAVEN_WEBHOOK_URL, json=event, timeout=5)
     except Exception as exc:
-        logger.debug("SARAS webhook notification failed: %s", exc)
+        logger.debug("RAVEN webhook notification failed: %s", exc)
 
 
 async def _broadcast_proactive_digest(event: dict) -> None:
@@ -549,7 +549,7 @@ class AnomalyDetector:
 
 
 class EventService:
-    """Microservice wrapper for AnomalyDetector using Redis MessageBus."""
+    """Microservice wrapper for AnomalyDetector using MessageBus."""
 
     def __init__(self, bus, config: Dict | None = None, thresholds: Dict | None = None):
         self.bus = bus
@@ -630,11 +630,11 @@ class EventService:
                     self.bus.publish("events.detected", event_payload)
                     logger.info(f"Published event: {event.event_type} for {camera_id}")
 
-                    # Notify SARAS via webhook for high/critical events
+                    # Notify RAVEN via webhook for high/critical events
                     if event.risk_level in ("high", "critical"):
                         import asyncio
 
-                        saras_payload = {
+                        raven_payload = {
                             "event": event.event_type,
                             "camera": camera_id,
                             "confidence": confidence,
@@ -642,11 +642,11 @@ class EventService:
                         try:
                             loop = asyncio.get_event_loop()
                             if loop.is_running():
-                                asyncio.create_task(_notify_saras(saras_payload))
+                                asyncio.create_task(_notify_raven(raven_payload))
                             else:
-                                loop.run_until_complete(_notify_saras(saras_payload))
+                                loop.run_until_complete(_notify_raven(raven_payload))
                         except Exception as exc:
-                            logger.debug("SARAS webhook dispatch error: %s", exc)
+                            logger.debug("RAVEN webhook dispatch error: %s", exc)
 
                         try:
                             from app.core.event_digest import broadcast_event_digest

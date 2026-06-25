@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RAVEN</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    RAVEN Desktop — native shell entry point.
+
+    This page is the *Tauri* view, not the RAVEN dashboard itself.
+    The Python backend is launched as a Tauri sidecar on startup;
+    once the backend is healthy we redirect the webview to its
+    full dashboard (e.g. http://127.0.0.1:8090/).
+
+    IPC bridge (Tauri v2 invoke):
+      * window.__TAURI__.core.invoke('backend_url')     → string
+      * window.__TAURI__.core.invoke('backend_status')  → BackendStatus
+      * window.__TAURI__.core.invoke('retry_backend')   → string
+      * window.__TAURI__.core.invoke('check_for_update')→ UpdateInfo|null
+      * window.__TAURI__.core.invoke('set_autostart', {enabled: bool}) → bool
+      * window.__TAURI__.core.invoke('get_autostart')   → bool
+      * window.__TAURI__.core.invoke('open_log_dir')    → string
+
+    Events (window.__TAURI__.event.listen):
+      * backend://status  → BackendStatus (state, url, pid, last_error)
+      * shell://navigate  → { path: string }             (menu nav)
+      * shell://menu      → { id: string, kind?: string } (raw menu click)
+      * shell://deep-link → "raven://..."                (URL handed off)
+      * cowork://state    → string                       (active session state)
+      * cowork://event    → CoworkEvent                  (SSE forwarded)
+      * companion://state → ConnectionState
+      * companion://frame → Frame
+
+    The dashboard inside the iframe can postMessage the shell:
+      window.parent.postMessage({ source: "raven-dashboard", kind: "navigate", path: "/page/cowork" }, "*");
+    The shell forwards this as `shell://navigate` to itself (no-op)
+    and as a menu-cancel to the OS.
+  -->
+
+  <div id="boot">
+    <div class="boot-card">
+      <div class="logo">
+        <span class="logo-mark">RAVEN</span>
+        <span class="logo-version" id="logo-version"></span>
+      </div>
+      <div class="health-row">
+        <span id="health-dot" class="health-dot" data-state="starting"></span>
+        <span id="status" class="status" data-kind="info">Starting backend…</span>
+      </div>
+      <div class="progress" id="progress"><div class="bar" id="bar"></div></div>
+      <div class="hint" id="hint">Launching Python backend sidecar…</div>
+      <div id="actions" class="actions" hidden>
+        <button id="retry-btn" class="btn">Retry</button>
+        <button id="logs-btn" class="btn btn-secondary">Open Logs</button>
+        <button id="quit-btn" class="btn btn-secondary">Quit</button>
+      </div>
+      <div id="update-banner" class="update-banner" hidden>
+        <span id="update-text">Update available</span>
+        <button id="update-btn" class="btn">Restart &amp; Update</button>
+      </div>
+    </div>
+  </div>
+
+  <iframe id="dashboard" hidden allow="clipboard-read; clipboard-write"></iframe>
+
+  <script>
+    // ---------- Tauri bridge shim ----------------------------------------
+    // The webview injects ``window.__TAURI__`` for us.  We wrap each
+    // accessor so the page is renderable in a plain browser for
+    // screenshots / storybook (everything below still works; calls
+    // become no-ops).
+    const tauri = (() => {
+      const hasTauri = !!(window.__TAURI__ && window.__TAURI__.core);
+      const invoke = hasTauri
+        ? (cmd, args) => window.__TAURI__.core.invoke(cmd, args)
+        : async () => null;
+      const listen = hasTauri
+        ? (event, cb) => window.__TAURI__.event.listen(event, cb)
+        : async () => () => {};
+      return { hasTauri, invoke, listen };
+    })();
+
+    // ---------- DOM handles ---------------------------------------------
+    const statusEl = document.getElementById("status");
+    const barEl = document.getElementById("bar");
+    const hintEl = document.getElementById("hint");
+    const healthDot = document.getElementById("health-dot");
+    const bootEl = document.getElementById("boot");
+    const iframe = document.getElementById("dashboard");
+    const actionsEl = document.getElementById("actions");
+    const retryBtn = document.getElementById("retry-btn");
+    const logsBtn = document.getElementById("logs-btn");
+    const quitBtn = document.getElementById("quit-btn");
+    const updateBanner = document.getElementById("update-banner");
+    const updateText = document.getElementById("update-text");
+    const updateBtn = document.getElementById("update-btn");
+    const logoVersion = document.getElementById("logo-version");
+
+    // ---------- helpers ------------------------------------------------
+    function setStatus(text, kind) {
+      statusEl.textContent = text;
+      statusEl.dataset.kind = kind || "info";
+    }
+    function setHint(text) { hintEl.textContent = text; }
+    function setProgress(pct) {
+      barEl.style.width = Math.max(0, Math.min(100, pct)) + "%";
+    }
+    function setHealth(state) {
+      // state: starting | ready | restarting | crashed | failed | offline
+      healthDot.dataset.state = state || "starting";
+    }
+    function showActions(visible) {
+      actionsEl.hidden = !visible;
+    }
+
+    // ---------- backend-status UI ---------------------------------------
+    function renderStatus(s) {
+      if (!s) return;
+      if (s.version && !logoVersion.textContent) {
+        logoVersion.textContent = "v" + s.version;
+      }
+      setHealth(s.state);
+      switch (s.state) {
+        case "ready":
+          setStatus("Backend ready", "ok");
+          setHint(s.url ? "Dashboard at " + s.url : "");
+          setProgress(100);
+          showActions(false);
+          break;
+        case "starting":
+          setStatus("Starting backend…", "info");
+          setProgress(40);
+          showActions(true);
+          break;
+        case "restarting":
+          setStatus("Restarting backend…", "warn");
+          setProgress(60);
+          showActions(true);
+          break;
+        case "crashed":
+          setStatus("Backend crashed", "err");
+          setHint((s.last_error || "Unknown error") + " — click Retry to try again.");
+          setProgress(100);
+          showActions(true);
+          break;
+        case "failed":
+          setStatus("Backend failed to start", "err");
+          setHint(s.last_error || "Check workspace/raven.log for details.");
+          showActions(true);
+          break;
+        case "stopping":
+          setStatus("Stopping…", "warn");
+          showActions(true);
+          break;
+        case "offline":
+        default:
+          setStatus("Backend offline", "info");
+          showActions(true);
+      }
+    }
+
+    // ---------- wait-for-backend loop -----------------------------------
+    async function waitForBackend(url, attempts = 60) {
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const r = await fetch(url + "/api/system/status", { method: "GET" });
+          if (r.ok) return true;
+        } catch (e) { /* not yet */ }
+        setProgress(10 + (i / attempts) * 85);
+        setStatus("Waiting for backend… attempt " + (i + 1) + "/" + attempts);
+        await new Promise(r => setTimeout(r, 500));
+      }
+      return false;
+    }
+
+    // ---------- dashboard loader ----------------------------------------
+    let dashboardUrl = null;
+    function showDashboard(url) {
+      dashboardUrl = url;
+      bootEl.style.display = "none";
+      iframe.hidden = false;
+      iframe.src = url + "/";
+      iframe.focus();
+    }
+
+    async function boot() {
+      setProgress(5);
+      if (!tauri.hasTauri) {
+        setStatus("Running in browser (no Tauri shell)", "info");
+        setHint("Set window.RAVEN_DASHBOARD_URL to point at a running backend.");
+        return;
+      }
+      try {
+        const s = await tauri.invoke("backend_status");
+        renderStatus(s);
+        if (s && s.url && s.state === "ready") {
+          showDashboard(s.url);
+          return;
+        }
+      } catch (e) {
+        setStatus("Backend sidecar failed: " + e, "err");
+        showActions(true);
+        return;
+      }
+      setProgress(10);
+      let url = "";
+      try { url = await tauri.invoke("backend_url"); } catch (e) {}
+      if (!url) {
+        setStatus("No backend URL yet", "info");
+        showActions(true);
+        // Keep listening for backend://status updates.
+        return;
+      }
+      setStatus("Waiting for backend at " + url);
+      const ok = await waitForBackend(url);
+      if (!ok) {
+        setStatus("Backend did not respond at " + url, "err");
+        setHint("Click Retry — the sidecar will be respawned.");
+        showActions(true);
+        return;
+      }
+      showDashboard(url);
+    }
+
+    // ---------- live event listeners ------------------------------------
+    tauri.listen("backend://status", (e) => renderStatus(e.payload));
+
+    tauri.listen("cowork://event", (e) => {
+      try {
+        iframe.contentWindow && iframe.contentWindow.postMessage(
+          { source: "raven-shell", kind: "cowork-event", payload: e.payload },
+          "*",
+        );
+      } catch (_) {}
+    });
+
+    tauri.listen("cowork://state", (e) => {
+      try {
+        iframe.contentWindow && iframe.contentWindow.postMessage(
+          { source: "raven-shell", kind: "cowork-state", payload: e.payload },
+          "*",
+        );
+      } catch (_) {}
+    });
+
+    tauri.listen("shell://navigate", (e) => {
+      const path = (e.payload && e.payload.path) || "/";
+      if (iframe && iframe.src && dashboardUrl) {
+        iframe.src = dashboardUrl + path;
+      } else if (dashboardUrl) {
+        showDashboard(dashboardUrl);
+      }
+    });
+
+    // Raw menu events from the native menu bar / tray.  These are
+    // turned into a navigate() on the dashboard iframe, which knows
+    // the right page to open for each id.
+    tauri.listen("shell://menu", (e) => {
+      const id = (e.payload && e.payload.id) || "";
+      const path = menuIdToPath(id);
+      if (iframe && iframe.src && path) {
+        iframe.src = dashboardUrl + path;
+      } else if (path) {
+        // Dashboard not yet loaded — show it first.
+        tauri.invoke("backend_url").then((url) => {
+          if (url) { dashboardUrl = url; showDashboard(url); }
+        });
+      }
+    });
+
+    tauri.listen("shell://deep-link", (e) => {
+      const url = e.payload || "";
+      // Forward to dashboard as a postMessage (it owns deep-link
+      // routing for things like raven://open/cowork/session-123).
+      try {
+        iframe.contentWindow && iframe.contentWindow.postMessage(
+          { source: "raven-shell", kind: "deep-link", payload: url },
+          "*",
+        );
+      } catch (_) {}
+      if (!iframe.src) {
+        tauri.invoke("backend_url").then((url) => {
+          if (url) { dashboardUrl = url; showDashboard(url); }
+        });
+      }
+    });
+
+    tauri.listen("companion://state", (e) => {
+      try {
+        iframe.contentWindow && iframe.contentWindow.postMessage(
+          { source: "raven-shell", kind: "companion-state", payload: e.payload },
+          "*",
+        );
+      } catch (_) {}
+    });
+    tauri.listen("companion://frame", (e) => {
+      try {
+        iframe.contentWindow && iframe.contentWindow.postMessage(
+          { source: "raven-shell", kind: "companion-frame", payload: e.payload },
+          "*",
+        );
+      } catch (_) {}
+    });
+
+    // ---------- button handlers -----------------------------------------
+    retryBtn.addEventListener("click", async () => {
+      retryBtn.disabled = true;
+      setStatus("Retrying…", "info");
+      setProgress(50);
+      try {
+        const url = await tauri.invoke("retry_backend");
+        setHint("Respawned — waiting for ready…");
+        const ok = await waitForBackend(url || dashboardUrl || "");
+        if (ok) { showDashboard(url); }
+        else { setStatus("Retry failed", "err"); }
+      } catch (e) {
+        setStatus("Retry failed: " + e, "err");
+      } finally {
+        retryBtn.disabled = false;
+      }
+    });
+
+    logsBtn.addEventListener("click", async () => {
+      try {
+        const dir = await tauri.invoke("open_log_dir");
+        setHint("Logs at " + dir);
+      } catch (e) {
+        setHint("Could not open log dir: " + e);
+      }
+    });
+
+    quitBtn.addEventListener("click", () => {
+      // Tauri's window close handler will run the proper shutdown.
+      window.close();
+    });
+
+    updateBtn.addEventListener("click", () => {
+      // The updater is gated behind the actual installed binary;
+      // from the boot screen we just close so the user can re-launch
+      // into the updated install path.
+      setHint("Restart to apply the update.");
+      window.close();
+    });
+
+    // ---------- menu-id → path mapping ----------------------------------
+    // Mirrors the IDs in ``src-tauri/src/tray.rs``.
+    function menuIdToPath(id) {
+      switch (id) {
+        case "open_dashboard": return "/";
+        case "view_chat": return "/page/chat";
+        case "view_cowork": return "/page/cowork";
+        case "view_providers": return "/page/providers";
+        case "view_personality": return "/page/personality";
+        case "view_skills": return "/page/skills";
+        case "view_agents": return "/page/agents";
+        case "view_memory": return "/page/memory";
+        case "view_knowledge": return "/page/knowledge";
+        case "view_helix": return "/page/helix";
+        case "view_logs": return "/page/logs";
+        case "help_docs": return "/page/help";
+        case "help_about": return "/page/about";
+        case "cowork_new": return "/page/cowork?new=1";
+        case "cowork_pause": return null; // dashboard handles via postMessage
+        case "cowork_resume": return null;
+        case "cowork_stop": return null;
+        case "cowork_approve_all": return null;
+        default: return null;
+      }
+    }
+
+    // ---------- dashboard → shell postMessage ---------------------------
+    window.addEventListener("message", (ev) => {
+      const data = ev.data || {};
+      if (data.source !== "raven-dashboard") return;
+      if (data.kind === "navigate" && data.path) {
+        if (iframe && dashboardUrl) iframe.src = dashboardUrl + data.path;
+      } else if (data.kind === "ready") {
+        // Dashboard announced itself; flush any queued postMessages.
+        try {
+          iframe.contentWindow.postMessage(
+            { source: "raven-shell", kind: "hello", payload: { dashboardUrl } },
+            "*",
+          );
+        } catch (_) {}
+      } else if (data.kind === "autostart" && typeof data.enabled === "boolean") {
+        tauri.invoke("set_autostart", { enabled: data.enabled }).catch(() => {});
+      } else if (data.kind === "check-update") {
+        tauri.invoke("check_for_update").then((info) => {
+          if (info && info.available) {
+            updateText.textContent = "Update " + info.version + " available";
+            updateBanner.hidden = false;
+          }
+        }).catch(() => {});
+      } else if (data.kind === "cowork-action" && data.action) {
+        // Forward to native menu bar so the OS can update its state.
+        // The tray items will be re-toggled by the next state poll.
+        try {
+          iframe.contentWindow.postMessage(
+            { source: "raven-shell", kind: "cowork-action", payload: data },
+            "*",
+          );
+        } catch (_) {}
+      }
+    });
+
+    // ---------- start ----------------------------------------------------
+    boot();
+
+    // Once a year, check for an update (best-effort, non-blocking).
+    setTimeout(() => {
+      tauri.invoke("check_for_update").then((info) => {
+        if (info && info.available) {
+          updateText.textContent = "Update " + info.version + " available";
+          updateBanner.hidden = false;
+        }
+      }).catch(() => {});
+    }, 4000);
+  </script>
+</body>
+</html>

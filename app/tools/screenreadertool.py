@@ -1,7 +1,7 @@
 # app/tools/screenreadertool.py
 """Screen Reader / OCR Tool — read and understand screen content.
 
-Enables SARAS to "see" what's on any screen (desktop, mobile, browser):
+Enables RAVEN to "see" what's on any screen (desktop, mobile, browser):
   - Take a screenshot and extract all text via OCR
   - Find specific text or UI elements on screen
   - Read the focused window content
@@ -378,8 +378,12 @@ class ScreenReaderTool(BaseTool):
     # ── Helper ─────────────────────────────────────────────────────
 
     async def _run_cmd(self, cmd: str) -> str:
+        from app.core.command_sanitizer import sanitize_command
+        safe_cmd = sanitize_command(cmd, allow_all=True)
+        if safe_cmd is None:
+            return "Error: Command blocked by security filter"
         proc = await asyncio.create_subprocess_shell(
-            cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            safe_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15)
         return stdout.decode("utf-8", errors="replace")

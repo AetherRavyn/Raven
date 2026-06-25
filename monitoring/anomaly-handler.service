@@ -1,21 +1,21 @@
 [Unit]
 Description=Frigate Anomaly Detection Handler for Raspberry Pi
-Documentation=https://github.com/SARAS/monitoring
+Documentation=https://github.com/swadhinbiswas/Raven
 After=network.target mosquitto.service
 
 [Service]
 Type=simple
-User=saras
-Group=saras
-WorkingDirectory=/home/saras/monitoring
+User=raven
+Group=raven
+WorkingDirectory=/home/raven/monitoring
 
 # Environment configuration
 Environment="FRIGATE_MQTT_HOST=localhost"
 Environment="FRIGATE_MQTT_PORT=1883"
 Environment="FRIGATE_API_URL=http://localhost:5000"
 Environment="FRIGATE_RTSP_URL=rtsp://localhost:8554"
-Environment="POSTGRES_URL=postgresql://saras:PASSWORD@localhost:5432/saras"
-Environment="CLIPS_DIR=/var/lib/saras/anomalies"
+Environment="POSTGRES_URL=postgresql://raven:PASSWORD@localhost:5432/raven"
+Environment="CLIPS_DIR=/var/lib/raven/anomalies"
 Environment="ANOMALY_WEBHOOK_URL="
 Environment="TELEGRAM_TOKEN="
 Environment="TELEGRAM_CHAT_ID="
@@ -27,7 +27,7 @@ Environment="LOG_LEVEL=INFO"
 Environment="FLASK_PORT=8080"
 
 # Python execution
-ExecStart=/usr/bin/python3 /home/saras/monitoring/anomaly_handler.py
+ExecStart=/usr/bin/python3 /home/raven/monitoring/anomaly_handler.py
 
 # Restart policy - aggressive for production
 Restart=on-failure
@@ -44,7 +44,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/saras /home/saras/monitoring
+ReadWritePaths=/var/lib/raven /home/raven/monitoring
 
 # Logging to systemd journal
 StandardOutput=journal

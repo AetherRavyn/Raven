@@ -9,7 +9,7 @@ import asyncio
 from datetime import datetime, timezone
 import os
 
-# Import SARAS Core
+# Import RAVEN Core
 from app.core.orchestrator import MessageOrchestrator
 from app.core.botsignal import BotSignal
 from app.core.models import IncomingRequest, ReplyTarget, SignalPayload
@@ -22,8 +22,8 @@ from app.api.ui import router as ui_router
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="SARAS Intelligence OS API",
-    description="Decoupled backend API for SARAS (Phase 3). Connects to iOS, Next.js, and Tauri frontends.",
+    title="RAVEN Intelligence OS API",
+    description="Decoupled backend API for RAVEN (Phase 3). Connects to iOS, Next.js, and Tauri frontends.",
     version="2.0.0",
 )
 

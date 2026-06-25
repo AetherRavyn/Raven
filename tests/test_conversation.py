@@ -34,12 +34,12 @@ class TestExtractFacts:
         assert f == {"name": "alice"}
 
     def test_multiple_facts_in_one_turn(self) -> None:
-        f = extract_facts(_t(1, "user", "name=alice project=saras"))
-        assert f == {"name": "alice", "project": "saras"}
+        f = extract_facts(_t(1, "user", "name=alice project=raven"))
+        assert f == {"name": "alice", "project": "raven"}
 
     def test_case_insensitive_key(self) -> None:
-        f = extract_facts(_t(1, "user", "Project=saras"))
-        assert f == {"project": "saras"}
+        f = extract_facts(_t(1, "user", "Project=raven"))
+        assert f == {"project": "raven"}
 
     def test_trailing_punctuation_stripped(self) -> None:
         f = extract_facts(_t(1, "user", "name=alice."))
@@ -123,8 +123,8 @@ class TestWorkingMemory:
 
     def test_add_turn_updates_facts(self) -> None:
         wm = WorkingMemory()
-        wm.add_turn(_t(1, "user", "project=saras"))
-        assert wm.facts == {"project": "saras"}
+        wm.add_turn(_t(1, "user", "project=raven"))
+        assert wm.facts == {"project": "raven"}
 
     def test_add_turn_updates_entities(self) -> None:
         wm = WorkingMemory()
@@ -151,9 +151,9 @@ class TestWorkingMemory:
 
     def test_serialise_round_trip(self) -> None:
         wm = WorkingMemory(user_id="alice")
-        wm.add_turn(_t(1, "user", "project=saras. HelixDB is fast."))
+        wm.add_turn(_t(1, "user", "project=raven. HelixDB is fast."))
         wm.add_turn(_t(2, "assistant", "Phase D is about conversational depth."))
-        wm.summary = "Earlier the user mentioned saras."
+        wm.summary = "Earlier the user mentioned raven."
 
         data = wm.to_dict()
         wm2 = WorkingMemory.from_dict(data)
@@ -166,14 +166,14 @@ class TestWorkingMemory:
 
     def test_context_string_includes_sections(self) -> None:
         wm = WorkingMemory()
-        wm.add_turn(_t(1, "user", "project=saras"))
-        wm.summary = "User is working on saras."
+        wm.add_turn(_t(1, "user", "project=raven"))
+        wm.summary = "User is working on raven."
         text = wm.context_string()
         assert "Summary:" in text
         assert "Topic:" in text
         assert "Known facts:" in text
         assert "Recent turns:" in text
-        assert "project = saras" in text
+        assert "project = raven" in text
 
     def test_context_string_no_facts(self) -> None:
         wm = WorkingMemory()
@@ -194,7 +194,7 @@ class TestWorkingMemory:
 
         wm = WorkingMemory(fact_extractor=bad_extractor)
         # Should not raise.
-        wm.add_turn(_t(1, "user", "project=saras"))
+        wm.add_turn(_t(1, "user", "project=raven"))
         assert wm.facts == {}  # the bad extractor returned nothing
 
 

@@ -1,4 +1,4 @@
-# SARAS — AetherRavyn
+# RAVEN — AetherRavyn
 # Top-level Makefile.
 #
 # Conventions:
@@ -25,14 +25,14 @@ PYT  := $(VENV)/bin/pytest
 HELIX_URL ?= http://localhost:8080
 HELIX_BIN ?= $(HOME)/.local/bin/helix
 HELIX_IMG ?= ghcr.io/helixdb/enterprise-dev:latest
-HELIX_CTR ?= helix-saras
-PROJECT  := saras
-DOCKER_IMG := ghcr.io/saras/$(PROJECT):latest
+HELIX_CTR ?= helix-raven
+PROJECT  := raven
+DOCKER_IMG := ghcr.io/raven/$(PROJECT):latest
 
-export SARAS_HELIX_URL := $(HELIX_URL)
-export SARAS_LOG_JSON  := true
-export SARAS_LOG_LEVEL := INFO
-export SARAS_OTEL_IN_MEMORY := true
+export RAVEN_HELIX_URL := $(HELIX_URL)
+export RAVEN_LOG_JSON  := true
+export RAVEN_LOG_LEVEL := INFO
+export RAVEN_OTEL_IN_MEMORY := true
 
 .DEFAULT_GOAL := help
 
@@ -284,8 +284,8 @@ test-fast: ## Run tests in parallel, fail-fast.
 	$(PYT) -q -x -n auto
 
 .PHONY: test-helix
-test-helix: ## Run only the Helix client tests (require SARAS_HELIX_URL).
-	SARAS_HELIX_URL=$(HELIX_URL) $(PYT) tests/test_helix.py -v
+test-helix: ## Run only the Helix client tests (require RAVEN_HELIX_URL).
+	RAVEN_HELIX_URL=$(HELIX_URL) $(PYT) tests/test_helix.py -v
 
 .PHONY: test-a4
 test-a4: ## Run the A4 audit/policy/vault/security tests.
@@ -346,12 +346,12 @@ ci-strict: lint format-check typecheck security coverage-gate ## Strict: include
 # ---------------------------------------------------------------------------
 
 .PHONY: run
-run: helix-up ## Start the SARAS agent locally.
+run: helix-up ## Start the RAVEN agent locally.
 	$(PY) main.py
 
 .PHONY: run-headless
 run-headless: helix-up ## Start in headless (no TTY) mode.
-	SARAS_HEADLESS=1 $(PY) main.py
+	RAVEN_HEADLESS=1 $(PY) main.py
 
 .PHONY: build
 build: ## Build sdist + wheel.
@@ -363,7 +363,7 @@ docker-build: ## Build the docker image.
 
 .PHONY: docker-run
 docker-run: ## Run the docker image.
-	docker run --rm -it --network host -e SARAS_HELIX_URL=http://localhost:8080 $(DOCKER_IMG)
+	docker run --rm -it --network host -e RAVEN_HELIX_URL=http://localhost:8080 $(DOCKER_IMG)
 
 # ---------------------------------------------------------------------------
 # Utilities

@@ -27,7 +27,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         keyboard=keyboard, resize_keyboard=True, one_time_keyboard=False
     )
     await update.message.reply_text(
-        f"Hi {user.first_name}! I'm SARAS, your personal AI assistant.\n\n"
+        f"Hi {user.first_name}! I'm RAVEN, your personal AI assistant.\n\n"
         "I'm here to help you with anything you need. "
         "You can send me text messages and I'll respond.\n\n"
         "Use /help to see what I can do.",
@@ -42,7 +42,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/start - Start the bot and show the main menu\n"
         "/help - Show this help message\n"
         "/status - Check bot status\n"
-        "/about - Learn about SARAS\n\n"
+        "/about - Learn about RAVEN\n\n"
         "*Just send me a message and I'll respond!*"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
@@ -51,17 +51,17 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle the /status command - show bot status."""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    status_text = f"*SARAS Status*\n\nStatus: Online\nPlatform: Telegram\nTime: {now}\n"
+    status_text = f"*RAVEN Status*\n\nStatus: Online\nPlatform: Telegram\nTime: {now}\n"
     await update.message.reply_text(status_text, parse_mode="Markdown")
 
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle the /about command - show info about SARAS."""
+    """Handle the /about command - show info about RAVEN."""
     about_text = (
-        "*About SARAS*\n\n"
-        "SARAS is an intelligent personal AI companion - "
+        "*About RAVEN*\n\n"
+        "RAVEN is an intelligent personal AI companion - "
         "a bot that acts as your friend, assistant, and brainstorming partner.\n\n"
-        "SARAS can be reached from multiple platforms:\n"
+        "RAVEN can be reached from multiple platforms:\n"
         "- Telegram (you're here!)\n"
         "- Discord\n"
         "- WhatsApp\n"
@@ -115,7 +115,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if data == "status":
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await query.edit_message_text(f"SARAS is online. Time: {now}")
+        await query.edit_message_text(f"RAVEN is online. Time: {now}")
     elif data == "help":
         await query.edit_message_text("Send /help to see available commands.")
     else:

@@ -1,0 +1,35 @@
+{
+  "author": "RAVEN team",
+  "description": "Scaffold new projects: git init, README, license, CI/CD, linting, dependencies.",
+  "eval_records": [],
+  "inputs": [
+    {
+      "default": null,
+      "description": "",
+      "name": "query",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "project_setup",
+  "outputs": [],
+  "permissions": [
+    "filesystem.read",
+    "process.spawn"
+  ],
+  "promotion_threshold": 20,
+  "risk_level": "low",
+  "schema_version": "1.0",
+  "source": "bundled",
+  "tags": [
+    "project",
+    "scaffold",
+    "setup",
+    "git",
+    "boilerplate",
+    "development",
+    "file_tool"
+  ],
+  "trust": "workspace",
+  "version": "1.0.0"
+}

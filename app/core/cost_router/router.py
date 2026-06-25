@@ -50,7 +50,7 @@ _DEFAULT_QUALITY_FLOOR = {
     "chat": 0.5,
     "code": 0.6,
     "research": 0.6,
-    "reasoning": 0.6,
+    "reasoning": 0.70,
     "summarize": 0.5,
     "classify": 0.6,
     "extract": 0.6,
@@ -79,11 +79,16 @@ class CostRouter:
         # via ``app.settings.config.Config``.  If False, all catalog
         # models are eligible.
         respect_provider_keys: bool = True,
+        # Phase 5.4 — source-trust registry.  If provided, the
+        # router will cap ``max_tier`` based on the request's
+        # ``source_trust`` (default 0.5 for unknown sources).
+        source_trust: Any = None,
     ) -> None:
         self.catalog = catalog or ModelCatalog()
         self.ledger = ledger or BudgetLedger()
         self.health = health or ProviderHealth()
         self.respect_provider_keys = respect_provider_keys
+        self._source_trust = source_trust  # late-bound: get_source_trust() if None
 
     # ------------------------------------------------------------------
     # Decision
@@ -93,9 +98,29 @@ class CostRouter:
         """Pick the cheapest model that satisfies the request.
 
         Raises :class:`BudgetExceededError` if the request would breach
-        a budget, and :class:`NoRouteAvailableError` if no model in
-        the catalog is eligible.
+        a budget, and :class:`NoRouteAvailableError` if no model in the
+        catalog is eligible.
         """
+        # Phase 5.4 — apply source-trust cap to max_tier before any
+        # work. Low-trust sources cannot be summarised by the most
+        # expensive models (which would amplify any error or
+        # hallucination at a high cost).
+        effective_max = self._apply_source_trust_cap(request)
+        if effective_max is not request.max_tier:
+            request = RouteRequest(
+                task=request.task,
+                input_tokens=request.input_tokens,
+                max_output_tokens=request.max_output_tokens,
+                requires=request.requires,
+                min_tier=request.min_tier,
+                max_tier=effective_max,
+                budget_usd=request.budget_usd,
+                user_id=request.user_id,
+                plan_id=request.plan_id,
+                source_id=request.source_id,
+                source_trust=request.source_trust,
+            )
+
         budget_remaining = await self.ledger.budget_remaining(
             user_id=request.user_id, plan_id=request.plan_id
         )
@@ -222,6 +247,54 @@ class CostRouter:
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+    def _apply_source_trust_cap(self, request: RouteRequest) -> ModelTier:
+        """Return the effective max_tier after applying source trust.
+
+        Looks up the source-trust registry (lazy import to avoid a
+        cycle: trust → cost_router → trust).  Falls back to
+        ``request.source_trust`` if the registry has no entry.
+        Returns ``request.max_tier`` unchanged if the registry is
+        missing or trust is high enough.
+        """
+        from app.core.cost_router.types import ModelTier as _MT
+
+        registry = self._source_trust
+        if registry is None:
+            try:
+                from app.core.trust.source_trust import get_source_trust
+                registry = get_source_trust()
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("source-trust registry unavailable: %s", exc)
+                return request.max_tier
+
+        score: float
+        if request.source_trust is not None:
+            score = float(request.source_trust)
+        elif request.source_id is not None:
+            try:
+                score = registry.score_for(request.source_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("source_trust score lookup failed: %s", exc)
+                return request.max_tier
+        else:
+            # No source info — don't cap.
+            return request.max_tier
+
+        try:
+            from app.core.trust.source_trust import tier_cap_for
+            cap = tier_cap_for(score)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("tier_cap_for failed: %s", exc)
+            return request.max_tier
+
+        # The lower of (caller's max_tier, trust cap) wins.
+        order = [_MT.NANO, _MT.SMALL, _MT.MEDIUM, _MT.LARGE, _MT.PREMIUM]
+        cap_idx = order.index(cap) if cap in order else len(order)
+        max_idx = order.index(request.max_tier) if request.max_tier in order else len(order)
+        if cap_idx < max_idx:
+            return cap
+        return request.max_tier
+
     def _candidates(self, request: RouteRequest) -> list[ModelSpec]:
         """Filter the catalog down to models that *could* handle this request."""
         # 1. Hard structural filters
@@ -273,8 +346,7 @@ class CostRouter:
             "openrouter": bool(getattr(Config, "OPENROUTER_API_KEY", None)),
             "groq": bool(getattr(Config, "GROQ_API_KEY", None)),
             "xai": bool(getattr(Config, "XAI_API_KEY", None)),
-            "ollama": True,  # local; reachability handled at call time
-            "opencode_api": bool(getattr(Config, "OPENCODE_API_KEY", None)),
+            "opencode_zen": True,  # free cloud gateway, always available
         }
         # If nothing is configured at all, return None (don't filter).
         if not any(keys.values()):

@@ -1,0 +1,35 @@
+{
+  "author": "RAVEN team",
+  "description": "Comprehensive morning briefing covering weather, calendar, tasks, news highlights, and portfolio status. Delivered proactively at the configured time.",
+  "eval_records": [],
+  "inputs": [
+    {
+      "default": null,
+      "description": "",
+      "name": "query",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "morning_briefing",
+  "outputs": [],
+  "permissions": [],
+  "promotion_threshold": 20,
+  "risk_level": "low",
+  "schema_version": "1.0",
+  "source": "bundled",
+  "tags": [
+    "briefing",
+    "morning",
+    "weather",
+    "calendar",
+    "news",
+    "productivity",
+    "weather-check",
+    "calendar-review",
+    "task-summary",
+    "news-digest"
+  ],
+  "trust": "workspace",
+  "version": "1.0.0"
+}

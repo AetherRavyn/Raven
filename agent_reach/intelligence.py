@@ -48,7 +48,10 @@ from agent_reach.channels.xueqiu import XueqiuChannel
 
 logger = logging.getLogger(__name__)
 
-_UA = "agent-reach/2.0"
+_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+)
 
 
 @dataclass(slots=True)
@@ -369,11 +372,38 @@ class FreeInternetIntel:
     def _duckduckgo_search(
         self, query: str, limit: int, source_name: str = "web"
     ) -> list[IntelItem]:
-        url = "https://html.duckduckgo.com/html/"
-        html = self._fetch_text(url, params={"q": query}, timeout=20)
+        # Primary: ddgs package (handles bot challenges automatically)
+        try:
+            from ddgs import DDGS  # type: ignore
+
+            results = DDGS().text(query, max_results=limit)
+            items = [
+                IntelItem(
+                    source=source_name,
+                    title=r.get("title", ""),
+                    url=r.get("href", ""),
+                    snippet=self._trim(r.get("body", ""), 300),
+                    kind="search",
+                )
+                for r in results
+                if r.get("title") and r.get("href")
+            ]
+            if items:
+                return items[:limit]
+        except Exception:
+            pass
+
+        # Fallback: raw HTML scraping
+        html = self._fetch_text(
+            "https://html.duckduckgo.com/html/",
+            params={"q": query},
+            timeout=20,
+        )
         if not html:
             html = self._fetch_text(
-                "https://lite.duckduckgo.com/lite/", params={"q": query}, timeout=20
+                "https://lite.duckduckgo.com/lite/",
+                params={"q": query},
+                timeout=20,
             )
         if not html:
             return []
@@ -381,57 +411,80 @@ class FreeInternetIntel:
         items: list[IntelItem] = []
         if BeautifulSoup is not None:
             soup = BeautifulSoup(html, "html.parser")
-            for block in soup.select("div.result, div.result__body, .web-result"):
-                anchor = block.select_one("a.result__a, a.result-link, a[href]")
-                if not anchor:
-                    continue
-                href_raw = (
-                    str(anchor.attrs.get("href", ""))
-                    if getattr(anchor, "attrs", None)
-                    else ""
-                )
-                href = self._normalize_result_url(href_raw)
+
+            # DDG lite — result links are a.result-link
+            for anchor in soup.select("a.result-link"):
+                href = self._normalize_result_url(anchor.get("href", ""))
                 title = anchor.get_text(" ", strip=True)
-                if not href or not title:
+                if not href or not title or "duckduckgo.com" in href:
                     continue
-                snippet_node = block.select_one(
-                    ".result__snippet, .snippet, .result-snippet"
-                )
-                snippet = (
-                    snippet_node.get_text(" ", strip=True)
-                    if snippet_node
-                    else block.get_text(" ", strip=True)
-                )
                 items.append(
                     IntelItem(
                         source=source_name,
                         title=title,
                         url=href,
-                        snippet=self._trim(snippet, 300),
+                        snippet="",
                         kind="search",
                     )
                 )
                 if len(items) >= limit:
                     break
 
-        if not items:
-            for line in html.splitlines():
-                match = re.search(r"https?://\S+", line)
-                if not match:
-                    continue
-                url_match = match.group(0).rstrip(")].,;\"'")
-                title = line[: match.start()].strip(" -•\t") or url_match
-                items.append(
-                    IntelItem(
-                        source=source_name,
-                        title=self._trim(title, 120),
-                        url=url_match,
-                        snippet=self._trim(line, 300),
-                        kind="search",
+            # DDG HTML — results in div.result blocks
+            if not items:
+                for block in soup.select("div.result, div.result__body, .web-result"):
+                    anchor = block.select_one("a.result__a, a.result-link, a[href]")
+                    if not anchor:
+                        continue
+                    href_raw = (
+                        str(anchor.attrs.get("href", ""))
+                        if getattr(anchor, "attrs", None)
+                        else ""
                     )
-                )
-                if len(items) >= limit:
-                    break
+                    href = self._normalize_result_url(href_raw)
+                    title = anchor.get_text(" ", strip=True)
+                    if not href or not title or "duckduckgo.com" in href:
+                        continue
+                    snippet_node = block.select_one(
+                        ".result__snippet, .snippet, .result-snippet"
+                    )
+                    snippet = (
+                        snippet_node.get_text(" ", strip=True)
+                        if snippet_node
+                        else ""
+                    )
+                    items.append(
+                        IntelItem(
+                            source=source_name,
+                            title=title,
+                            url=href,
+                            snippet=self._trim(snippet, 300),
+                            kind="search",
+                        )
+                    )
+                    if len(items) >= limit:
+                        break
+
+            # Generic — any <a> with http(s) href
+            if not items:
+                for anchor in soup.select("a[href]"):
+                    href = anchor.get("href", "")
+                    if not href.startswith("http") or "duckduckgo.com" in href:
+                        continue
+                    title = anchor.get_text(" ", strip=True)
+                    if not title:
+                        continue
+                    items.append(
+                        IntelItem(
+                            source=source_name,
+                            title=self._trim(title, 120),
+                            url=href,
+                            snippet="",
+                            kind="search",
+                        )
+                    )
+                    if len(items) >= limit:
+                        break
 
         return items[:limit]
 
@@ -531,7 +584,7 @@ class FreeInternetIntel:
                     "--limit",
                     str(limit),
                     "--json",
-                    "name,description,url,stargazerCount,updatedAt,language",
+                    "name,description,url,stargazersCount,updatedAt,language",
                 ],
                 capture_output=True,
                 text=True,
@@ -1083,18 +1136,35 @@ class FreeInternetIntel:
     ) -> str:
         full_url = f"{url}?{urllib.parse.urlencode(params)}" if params else url
         req = urllib.request.Request(
-            full_url, headers={"User-Agent": _UA, **(headers or {})}
+            full_url,
+            headers={
+                "User-Agent": _UA,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                **(headers or {}),
+            },
         )
         opener = urllib.request.build_opener()
         if proxy:
             opener = urllib.request.build_opener(
                 urllib.request.ProxyHandler({"http": proxy, "https": proxy})
             )
-        with opener.open(req, timeout=timeout) as resp:
-            charset = (
-                getattr(resp.headers, "get_content_charset", lambda: None)() or "utf-8"
-            )
-            return resp.read().decode(charset, errors="replace")
+        try:
+            with opener.open(req, timeout=timeout) as resp:
+                charset = (
+                    getattr(resp.headers, "get_content_charset", lambda: None)()
+                    or "utf-8"
+                )
+                return resp.read().decode(charset, errors="replace")
+        except urllib.error.HTTPError as exc:
+            logger.debug("HTTP %s from %s", exc.code, url)
+            return ""
+        except urllib.error.URLError as exc:
+            logger.debug("URL error for %s: %s", url, exc.reason)
+            return ""
+        except OSError as exc:
+            logger.debug("Network error for %s: %s", url, exc)
+            return ""
 
     def _jina_url(self, url: str) -> str:
         url = url.strip()

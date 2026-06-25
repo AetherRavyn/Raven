@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════
-// SARAS Dashboard — Client-side Application Logic
+// RAVEN Dashboard — Client-side Application Logic
 // ═══════════════════════════════════════════════════
 
 // ─── Page Navigation ─────────────────────────────

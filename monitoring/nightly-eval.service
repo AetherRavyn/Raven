@@ -1,0 +1,56 @@
+[Unit]
+Description=Raven nightly eval run + regression gate check
+Documentation=https://github.com/swadhinbiswas/Raven
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=raven
+Group=raven
+WorkingDirectory=/home/raven/raven
+
+Environment="NIGHTLY_OUTPUT=/home/raven/raven/workspace/eval/nightly_report.json"
+Environment="NIGHTLY_BASELINE=/home/raven/raven/workspace/eval/baseline.json"
+Environment="NIGHTLY_VERDICT_MD=/home/raven/raven/workspace/eval/regression.md"
+Environment="NIGHTLY_PROM_OUTPUT=/home/raven/raven/workspace/eval/eval_metrics.prom"
+Environment="NIGHTLY_RETENTION_DAYS=14"
+
+ExecStart=/usr/bin/python3 scripts/nightly_eval.py \
+    --output "${NIGHTLY_OUTPUT}" \
+    --runner stub
+ExecStartPost=/usr/bin/python3 scripts/regression_gate.py \
+    --baseline "${NIGHTLY_BASELINE}" \
+    --current "${NIGHTLY_OUTPUT}" \
+    --markdown-output "${NIGHTLY_VERDICT_MD}" \
+    || true
+ExecStartPost=/usr/bin/python3 scripts/eval_to_prom.py \
+    --report "${NIGHTLY_OUTPUT}" \
+    --baseline "${NIGHTLY_BASELINE}" \
+    --regression-md "${NIGHTLY_VERDICT_MD}" \
+    --archive /home/raven/raven/workspace/eval/archive \
+    --output "${NIGHTLY_PROM_OUTPUT}" \
+    || true
+ExecStartPost=/usr/bin/python3 scripts/rotate_eval_reports.py \
+    --dir /home/raven/raven/workspace/eval/archive \
+    --keep-days "${NIGHTLY_RETENTION_DAYS}" \
+    || true
+
+Restart=no
+
+MemoryMax=512M
+CPUQuota=80%
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/raven/raven/workspace
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=raven-nightly-eval
+
+[Install]
+WantedBy=multi-user.target
+Alias=raven-nightly-eval.service

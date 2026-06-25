@@ -1,0 +1,15 @@
+# Tauri build artifacts
+src-tauri/target/
+src-tauri/binaries/raven-backend-*
+src-tauri/Cargo.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

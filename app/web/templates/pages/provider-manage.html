@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+{% block title %}MODEL SELECT — RAVEN{% endblock %}
+{% block head_extra %}
+<style>
+.fade-in { animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.provider-card { transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease; }
+.provider-card:hover { transform: translateY(-1px); border-color: rgb(var(--accent) / 0.5); }
+.tier-chip { transition: all 0.12s ease; }
+.tier-chip.active { background: rgb(var(--accent) / 0.15); color: rgb(var(--accent)); border-color: rgb(var(--accent) / 0.5); }
+.health-dot { box-shadow: 0 0 6px currentColor; }
+.pulse { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+.combo-row { transition: background 0.12s ease; }
+.combo-row:hover { background: rgb(255 255 255 / 0.03); }
+</style>
+{% endblock %}
+{% block main %}
+<section class="space-y-4" x-data="providerManager()">
+  <!-- Header -->
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <h1 class="text-zinc-100 text-sm tracking-wider uppercase">Model Selection</h1>
+      <p class="text-zinc-500 text-[11px] mt-0.5">
+        9router-style card system. Pick a provider, model, or combo.
+        Combos walk the fallback chain until one responds.
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <button type="button" @click="refreshHealth()" :disabled="healthBusy"
+              class="text-[10px] text-zinc-400 hover:text-zinc-200 border border-ink-600 rounded px-2 py-1">
+        <span x-show="!healthBusy">⚡ Health check</span>
+        <span x-show="healthBusy" class="pulse">⚡ Probing…</span>
+      </button>
+      <button type="button" @click="reload()" :disabled="busy"
+              class="text-[10px] text-zinc-400 hover:text-zinc-200 border border-ink-600 rounded px-2 py-1">
+        ↻ Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div x-show="status" x-cloak x-transition
+       :class="statusOk ? 'border-emerald-700 bg-emerald-900/30 text-emerald-300' : 'border-rose-700 bg-rose-900/30 text-rose-300'"
+       class="border rounded p-2 text-[11px] flex items-center gap-2 fade-in">
+    <span x-text="statusOk ? '✓' : '✗'" class="font-bold"></span>
+    <span x-text="status"></span>
+  </div>
+
+  <!-- Hero: active combo + active model with live stats -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <!-- Active model -->
+    <div class="border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in md:col-span-2">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="text-zinc-500 uppercase tracking-wider text-[10px]">Active</span>
+          <span class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 health-dot"></span>
+            <span class="text-accent-500 font-semibold" x-text="activeProvider || '—'"></span>
+          </span>
+          <span class="text-zinc-600">/</span>
+          <span class="text-zinc-200 font-mono" x-text="activeModel || '—'"></span>
+          <span x-show="selectedQuality > 0" class="text-zinc-500 text-[10px] ml-2">
+            q <span class="text-zinc-300" x-text="selectedQuality.toFixed(2)"></span>
+            · ctx <span class="text-zinc-300" x-text="selectedContext ? (selectedContext/1024).toFixed(0) + 'K' : '—'"></span>
+            · source <span class="text-zinc-300" x-text="selectedSource || '—'"></span>
+          </span>
+        </div>
+      </div>
+      <div class="mt-2 grid grid-cols-4 gap-2 text-[10px]">
+        <div>
+          <div class="text-zinc-600 uppercase">Calls</div>
+          <div class="text-zinc-200 font-mono" x-text="activeStats.calls || 0"></div>
+        </div>
+        <div>
+          <div class="text-zinc-600 uppercase">Success</div>
+          <div class="text-emerald-400 font-mono"
+               x-text="activeStats.calls ? Math.round(activeStats.success_rate * 100) + '%' : '—'"></div>
+        </div>
+        <div>
+          <div class="text-zinc-600 uppercase">Avg latency</div>
+          <div class="text-zinc-200 font-mono"
+               x-text="activeStats.avg_latency_ms ? Math.round(activeStats.avg_latency_ms) + 'ms' : '—'"></div>
+        </div>
+        <div>
+          <div class="text-zinc-600 uppercase">Tokens</div>
+          <div class="text-zinc-200 font-mono"
+               x-text="((activeStats.tokens_in || 0) + (activeStats.tokens_out || 0)).toLocaleString()"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active combo -->
+    <div class="border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-zinc-400 text-[10px] uppercase tracking-wider">Active Combo</span>
+        <button type="button" @click="showComboEditor = !showComboEditor"
+                class="text-[10px] text-zinc-500 hover:text-accent-500">
+          <span x-show="!showComboEditor">+ Edit combos</span>
+          <span x-show="showComboEditor">✕ Close</span>
+        </button>
+      </div>
+      <template x-if="activeComboName">
+        <div>
+          <div class="text-accent-500 font-semibold" x-text="activeComboName"></div>
+          <div class="text-zinc-500 text-[10px] mt-1 flex flex-wrap gap-1">
+            <template x-for="pid in activeComboProviders" :key="pid">
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-ink-700 rounded text-[10px]">
+                <span class="w-1.5 h-1.5 rounded-full"
+                      :class="healthColor(pid)"
+                      x-text="healthGlyph(pid)"></span>
+                <span x-text="providerName(pid) || pid"></span>
+              </span>
+            </template>
+          </div>
+        </div>
+      </template>
+      <template x-if="!activeComboName">
+        <div>
+          <div class="text-zinc-500">No active combo</div>
+          <div class="text-zinc-600 text-[10px] mt-1">Falls back to ranking / auto.</div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Combos editor (collapsible) -->
+  <div x-show="showComboEditor" x-cloak
+       class="border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in space-y-2">
+    <div class="flex items-center justify-between">
+      <span class="text-zinc-400 text-[10px] uppercase tracking-wider">Combos (named fallback chains)</span>
+      <button type="button" @click="createCombo()"
+              class="text-[10px] px-2 py-1 rounded bg-accent-600 text-ink-900 font-semibold hover:bg-accent-500">
+        + New combo
+      </button>
+    </div>
+    <template x-for="(providers, name) in combos" :key="name">
+      <div class="combo-row border border-ink-700 rounded p-2 flex items-center gap-2 flex-wrap">
+        <button type="button" @click="activateCombo(name)"
+                :class="name === activeComboName ? 'text-accent-500' : 'text-zinc-300 hover:text-accent-500'"
+                class="text-[12px] font-semibold flex items-center gap-2">
+          <span x-show="name === activeComboName" class="w-2 h-2 rounded-full bg-accent-500 health-dot"></span>
+          <span x-text="name"></span>
+        </button>
+        <input type="text" :value="providers.join(',')"
+               @change="updateCombo(name, $event.target.value)"
+               class="flex-1 min-w-0 bg-ink-900 border border-ink-700 rounded px-2 py-1 text-zinc-200 font-mono text-[11px]" />
+        <button type="button" @click="deleteCombo(name)"
+                class="text-[10px] text-rose-400 hover:text-rose-300 px-2"
+                title="Delete combo">✕</button>
+      </div>
+    </template>
+  </div>
+
+  <!-- Filter chips + search -->
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <div class="flex flex-wrap gap-1">
+      <template x-for="tier in ['all', 'subscription', 'cheap', 'free', 'local', 'aggregator', 'cli']" :key="tier">
+        <button type="button"
+                @click="tierFilter = tier"
+                :class="tierFilter === tier ? 'active' : ''"
+                class="tier-chip text-[10px] px-2 py-1 rounded border border-ink-600 text-zinc-400 hover:text-zinc-200 uppercase tracking-wider">
+          <span x-text="tier"></span>
+        </button>
+      </template>
+    </div>
+    <input type="text" x-model="searchQuery"
+           placeholder="Filter providers…"
+           class="bg-ink-900 border border-ink-600 rounded px-2 py-1 text-zinc-200 text-[11px] w-48 font-mono" />
+  </div>
+
+  <!-- Provider cards grid -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <template x-for="p in filteredProviders" :key="p.id">
+      <div class="provider-card border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in"
+           :class="{ 'ring-1 ring-accent-500/40': p.id === activeProvider }">
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full health-dot"
+                    :class="healthClass(p.id)"
+                    :title="healthLabel(p.id)"></span>
+              <span class="text-zinc-100 font-semibold truncate" x-text="p.name"></span>
+            </div>
+            <div class="flex items-center gap-2 mt-1 text-[10px] text-zinc-500">
+              <span class="font-mono" x-text="p.id"></span>
+              <span class="px-1.5 py-0.5 bg-ink-700 rounded uppercase tracking-wider" x-text="p.tier"></span>
+              <span class="px-1.5 py-0.5 bg-ink-700 rounded uppercase tracking-wider" x-text="p.group"></span>
+            </div>
+          </div>
+          <button type="button" @click="quickActivate(p.id)"
+                  :disabled="p.id === activeProvider || busy"
+                  :class="p.id === activeProvider ? 'bg-emerald-700/30 text-emerald-300' : 'bg-accent-600 text-ink-900 hover:bg-accent-500'"
+                  class="text-[10px] px-2 py-1 rounded font-semibold transition-colors disabled:opacity-50">
+            <span x-show="p.id !== activeProvider">Use</span>
+            <span x-show="p.id === activeProvider">Active</span>
+          </button>
+        </div>
+
+        <!-- Description -->
+        <p class="text-zinc-500 text-[10px] mt-2 line-clamp-2" x-text="p.description"></p>
+
+        <!-- Models preview -->
+        <div class="mt-2 flex flex-wrap gap-1">
+          <template x-for="m in (p.models || []).slice(0, 3)" :key="m.id">
+            <button type="button"
+                    @click="quickSelect(p.id, m.id)"
+                    :class="p.id === activeProvider && m.id === activeModel ? 'border-accent-500 text-accent-500' : 'border-ink-700 text-zinc-400 hover:border-zinc-500'"
+                    class="text-[9px] px-1.5 py-0.5 border rounded font-mono">
+              <span x-text="m.name || m.id"></span>
+            </button>
+          </template>
+          <span x-show="(p.models || []).length > 3"
+                class="text-[9px] text-zinc-600 px-1.5 py-0.5"
+                x-text="'+' + ((p.models || []).length - 3)"></span>
+        </div>
+
+        <!-- Footer: stats + health latency -->
+        <div class="mt-2 pt-2 border-t border-ink-700 flex items-center justify-between text-[10px] text-zinc-500">
+          <span>
+            <span x-text="(p.models || []).length + ' models'"></span>
+            · <span x-text="healthLabel(p.id)"></span>
+          </span>
+          <span x-show="healthLatency(p.id) > 0"
+                x-text="Math.round(healthLatency(p.id)) + 'ms'"
+                class="font-mono text-zinc-400"></span>
+        </div>
+      </div>
+    </template>
+    <div x-show="!filteredProviders.length" class="col-span-full text-center py-6 text-zinc-600 text-[12px]">
+      No providers match your filter.
+    </div>
+  </div>
+
+  <!-- Models table (advanced) -->
+  <details class="border border-ink-600 bg-ink-800 rounded">
+    <summary class="px-3 py-2 text-[11px] text-zinc-400 cursor-pointer hover:bg-ink-700/30 uppercase tracking-wider">
+      Advanced: All models table
+    </summary>
+    <div class="p-3 border-t border-ink-700">
+      <div class="overflow-x-auto max-h-96 overflow-y-auto">
+        <table class="w-full text-[11px]">
+          <thead>
+            <tr class="text-zinc-600 uppercase tracking-wider text-[9px] border-b border-ink-700">
+              <th class="text-left py-1 px-1">Provider</th>
+              <th class="text-left py-1 px-1">Model</th>
+              <th class="text-right py-1 px-1">Context</th>
+              <th class="text-right py-1 px-1">Quality</th>
+              <th class="text-center py-1 px-1">Status</th>
+              <th class="text-center py-1 px-1 w-16">Select</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="m in filteredModels" :key="m.provider_id + '/' + m.model_id">
+              <tr class="border-b border-ink-700/50 hover:bg-ink-700/30 transition-colors"
+                  :class="m.active ? 'text-accent-500' : 'text-zinc-400'">
+                <td class="py-1 px-1" x-text="m.provider_name"></td>
+                <td class="py-1 px-1 font-mono" x-text="m.model_name || m.model_id"></td>
+                <td class="py-1 px-1 text-right" x-text="m.context ? (m.context/1024).toFixed(0) + 'K' : '—'"></td>
+                <td class="py-1 px-1 text-right" x-text="m.quality ? m.quality.toFixed(2) : '—'"></td>
+                <td class="py-1 px-1 text-center">
+                  <span x-show="m.active" class="text-emerald-500" title="Active model">●</span>
+                  <span x-show="!m.active" class="text-zinc-700">○</span>
+                </td>
+                <td class="py-1 px-1 text-center">
+                  <button type="button" @click="quickSelect(m.provider_id, m.model_id)"
+                          class="text-[10px] px-2 py-0.5 rounded text-zinc-500 hover:text-accent-500 hover:bg-ink-700 transition-colors"
+                          x-show="!m.active">use</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+</section>
+
+<script>
+function providerManager() {
+  return {
+    providers: [],
+    allModels: [],
+    activeProvider: '',
+    activeModel: '',
+    activeStats: {},
+    selectedSource: '',
+    selectedQuality: 0,
+    selectedContext: 0,
+    rankedProviders: [],
+    rankingInput: '',
+    searchQuery: '',
+    tierFilter: 'all',
+    busy: false,
+    healthBusy: false,
+    status: '',
+    statusOk: true,
+    health: {},
+    combos: {},
+    activeComboName: null,
+    activeComboProviders: [],
+    showComboEditor: false,
+
+    async init() {
+      await this.reload();
+      await this.refreshHealth();
+      await this.loadCombos();
+    },
+
+    get filteredProviders() {
+      let list = this.providers;
+      if (this.tierFilter !== 'all') {
+        list = list.filter(p => p.tier === this.tierFilter || p.group === this.tierFilter);
+      }
+      if (this.searchQuery) {
+        const q = this.searchQuery.toLowerCase();
+        list = list.filter(p =>
+          (p.name || '').toLowerCase().includes(q) ||
+          (p.id || '').toLowerCase().includes(q) ||
+          (p.description || '').toLowerCase().includes(q)
+        );
+      }
+      return list;
+    },
+
+    get filteredModels() {
+      if (!this.searchQuery) return this.allModels;
+      const q = this.searchQuery.toLowerCase();
+      return this.allModels.filter(m =>
+        (m.provider_name || '').toLowerCase().includes(q) ||
+        (m.model_name || m.model_id || '').toLowerCase().includes(q)
+      );
+    },
+
+    providerName(pid) {
+      const p = this.providers.find(x => x.id === pid);
+      return p ? p.name : '';
+    },
+
+    healthLabel(pid) {
+      const h = this.health[pid];
+      if (!h) return 'unchecked';
+      return h.status || 'unknown';
+    },
+    healthClass(pid) {
+      const h = this.health[pid];
+      if (!h || !h.ok) return h && h.ok === false ? 'bg-rose-500 text-rose-300' : 'bg-zinc-700 text-zinc-500';
+      if (h.avg_latency_ms < 500) return 'bg-emerald-500 text-emerald-300';
+      if (h.avg_latency_ms < 2000) return 'bg-amber-500 text-amber-300';
+      return 'bg-orange-500 text-orange-300';
+    },
+    healthColor(pid) {
+      const h = this.health[pid];
+      if (!h) return 'bg-zinc-700';
+      if (!h.ok) return 'bg-rose-500';
+      if (h.avg_latency_ms < 500) return 'bg-emerald-500';
+      if (h.avg_latency_ms < 2000) return 'bg-amber-500';
+      return 'bg-orange-500';
+    },
+    healthGlyph(pid) {
+      const h = this.health[pid];
+      if (!h) return '○';
+      if (h.ok && h.avg_latency_ms < 500) return '●';
+      if (h.ok) return '◐';
+      return '✕';
+    },
+    healthLatency(pid) {
+      const h = this.health[pid];
+      return (h && h.ok) ? (h.avg_latency_ms || 0) : 0;
+    },
+
+    async reload() {
+      this.busy = true;
+      try {
+        const [statusRes, modelsRes, statsRes] = await Promise.all([
+          fetch('/api/providers/status'),
+          fetch('/api/models'),
+          fetch('/api/providers/stats'),
+        ]);
+        const statusData = await statusRes.json();
+        const modelsData = await modelsRes.json();
+        const statsData = await statsRes.json();
+        this.providers = statusData.providers || [];
+        this.activeProvider = statusData.active_provider || '';
+        this.activeModel = statusData.active_model || '';
+        this.allModels = modelsData.models || [];
+        this.rankedProviders = (statusData.providers || [])
+          .filter(p => p.rank < 100)
+          .sort((a, b) => a.rank - b.rank)
+          .map(p => p.id);
+        this.activeStats = (statsData.stats || []).find(
+          s => s.provider_id === this.activeProvider && (s.model_id === this.activeModel || s.model_id === '*')
+        ) || {};
+        this.status = `Loaded ${this.providers.length} providers, ${this.allModels.length} models.`;
+        this.statusOk = true;
+      } catch (e) {
+        this.status = 'Failed to load: ' + e.message;
+        this.statusOk = false;
+      } finally {
+        this.busy = false;
+      }
+    },
+
+    async refreshHealth() {
+      this.healthBusy = true;
+      try {
+        const r = await fetch('/api/providers/health/all');
+        const j = await r.json();
+        this.health = j.health || {};
+        this.status = `Health: ${Object.keys(this.health).length} providers probed.`;
+        this.statusOk = true;
+      } catch (e) {
+        this.status = 'Health check failed: ' + e.message;
+        this.statusOk = false;
+      } finally {
+        this.healthBusy = false;
+      }
+    },
+
+    async loadCombos() {
+      try {
+        const r = await fetch('/api/combos');
+        const j = await r.json();
+        this.combos = j.combos || {};
+        this.activeComboName = j.active_combo || null;
+        this.activeComboProviders = this.activeComboName ? (this.combos[this.activeComboName] || []) : [];
+      } catch (e) {
+        this.combos = {};
+      }
+    },
+
+    async activateCombo(name) {
+      try {
+        const r = await fetch('/api/combos/activate?name=' + encodeURIComponent(name), { method: 'POST' });
+        const j = await r.json();
+        if (j.ok) {
+          this.activeComboName = j.active_combo;
+          this.activeComboProviders = this.activeComboName ? (this.combos[this.activeComboName] || []) : [];
+          this.status = 'Activated combo: ' + (j.active_combo || 'none');
+          this.statusOk = true;
+        }
+      } catch (e) {
+        this.status = 'Activate failed: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    async createCombo() {
+      const name = prompt('Combo name (e.g. "always-on"):');
+      if (!name) return;
+      const providers = prompt('Provider IDs in order (comma-separated):', 'anthropic,openrouter,groq');
+      if (!providers) return;
+      try {
+        const body = new URLSearchParams({ name, providers });
+        const r = await fetch('/api/combos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        });
+        const j = await r.json();
+        if (j.ok) {
+          await this.loadCombos();
+          this.status = `Combo "${name}" created.`;
+          this.statusOk = true;
+        }
+      } catch (e) {
+        this.status = 'Create failed: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    async updateCombo(name, value) {
+      const ids = value.split(',').map(s => s.trim()).filter(Boolean);
+      try {
+        const body = new URLSearchParams({ name, providers: ids.join(',') });
+        const r = await fetch('/api/combos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        });
+        const j = await r.json();
+        if (j.ok) {
+          await this.loadCombos();
+          this.status = `Combo "${name}" updated.`;
+          this.statusOk = true;
+        }
+      } catch (e) {
+        this.status = 'Update failed: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    async deleteCombo(name) {
+      if (!confirm(`Delete combo "${name}"?`)) return;
+      try {
+        const r = await fetch('/api/combos?name=' + encodeURIComponent(name), { method: 'DELETE' });
+        const j = await r.json();
+        if (j.ok) {
+          await this.loadCombos();
+          this.status = `Combo "${name}" deleted.`;
+          this.statusOk = true;
+        }
+      } catch (e) {
+        this.status = 'Delete failed: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    async applyModel() {
+      if (!this.selectedProviderId || !this.selectedModelId) return;
+      this.busy = true;
+      try {
+        const r = await fetch('/api/models/select?provider_id=' + encodeURIComponent(this.selectedProviderId) + '&model_id=' + encodeURIComponent(this.selectedModelId), { method: 'POST' });
+        const j = await r.json();
+        if (j.ok) {
+          this.activeProvider = j.active_provider;
+          this.activeModel = j.active_model;
+          this.selectedSource = 'active';
+          await this.reload();
+          this.status = 'Switched to ' + this.activeProvider + '/' + this.activeModel;
+          this.statusOk = true;
+        } else {
+          this.status = 'Failed: ' + (j.error || 'unknown');
+          this.statusOk = false;
+        }
+      } catch (e) {
+        this.status = 'Network error: ' + e.message;
+        this.statusOk = false;
+      } finally {
+        this.busy = false;
+      }
+    },
+
+    async quickActivate(pid) {
+      const p = this.providers.find(x => x.id === pid);
+      if (!p || !p.models.length) return;
+      const m = p.models[0];
+      await this.quickSelect(pid, m.id);
+    },
+
+    async quickSelect(pid, mid) {
+      this.busy = true;
+      try {
+        const r = await fetch('/api/models/select?provider_id=' + encodeURIComponent(pid) + '&model_id=' + encodeURIComponent(mid), { method: 'POST' });
+        const j = await r.json();
+        if (j.ok) {
+          this.activeProvider = j.active_provider;
+          this.activeModel = j.active_model;
+          this.selectedSource = 'active';
+          await this.reload();
+          this.status = 'Switched to ' + this.activeProvider + '/' + this.activeModel;
+          this.statusOk = true;
+        }
+      } catch (e) {
+        this.status = 'Switch failed: ' + e.message;
+        this.statusOk = false;
+      } finally {
+        this.busy = false;
+      }
+    },
+
+    async toggleProvider(pid, enabled) {
+      try {
+        const r = await fetch('/api/providers/enable?provider_id=' + encodeURIComponent(pid) + '&enabled=' + enabled, { method: 'POST' });
+        const j = await r.json();
+        if (j.ok) {
+          const p = this.providers.find(x => x.id === pid);
+          if (p) p.enabled = enabled;
+          this.status = (enabled ? '✓ Enabled' : '✕ Disabled') + ' ' + pid;
+          this.statusOk = true;
+        }
+      } catch (e) {
+        this.status = 'Toggle failed: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    async saveRanking() {
+      const ids = this.rankingInput.split(',').map(s => s.trim()).filter(Boolean);
+      if (!ids.length) return;
+      try {
+        const r = await fetch('/api/providers/rank?ranking=' + encodeURIComponent(ids.join(',')), { method: 'POST' });
+        const j = await r.json();
+        if (j.ok) {
+          this.rankedProviders = j.ranking;
+          this.rankingInput = '';
+          this.status = 'Priority ranking saved.';
+          this.statusOk = true;
+        }
+      } catch (e) {
+        this.status = 'Rank failed: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    removeRank(pid) {
+      this.rankedProviders = this.rankedProviders.filter(x => x !== pid);
+      this.rankingInput = this.rankedProviders.join(',');
+    },
+  };
+}
+</script>
+{% endblock %}

@@ -88,9 +88,9 @@ class Track(Base):
 
 class SQLiteDB:
     def __init__(self, config: Dict):
-        # Look for sqlite config, default to a local file named saras.db
+        # Look for sqlite config, default to a local file named raven.db
         self.config = config.get("database", {}).get("sqlite", {})
-        db_path = self.config.get("db_path", "sqlite:///saras.db")
+        db_path = self.config.get("db_path", "sqlite:///raven.db")
 
         self.engine = None
         self.SessionLocal = None

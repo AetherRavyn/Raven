@@ -1,0 +1,20 @@
+schema_version: "1.0"
+module_id: skill.bundled.smart_home_scene
+display_name: Smart Home Scene Manager
+version: "1.0.0"
+category: skill
+description: "Create, activate, and manage smart home scenes and automations via Home Assistant."
+tags: [smarthome, iot, home-assistant, scenes, automation, lights]
+capabilities: [smart_home, scene_management, automation]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.90
+triggers:
+  - pattern: "create.*scene|activate.*scene|home.*mode"
+    confidence: 0.85
+  - pattern: "turn.*lights|dim.*lights|light.*scene"
+    confidence: 0.80
+  - pattern: "automation|automate|routine"
+    confidence: 0.70

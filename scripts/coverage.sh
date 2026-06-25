@@ -39,10 +39,10 @@ for arg in "$@"; do
     esac
 done
 
-export SARAS_HELIX_URL=${SARAS_HELIX_URL:-http://localhost:8080}
-export SARAS_LOG_JSON=true
-export SARAS_LOG_LEVEL=WARNING
-export SARAS_OTEL_IN_MEMORY=true
+export RAVEN_HELIX_URL=${RAVEN_HELIX_URL:-http://localhost:8080}
+export RAVEN_LOG_JSON=true
+export RAVEN_LOG_LEVEL=WARNING
+export RAVEN_OTEL_IN_MEMORY=true
 
 # Run pytest with coverage (deselect pre-existing failing tests in
 # legacy code so the gate can report the A2-A5 numbers cleanly).

@@ -105,7 +105,11 @@ class ProactiveEngine:
         store: RateLimitStore | None = None,
         calendar: CalendarProvider | None = None,
     ) -> "ProactiveEngine":
-        """Build an engine for a single user with sensible defaults."""
+        """Build an engine for a single user with sensible defaults.
+
+        Uses in-memory store by default (clean state per test/process).
+        Pass SQLiteRateLimitStore() for persistent production use.
+        """
         return cls(
             user_id,
             config=config or EngineConfig(),

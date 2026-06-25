@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import os
-import socket
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import requests
 
-from app.settings.config import Config
 from app.tools.base import BaseTool, ToolParameter, ToolSchema
 
 
@@ -517,12 +515,11 @@ class HaveIBeenPwnedTool(BaseTool):
             return self._error(f"HaveIBeenPwned check failed: {e}")
 
     def _check_breach(self, email: str, include_unverified: bool) -> Dict[str, Any]:
-        import hashlib
 
         # Use the k-anonymity API (password check) - more private
         # For email, we need the API key for full access
         url = f"https://haveibeenpwned.com/api/v3/breachedaccount/{email}"
-        headers = {"User-Agent": "SARAS-Assistant"}
+        headers = {"User-Agent": "RAVEN-Assistant"}
 
         if self._api_key:
             headers["hibp-api-key"] = self._api_key
@@ -738,9 +735,6 @@ class CronManagerTool(BaseTool):
     def get_name(self) -> str:
         return "cron_manager"
 
-    def get_name(self) -> str:
-        return "cron_manager"
-
     def get_description(self) -> str:
         return (
             "Manage cron jobs: list, add, remove, or execute commands. "
@@ -854,7 +848,7 @@ class CronManagerTool(BaseTool):
             )
 
         # Add comment with job_id if provided
-        entry = f"# SARAS:{job_id}\n{schedule} {command}"
+        entry = f"# RAVEN:{job_id}\n{schedule} {command}"
 
         try:
             # Get current crontab
@@ -909,7 +903,7 @@ class CronManagerTool(BaseTool):
             removed = False
 
             for line in lines:
-                if f"SARAS:{job_id}" in line:
+                if f"RAVEN:{job_id}" in line:
                     removed = True
                     continue  # Skip this line and the next (the actual cron line)
                 new_lines.append(line)
@@ -936,16 +930,16 @@ class CronManagerTool(BaseTool):
 
     def _execute(self, command: str) -> Dict[str, Any]:
         import subprocess
-        import uuid
 
         if not command:
             return self._error("command is required for execute operation")
 
         # Run once (not as cron) - fire and forget with timeout
         try:
+            import shlex
+            cmd_parts = shlex.split(command)
             result = subprocess.run(
-                command,
-                shell=True,
+                cmd_parts,
                 capture_output=True,
                 text=True,
                 timeout=60,

@@ -13,6 +13,7 @@ from app.agents.developer import DeveloperAgent
 from app.agents.finance import FinanceAgent
 from app.agents.homeguardian import HomeGuardianAgent
 from app.agents.moral import ConscienceAgent
+from app.agents.negotiation import NegotiationAgent
 from app.agents.news import NewsAgent
 from app.agents.productivity import ConductorAgent
 from app.agents.researcher import ResearcherAgent
@@ -83,6 +84,33 @@ from app.tools.computeruse import ComputerUseTool
 from app.tools.mobiletool import MobileDeviceTool
 from app.tools.desktoptool import DesktopControlTool
 from app.tools.screenreadertool import ScreenReaderTool
+from app.tools.sandbox import SandboxExecTool
+from app.tools.google_calendar import GoogleCalendarTool
+from app.tools.translation import TranslationTool
+from app.tools.maps_geocoding import MapsGeocodingTool
+from app.tools.free_apis import FreeInformationAPIs
+from app.tools.document_parser import PDFReaderTool, DocxReaderTool, ExcelReaderTool
+from app.tools.document_generator import PDFGeneratorTool, DocxGeneratorTool, ExcelGeneratorTool, CSVGeneratorTool, HTMLGeneratorTool
+from app.tools.data_visualization import ChartGeneratorTool, TableVisualizerTool
+from app.tools.health_tracker import HealthTrackerTool
+from app.tools.outlook_calendar import OutlookCalendarTool
+from app.tools.monitoring_tool import MonitoringTool
+from app.tools.database_connector import DatabaseConnector, RESTAPIConnector
+from app.tools.email_drafter import EmailDrafterTool
+from app.tools.meeting_notes import MeetingNotesTool
+from app.tools.academic_research import ArxivSearchTool, SemanticScholarTool
+from app.tools.shopping_tool import ShoppingTool
+from app.tools.learning_system import LearningSystemTool
+from app.tools.trip_planner import TripPlannerTool
+from app.tools.memorytool import MemoryTool
+from app.tools.autonomytool import AutonomyTool
+from app.tools.governancetool import GovernanceTool
+from app.tools.edgetool import EdgeDeviceTool
+from app.tools.elevatedtool import ElevatedModeTool
+from app.tools.exectool import ExecTool
+from app.tools.docker_exec_tool import DockerExecTool
+from app.tools.pathchtool import ApplyPatchTool
+from app.tools.writetool import WriteTodosTool
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +126,7 @@ class MessageOrchestrator:
         self._agent_runtime = AgentRuntime(workspace_dir=output_directory)
         self._agent_runtime.botsignal = botsignal
         self._agent_runtime.emit_status_messages = False
-        self._killo_provider = self._agent_runtime.provider
+        self._brain_provider = self._agent_runtime.provider
         self._swarm_manager = SwarmManager(workspace_dir=output_directory)
 
         # Register core tools dynamically into the AgentRuntime and SwarmManager
@@ -171,7 +199,73 @@ class MessageOrchestrator:
             MobileDeviceTool(),
             DesktopControlTool(),
             ScreenReaderTool(),
+            # Translation & Maps
+            TranslationTool(),
+            MapsGeocodingTool(),
+            # Free Information APIs (Wikipedia, weather, search, crypto, etc.)
+            FreeInformationAPIs(),
+            # Shell exec — Docker-sandboxed by default.  Reachable
+            # from chat via the ``sandbox_exec`` tool name; the tool
+            # itself refuses host execution unless
+            # ``Config.ALLOW_HOST_SHELL_EXECUTION`` is True AND the
+            # caller passes ``force_host=True``.  See
+            # ``app.tools.sandbox.SandboxExecTool``.
+            SandboxExecTool(workspace_dir=output_directory),
+            # Document parsing (PDF, DOCX, Excel)
+            PDFReaderTool(),
+            DocxReaderTool(),
+            ExcelReaderTool(),
+            # Health tracking
+            HealthTrackerTool(workspace_dir=output_directory),
+            # Document generation (PDF, DOCX, Excel, CSV, HTML)
+            PDFGeneratorTool(),
+            DocxGeneratorTool(),
+            ExcelGeneratorTool(),
+            CSVGeneratorTool(),
+            HTMLGeneratorTool(),
+            # Data visualization (charts, plots)
+            ChartGeneratorTool(),
+            TableVisualizerTool(),
+            # Real-time monitoring
+            MonitoringTool(workspace_dir=output_directory),
+            # Database connectors (SQLite, MySQL, PostgreSQL)
+            DatabaseConnector(),
+            RESTAPIConnector(),
+            # Email drafting with style learning
+            EmailDrafterTool(workspace_dir=output_directory),
+            # Meeting notes
+            MeetingNotesTool(workspace_dir=output_directory),
+            # Academic research
+            ArxivSearchTool(),
+            SemanticScholarTool(),
+            # Shopping and deal finder
+            ShoppingTool(workspace_dir=output_directory),
+            # Learning system
+            LearningSystemTool(workspace_dir=output_directory),
+            # Trip planning
+            TripPlannerTool(),
+            # Unregistered tools — wire them up
+            MemoryTool(),
+            AutonomyTool(),
+            GovernanceTool(),
+            EdgeDeviceTool(),
+            ElevatedModeTool(),
+            ExecTool(),
+            DockerExecTool(),
+            ApplyPatchTool(),
+            WriteTodosTool(),
         ]
+
+        # Load skill plugin tools — make skills executable, not just advisory
+        try:
+            from app.core.skill_registry import SkillRegistry
+            sr = SkillRegistry()
+            plugin_tools = sr.load_plugin_tools()
+            if plugin_tools:
+                tools.extend(plugin_tools)
+                logger.info("Loaded %d skill plugin tools", len(plugin_tools))
+        except Exception as exc:
+            logger.debug("Skill plugin tools load failed: %s", exc)
 
         # Optional tools: register only if their runtime deps are satisfied
         if Config.NOTION_API_KEY:
@@ -179,6 +273,19 @@ class MessageOrchestrator:
                 tools.append(NotionTool(api_key=Config.NOTION_API_KEY))
             except Exception as exc:
                 logger.warning("NotionTool skipped — init failed: %s", exc)
+
+        # Outlook calendar — gated behind Azure env vars
+        try:
+            from app.settings.config import Config as _Cfg
+            azure_client = getattr(_Cfg, "AZURE_CLIENT_ID", "")
+            if azure_client:
+                tools.append(OutlookCalendarTool(
+                    tenant_id=getattr(_Cfg, "AZURE_TENANT_ID", ""),
+                    client_id=azure_client,
+                    client_secret=getattr(_Cfg, "AZURE_CLIENT_SECRET", ""),
+                ))
+        except Exception:
+            pass
 
         try:
             tools.append(ObsidianOperationTool())
@@ -202,6 +309,7 @@ class MessageOrchestrator:
                 AuditEvent(
                     kind="tool",
                     action="register",
+                    actor="orchestrator",
                     success=True,
                     metadata={"tool": tool.get_name()},
                 )
@@ -220,6 +328,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "FinanceAgent"},
             )
@@ -229,6 +338,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "ResearcherAgent"},
             )
@@ -238,6 +348,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "SecurityAgent"},
             )
@@ -247,6 +358,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "ReviewerAgent"},
             )
@@ -256,6 +368,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "SysadminAgent"},
             )
@@ -265,6 +378,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "DeveloperAgent"},
             )
@@ -274,6 +388,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "PersonalAssistantAgent"},
             )
@@ -283,6 +398,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "NewsAgent"},
             )
@@ -292,6 +408,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "HomeGuardianAgent"},
             )
@@ -301,6 +418,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "HeraldAgent"},
             )
@@ -310,6 +428,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "PolymathAgent"},
             )
@@ -319,6 +438,7 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "ConductorAgent"},
             )
@@ -328,15 +448,18 @@ class MessageOrchestrator:
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "ArchivistAgent"},
             )
         )
         self._swarm_manager.register_agent(ConscienceAgent())
+        self._swarm_manager.register_agent(NegotiationAgent())
         get_action_logger().record(
             AuditEvent(
                 kind="agent",
                 action="register",
+                actor="orchestrator",
                 success=True,
                 metadata={"agent": "ConscienceAgent"},
             )
@@ -344,6 +467,22 @@ class MessageOrchestrator:
 
         # Give the main runtime the ability to spawn the swarm
         self._agent_runtime.register_tool(AgencyDelegationTool(self._swarm_manager))
+
+        # Wire CommandGateway — slash-command dispatcher
+        try:
+            from app.core.commands import CommandGateway
+            self._command_gateway = CommandGateway(self)
+        except Exception as exc:
+            logger.debug("CommandGateway init failed: %s", exc)
+            self._command_gateway = None
+
+        # Wire HeartbeatRunner — periodic session check
+        try:
+            from app.core.heartbeat import HeartbeatRunner
+            self._heartbeat_runner = HeartbeatRunner(workspace_dir=output_directory)
+        except Exception as exc:
+            logger.debug("HeartbeatRunner init failed: %s", exc)
+            self._heartbeat_runner = None
 
     def _tool_by_name(self, name: str) -> Any | None:
         return self._agent_runtime.tools.get(name)
@@ -382,7 +521,7 @@ class MessageOrchestrator:
         self, request: IncomingRequest, source_kind: str, mini_response: str
     ) -> bool:
         provider: Any = (
-            getattr(self, "_killo_provider", None) or self._agent_runtime.provider
+            getattr(self, "_brain_provider", None) or self._agent_runtime.provider
         )
         provider_name = (
             provider.__class__.__name__.lower().replace("client", "")
@@ -690,13 +829,13 @@ class MessageOrchestrator:
                 reply_lines: list[str] = ["File tool operation complete."]
                 base_dir = getattr(tool, "base_directory", None) or Path.cwd()
                 temp_file = (
-                    base_dir / f"saras_file_test_{request.reply_target.chat_id}.txt"
+                    base_dir / f"raven_file_test_{request.reply_target.chat_id}.txt"
                 )
 
                 write_res = await tool.execute(
                     operation="write",
                     filepath=str(temp_file),
-                    content="SARAS file test\n",
+                    content="RAVEN file test\n",
                     create_dirs=True,
                 )
                 traces.append(
@@ -947,6 +1086,324 @@ class MessageOrchestrator:
             )
             return True
 
+        # ── Phase 1 (v8) routing — TaskDecomposer ──────────────
+        # `/goal <text>` — break a goal into executable tasks.
+        # Bare `/goal` is treated as a usage error (handled below).
+        # `/tasks` — list pending tasks for the user.
+        # Both routes delegate to TaskDecomposer; failure is
+        # surfaced as a chat reply (the user is asking, so they
+        # should see the error rather than the loop swallowing it).
+        if lowered == "/goal" or lowered.startswith("/goal "):
+            goal_text = "" if lowered == "/goal" else text[len("/goal "):].strip()
+            goal_text = text[len("/goal "):].strip()
+            if not goal_text:
+                await self._botsignal.send_text(
+                    request.reply_target,
+                    "Usage: /goal <description of what you want to accomplish>",
+                    source_kind=source_kind,
+                )
+                return True
+            try:
+                from app.core.task_decomposer import get_task_decomposer
+                decomposer = get_task_decomposer()
+                tasks = decomposer.decompose_goal(goal_text)
+            except Exception as exc:
+                await self._botsignal.send_text(
+                    request.reply_target,
+                    f"TaskDecomposer failed: {exc}",
+                    source_kind=source_kind,
+                )
+                return True
+            if not tasks:
+                reply = "TaskDecomposer: no tasks produced for that goal."
+            else:
+                lines = [f"Decomposed into {len(tasks)} task(s):", ""]
+                for t in tasks:
+                    lines.append(
+                        f"- [{t.priority}] {t.title} (id={t.id}, "
+                        f"~{t.estimated_minutes}min)"
+                    )
+                reply = "\n".join(lines)
+            await self._botsignal.send_text(
+                request.reply_target, reply, source_kind=source_kind,
+            )
+            return True
+
+        if lowered == "/tasks":
+            try:
+                from app.core.task_decomposer import get_task_decomposer
+                decomposer = get_task_decomposer()
+                pending = decomposer.get_pending_tasks()
+            except Exception as exc:
+                await self._botsignal.send_text(
+                    request.reply_target,
+                    f"TaskDecomposer failed: {exc}",
+                    source_kind=source_kind,
+                )
+                return True
+            if not pending:
+                reply = "No pending tasks. Try `/goal <description>` to create some."
+            else:
+                lines = [f"{len(pending)} pending task(s):", ""]
+                for t in pending[:20]:  # cap the chat reply
+                    lines.append(
+                        f"- [{t.priority}] {t.title} (id={t.id}, "
+                        f"~{t.estimated_minutes}min)"
+                    )
+                reply = "\n".join(lines)
+            await self._botsignal.send_text(
+                request.reply_target, reply, source_kind=source_kind,
+            )
+            return True
+
+        # `/schedule` — show learned wake/sleep/work-hour patterns.
+        if lowered == "/schedule":
+            try:
+                from app.core.schedule_learner import get_schedule_learner
+                learner = get_schedule_learner()
+                reply = learner.get_learning_summary()
+            except Exception as exc:
+                reply = f"ScheduleLearner failed: {exc}"
+            await self._botsignal.send_text(
+                request.reply_target, reply, source_kind=source_kind,
+            )
+            return True
+
+        # ── Phase 4 (v9) routing — KnowledgeManager ─────────────
+        # `/kg add <subj> <pred> <obj>` — record a triple.
+        # `/kg query <name>` — list triples about a subject.
+        # `/kg path <a> <b>` — find a connection between entities.
+        # Bare `/kg` replies with usage.
+        if lowered == "/kg" or lowered.startswith("/kg "):
+            tokens = text[len("/kg"):].strip().split()
+            if not tokens:
+                await self._botsignal.send_text(
+                    request.reply_target,
+                    (
+                        "Usage: /kg add <subj> <pred> <obj> | "
+                        "/kg query <name> | /kg path <a> <b>"
+                    ),
+                    source_kind=source_kind,
+                )
+                return True
+            op = tokens[0].lower()
+            args = tokens[1:]
+            try:
+                from app.core.knowledge_manager import get_knowledge_manager
+                mgr = get_knowledge_manager()
+            except Exception as exc:
+                await self._botsignal.send_text(
+                    request.reply_target,
+                    f"KnowledgeManager unavailable: {exc}",
+                    source_kind=source_kind,
+                )
+                return True
+            if op == "add":
+                if len(args) != 3:
+                    await self._botsignal.send_text(
+                        request.reply_target,
+                        "Usage: /kg add <subj> <pred> <obj>",
+                        source_kind=source_kind,
+                    )
+                    return True
+                fact = mgr.record_fact(*args, source="slash")
+                if fact is None:
+                    reply = f"Already known: {args[0]} --{args[1]}--> {args[2]}"
+                else:
+                    reply = (
+                        f"Recorded: {fact.subject} --{fact.predicate}--> "
+                        f"{fact.object} (backend={mgr.backend})"
+                    )
+                await self._botsignal.send_text(
+                    request.reply_target, reply, source_kind=source_kind,
+                )
+                return True
+            if op == "query":
+                if len(args) != 1:
+                    await self._botsignal.send_text(
+                        request.reply_target,
+                        "Usage: /kg query <name>",
+                        source_kind=source_kind,
+                    )
+                    return True
+                facts = mgr.query(args[0])
+                if not facts:
+                    reply = f"No facts about {args[0]}."
+                else:
+                    lines = [f"{len(facts)} fact(s) about {args[0]}:"]
+                    for f in facts:
+                        lines.append(
+                            f"  - {f.subject} --{f.predicate}--> {f.object}"
+                        )
+                    reply = "\n".join(lines)
+                await self._botsignal.send_text(
+                    request.reply_target, reply, source_kind=source_kind,
+                )
+                return True
+            if op == "path":
+                if len(args) != 2:
+                    await self._botsignal.send_text(
+                        request.reply_target,
+                        "Usage: /kg path <a> <b>",
+                        source_kind=source_kind,
+                    )
+                    return True
+                path = mgr.find_path(args[0], args[1])
+                if path is None:
+                    reply = f"No path from {args[0]} to {args[1]} within 4 hops."
+                else:
+                    reply = " → ".join(path)
+                await self._botsignal.send_text(
+                    request.reply_target, reply, source_kind=source_kind,
+                )
+                return True
+            await self._botsignal.send_text(
+                request.reply_target,
+                f"Unknown /kg subcommand: {op!r}. Try add | query | path.",
+                source_kind=source_kind,
+            )
+            return True
+
+        # Learning summary (Phase 4 v10) — surface a one-screen
+        # view of skill invocations, tool-call success rates,
+        # and recent failure modes.  Pure read; no LLM call.
+        if lowered == "/learned" or lowered.startswith("/learned"):
+            try:
+                from app.core.learning_tracker import get_learning_tracker
+
+                tracker = get_learning_tracker()
+                reply = tracker.summary().format_text()
+            except Exception as exc:
+                # The tracker is best-effort; a missing
+                # SkillLearner or audit log must not crash the
+                # reply path.  Fall back to a graceful message.
+                reply = (
+                    "No learning signals recorded yet "
+                    f"(tracker unavailable: {exc})."
+                )
+            await self._botsignal.send_text(
+                request.reply_target, reply, source_kind=source_kind,
+            )
+            return True
+
+        # Home orchestration (Phase 4 v11) — list scenes, run
+        # a scene, or set the user's presence location.
+        # Subcommands: ``list``, ``run <name>``, ``here <loc>``.
+        if lowered == "/scene" or lowered.startswith("/scene "):
+            try:
+                from app.core.home_orchestrator import get_home_orchestrator
+
+                orchestrator_home = get_home_orchestrator()
+            except Exception as exc:
+                await self._botsignal.send_text(
+                    request.reply_target,
+                    f"HomeOrchestrator unavailable: {exc}",
+                    source_kind=source_kind,
+                )
+                return True
+
+            tokens = text[len("/scene"):].strip().split()
+            if not tokens or tokens[0].lower() == "list":
+                scenes = orchestrator_home.list_scenes()
+                if not scenes:
+                    reply = "No scenes defined yet."
+                else:
+                    lines = [f"{len(scenes)} scene(s):"]
+                    for s in scenes:
+                        loc = f" [{s.location}]" if s.location else ""
+                        desc = f" — {s.description}" if s.description else ""
+                        lines.append(f"  • {s.name}{loc} ({len(s.actions)} action(s)){desc}")
+                    reply = "\n".join(lines)
+            elif tokens[0].lower() == "run" and len(tokens) == 2:
+                try:
+                    result = await orchestrator_home.run_scene(tokens[1])
+                    reply = result.format_text()
+                except Exception as exc:  # noqa: BLE001 - scene exec
+                    reply = f"Scene run failed: {exc}"
+            elif tokens[0].lower() == "here" and len(tokens) == 2:
+                orchestrator_home.set_presence(tokens[1], source="slash")
+                reply = f"Presence set to: {tokens[1]}"
+            else:
+                reply = (
+                    "Usage: /scene list | /scene run <name> | "
+                    "/scene here <location>"
+                )
+            await self._botsignal.send_text(
+                request.reply_target, reply, source_kind=source_kind,
+            )
+            return True
+
+        # Cron schedule (Phase 5 v13) — list, add, remove, or
+        # toggle dynamic :class:`CronEngine` jobs.  Backed by
+        # the trust-skill ``CronCommand`` so the parsing is
+        # shared with the standalone slash-command dispatcher.
+        if lowered == "/cron" or lowered.startswith("/cron "):
+            try:
+                from app.core.trust.slash_commands import (
+                    CronCommand,
+                    SlashCommandContext,
+                )
+            except Exception as exc:  # noqa: BLE001 - optional
+                await self._botsignal.send_text(
+                    request.reply_target,
+                    f"Cron slash command unavailable: {exc}",
+                    source_kind=source_kind,
+                )
+                return True
+            args = text[len("/cron"):].strip()
+            reply = CronCommand().handle(args, SlashCommandContext())
+            await self._botsignal.send_text(
+                request.reply_target, reply, source_kind=source_kind,
+            )
+            return True
+
+        # Skill invocation stats (Phase 5 v14) — render the
+        # ``SkillInvoker``'s in-memory invocation history
+        # (total / successes / failures / per-skill counts /
+        # last 10 invocations).  Useful for operators to see
+        # which skills are firing most often.
+        if lowered == "/skills" or lowered.startswith("/skills "):
+            try:
+                from app.core.skill_invoker import get_skill_invoker
+            except Exception as exc:  # noqa: BLE001 - optional
+                await self._botsignal.send_text(
+                    request.reply_target,
+                    f"SkillInvoker unavailable: {exc}",
+                    source_kind=source_kind,
+                )
+                return True
+            invoker = get_skill_invoker()
+            stats = invoker.get_invocation_stats()
+            lines = ["**Skill invocations**", ""]
+            lines.append(
+                f"- Total: **{stats.get('total', 0)}** — "
+                f"successes: **{stats.get('successes', 0)}**, "
+                f"failures: **{stats.get('failures', 0)}** "
+                f"({stats.get('success_rate', 0.0):.0%} success rate)"
+            )
+            skills_used = stats.get("skills_used") or {}
+            if skills_used:
+                lines.append("")
+                lines.append("- Skills used:")
+                for name, count in sorted(
+                    skills_used.items(), key=lambda kv: -kv[1],
+                ):
+                    lines.append(f"  • {name}: {count}")
+            recent = stats.get("recent") or []
+            if recent:
+                lines.append("")
+                lines.append("- Recent (newest last):")
+                for r in recent:
+                    lines.append(
+                        f"  • {r['skill']} (conf {r['confidence']:.0%}) — "
+                        f"{r['query']} — "
+                        f"{'OK' if r['success'] else 'FAIL'}"
+                    )
+            await self._botsignal.send_text(
+                request.reply_target, "\n".join(lines), source_kind=source_kind,
+            )
+            return True
+
         return False
 
     async def _handle_internet_intel_direct(
@@ -1066,7 +1523,7 @@ class MessageOrchestrator:
         If it requires deep reasoning or tools, it escalates to System 2 (AgentRuntime ReAct Loop).
         """
         # ── Unified Identity Resolution ────────────────────────────────
-        # Map platform-specific user ID to canonical SARAS user for cross-platform continuity
+        # Map platform-specific user ID to canonical RAVEN user for cross-platform continuity
         try:
             from app.core.user_identity import get_identity_store
             identity_store = get_identity_store()
@@ -1123,6 +1580,38 @@ class MessageOrchestrator:
             )
             return
 
+        # Phase 0.5 — DM pairing enforcement on every channel.
+        # Chat channels (telegram, discord, slack, whatsapp, signal,
+        # matrix, irc) fail-closed. The web channel fails-open with a
+        # banner so the dashboard still loads.
+        try:
+            security_guard = get_security_guard()
+            paired, pair_msg = security_guard.check_dm_pairing(
+                request.user_id, request.platform
+            )
+            if not paired:
+                if request.platform == "web":
+                    # Web is special — allow but attach a banner flag.
+                    request.metadata = getattr(request, "metadata", {}) or {}
+                    request.metadata["pairing_banner"] = pair_msg
+                else:
+                    await self._botsignal.send_text(
+                        request.reply_target,
+                        pair_msg,
+                        source_kind=source_kind,
+                    )
+                    try:
+                        from app.core.metrics import requests_blocked
+
+                        requests_blocked.labels(reason="dm_pairing").inc()
+                    except Exception:
+                        pass
+                    return
+        except Exception as exc:
+            # Never let a pairing-check failure crash the loop. Log and
+            # continue (fail-open on infrastructure, not on policy).
+            logger.debug("DM pairing check raised: %s", exc)
+
         if await self._handle_direct_tool_prompt(request, source_kind):
             return
 
@@ -1145,4 +1634,52 @@ class MessageOrchestrator:
             return
 
         # System 2: Deep provider-backed response with fallback (AgentRuntime with full tool access).
-        await self._agent_runtime.execute_turn(request)
+        turn_result = await self._agent_runtime.execute_turn(request)
+        # Phase 0.2 — feed execution trace to SkillLearner so it can
+        # actually write learned skills. Failure must be silent (warned).
+        try:
+            from app.core.skill_learner import (
+                ExecutionTrace,
+                get_skill_learner,
+            )
+
+            learner = get_skill_learner()
+            tool_calls = (turn_result or {}).get("tool_calls") or []
+            # Only attempt to learn if the turn actually used tools —
+            # simple Q&A isn't worth a skill.
+            if tool_calls and (turn_result or {}).get("success"):
+                # Determine satisfaction from actual signals:
+                # - all tool calls succeeded → likely satisfied
+                # - some tool calls failed → less likely satisfied
+                _all_tools_ok = all(tc.get("success", False) for tc in tool_calls)
+                _response_len = len((turn_result or {}).get("response", ""))
+                # Short responses to complex tool-heavy tasks → possible frustration
+                _likely_satisfied = _all_tools_ok and _response_len > 50
+
+                trace = ExecutionTrace(
+                    interaction_id=(turn_result or {}).get("session_id", ""),
+                    user_message=request.text,
+                    tool_calls=tool_calls,
+                    agent_used=None,
+                    response=(turn_result or {}).get("response", ""),
+                    success=True,
+                    user_satisfied=_likely_satisfied,
+                    latency_ms=(turn_result or {}).get("latency_ms", 0.0),
+                )
+                await learner.observe(trace)
+        except Exception as exc:
+            logger.debug("SkillLearner observe failed: %s", exc)
+
+        # Phase 1 (v8) — feed every turn to ScheduleLearner so
+        # the user's wake/sleep/work-hour patterns accumulate
+        # passively.  ScheduleLearner is regex-based and cheap;
+        # it returns an empty list for messages that match no
+        # pattern, so this is a no-op for the common case.
+        # Failure must be silent (warned) — never crashes the loop.
+        try:
+            from app.core.schedule_learner import get_schedule_learner
+
+            learner = get_schedule_learner()
+            learner.learn_from_conversation(request.text)
+        except Exception as exc:
+            logger.debug("ScheduleLearner learn_from_conversation failed: %s", exc)

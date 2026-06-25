@@ -273,6 +273,141 @@ class ExplainTurnsCommand:
         return "\n".join(lines)
 
 
+# -- /cron (Phase 5 v13) --------------------------------------------------
+
+
+@dataclass(slots=True)
+class CronCommand:
+    """``/cron [list|add|remove|toggle] [...]`` — manage the dynamic
+    :class:`CronEngine` schedule.
+
+    Sub-commands:
+
+    * ``/cron`` or ``/cron list`` — render the current schedule.
+    * ``/cron add <id> <HH:MM> <name>`` — register a new
+      ``daily_at`` job.  The action description defaults to
+      the job name.
+    * ``/cron remove <id>`` — remove a job by id.
+    * ``/cron toggle <id>`` — flip the enabled flag on a job.
+
+    The command is self-contained: it instantiates
+    :class:`CronEngine` on demand and does not depend on the
+    context (the engine reads ``MEMORY_ROOT`` from
+    :class:`Config`).  Tests that need a private
+    ``MEMORY_ROOT`` should monkeypatch ``Config.MEMORY_ROOT``
+    before invoking the command.
+    """
+
+    name: str = "cron"
+    description: str = "List, add, remove, or toggle dynamic cron jobs."
+    aliases: list[str] = field(default_factory=lambda: ["schedule"])
+
+    def handle(self, args: str, context: SlashCommandContext) -> str:
+        try:
+            from app.core.cron_engine import CronEngine
+        except Exception as exc:  # noqa: BLE001 - optional
+            return f"CronEngine not available: {exc}"
+
+        tokens = _parse_args(args)
+        sub = tokens[0] if tokens else "list"
+        rest = tokens[1:]
+
+        try:
+            engine = CronEngine()
+        except Exception as exc:  # noqa: BLE001 - init failure
+            return f"CronEngine init failed: {exc}"
+
+        if sub in {"list", "ls", ""}:
+            return self._list(engine)
+        if sub == "add":
+            return self._add(engine, rest)
+        if sub in {"remove", "rm", "delete"}:
+            return self._remove(engine, rest)
+        if sub in {"toggle", "on", "off"}:
+            return self._toggle(engine, rest)
+        return (
+            f"Unknown cron sub-command `{sub}`. "
+            "Try: list, add, remove, toggle."
+        )
+
+    @staticmethod
+    def _list(engine: Any) -> str:
+        jobs = engine.get_jobs()
+        if not jobs:
+            return "No cron jobs registered."
+        lines: list[str] = ["**Cron schedule**", ""]
+        for j in jobs:
+            jid = j.get("job_id", "?")
+            name = j.get("name", "?")
+            schedule = j.get("schedule_type", "?")
+            enabled = "ON" if j.get("enabled", False) else "OFF"
+            if schedule == "daily_at":
+                when = j.get("time", "??:??")
+                sched_str = f"daily @ {when}"
+            elif schedule == "interval_minutes":
+                when = j.get("interval", "?")
+                sched_str = f"every {when}m"
+            else:
+                sched_str = f"({schedule})"
+            lines.append(f"- `{jid}` **{name}** — {sched_str} — *{enabled}*")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _add(engine: Any, args: list[str]) -> str:
+        if len(args) < 3:
+            return (
+                "Usage: `/cron add <id> <HH:MM> <name>` "
+                "(or `/cron add <id> every <minutes> <name>`)"
+            )
+        job_id, when, name = args[0], args[1], " ".join(args[2:])
+        if when.lower() == "every" and len(args) >= 4:
+            try:
+                interval = int(args[2])
+            except ValueError:
+                return f"Invalid interval: {args[2]}"
+            name = " ".join(args[3:])
+            result = engine.add_job(
+                job_id=job_id,
+                name=name,
+                description=name,
+                schedule_type="interval_minutes",
+                action_description=name,
+                interval=interval,
+            )
+        elif ":" in when:
+            result = engine.add_job(
+                job_id=job_id,
+                name=name,
+                description=name,
+                schedule_type="daily_at",
+                action_description=name,
+                time_str=when,
+            )
+        else:
+            return f"Unrecognised schedule `{when}` — use HH:MM or `every <minutes>`."
+        if not result.get("success"):
+            return f"Cron add failed: {result.get('error', 'unknown error')}"
+        return f"Added cron job `{job_id}` (`{name}`)."
+
+    @staticmethod
+    def _remove(engine: Any, args: list[str]) -> str:
+        if not args:
+            return "Usage: `/cron remove <id>`"
+        ok = engine.remove_job(args[0])
+        if not ok:
+            return f"No cron job with id `{args[0]}`."
+        return f"Removed cron job `{args[0]}`."
+
+    @staticmethod
+    def _toggle(engine: Any, args: list[str]) -> str:
+        if not args:
+            return "Usage: `/cron toggle <id>`"
+        ok = engine.toggle_job(args[0])
+        if not ok:
+            return f"No cron job with id `{args[0]}`."
+        return f"Toggled cron job `{args[0]}`."
+
+
 # -- registry ---------------------------------------------------------------
 
 
@@ -281,6 +416,7 @@ _DEFAULT_COMMANDS: list[SlashCommand] = [
     ExplainActionCommand(),
     TrustStatusCommand(),
     ExplainTurnsCommand(),
+    CronCommand(),
 ]
 
 
@@ -414,6 +550,7 @@ def run_command(
 
 
 __all__ = [
+    "CronCommand",
     "ExplainActionCommand",
     "ExplainCommand",
     "ExplainTurnsCommand",

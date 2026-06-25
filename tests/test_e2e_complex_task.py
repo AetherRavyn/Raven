@@ -61,19 +61,19 @@ def _isolated_workspace(
 ) -> Generator[Path, None, None]:
     """Run every test in a fresh, isolated temp directory.
 
-    Redirects SARAS_HOME, audit log path, vault path, and the
+    Redirects RAVEN_HOME, audit log path, vault path, and the
     observability config so tests don't pollute the user's
-    real ``~/.saras/`` or workspace.
+    real ``~/.raven/`` or workspace.
     """
-    monkeypatch.setenv("SARAS_HOME", str(tmp_path))
-    monkeypatch.setenv("SARAS_AUDIT_LOG", str(tmp_path / "audit.jsonl"))
-    monkeypatch.setenv("SARAS_VAULT_DIR", str(tmp_path / "vault"))
-    monkeypatch.setenv("SARAS_POLICY_DIR", str(tmp_path / "policy"))
-    monkeypatch.setenv("SARAS_VAULT_ENABLED", "false")  # off for speed
-    monkeypatch.setenv("SARAS_AUDIT_V2", "true")
-    monkeypatch.setenv("SARAS_POLICY_V2", "true")
-    monkeypatch.setenv("SARAS_OTEL_IN_MEMORY", "true")
-    monkeypatch.setenv("SARAS_LOG_JSON", "true")
+    monkeypatch.setenv("RAVEN_HOME", str(tmp_path))
+    monkeypatch.setenv("RAVEN_AUDIT_LOG", str(tmp_path / "audit.jsonl"))
+    monkeypatch.setenv("RAVEN_VAULT_DIR", str(tmp_path / "vault"))
+    monkeypatch.setenv("RAVEN_POLICY_DIR", str(tmp_path / "policy"))
+    monkeypatch.setenv("RAVEN_VAULT_ENABLED", "false")  # off for speed
+    monkeypatch.setenv("RAVEN_AUDIT_V2", "true")
+    monkeypatch.setenv("RAVEN_POLICY_V2", "true")
+    monkeypatch.setenv("RAVEN_OTEL_IN_MEMORY", "true")
+    monkeypatch.setenv("RAVEN_LOG_JSON", "true")
     yield tmp_path
 
 

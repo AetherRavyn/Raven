@@ -353,40 +353,40 @@ class TestLiveSaveAndRetrieve:
 
 
 class TestSyncFacadeContract:
-    """The sync facade is intended for sync callers (no running loop).
+    """The sync facade gracefully handles calls from a running loop.
 
-    Calling it from inside a running loop is a programming error: it
-    would deadlock (httpx clients are loop-bound).  We test that the
-    error is raised clearly so callers know what to fix.
+    Instead of raising (which would break callers), it returns a safe
+    empty value and logs a debug warning.  Callers in async contexts
+    should use asave/aretrieve with await instead.
     """
 
-    def test_sync_from_running_loop_raises_clear_error(self, fresh_store: Any) -> None:
-        """The sync facade is unsafe from a running loop; we must error."""
+    def test_sync_from_running_loop_returns_empty(self, fresh_store: Any) -> None:
+        """Sync save from async context returns empty string safely."""
         import asyncio
 
         async def _in_loop() -> None:
             store, _, _ = fresh_store
-            with pytest.raises(RuntimeError, match="running event loop"):
-                store.save("FACT", "from loop", user_id="x")  # noqa: RUF006
+            result = store.save("FACT", "from loop", user_id="x")
+            assert result == ""
 
         asyncio.run(_in_loop())
 
-    def test_sync_count_raises_clear_error_from_loop(self, fresh_store: Any) -> None:
+    def test_sync_count_returns_empty_from_loop(self, fresh_store: Any) -> None:
         import asyncio
 
         async def _in_loop() -> None:
             store, _, _ = fresh_store
-            with pytest.raises(RuntimeError, match="running event loop"):
-                store.count()  # noqa: RUF006
+            result = store.count()
+            assert result == ""
 
         asyncio.run(_in_loop())
 
-    def test_sync_retrieve_raises_clear_error_from_loop(self, fresh_store: Any) -> None:
+    def test_sync_retrieve_returns_empty_from_loop(self, fresh_store: Any) -> None:
         import asyncio
 
         async def _in_loop() -> None:
             store, _, _ = fresh_store
-            with pytest.raises(RuntimeError, match="running event loop"):
-                store.retrieve("anything", top_k=3, user_id="x")  # noqa: RUF006
+            result = store.retrieve("anything", top_k=3, user_id="x")
+            assert result == ""
 
         asyncio.run(_in_loop())

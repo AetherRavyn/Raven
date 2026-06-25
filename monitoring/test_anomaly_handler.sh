@@ -4,10 +4,10 @@
 
 set -e
 
-ANOMALY_HANDLER="/home/saras/monitoring/anomaly_handler.py"
+ANOMALY_HANDLER="/home/raven/monitoring/anomaly_handler.py"
 MQTT_HOST="${FRIGATE_MQTT_HOST:-localhost}"
 MQTT_PORT="${FRIGATE_MQTT_PORT:-1883}"
-POSTGRES_URL="${POSTGRES_URL:-postgresql://saras:@localhost/saras}"
+POSTGRES_URL="${POSTGRES_URL:-postgresql://raven:@localhost/raven}"
 FLASK_PORT="${FLASK_PORT:-8080}"
 
 echo "=========================================="
@@ -85,7 +85,7 @@ import threading
 import time
 import sys
 
-sys.path.insert(0, '/home/saras/monitoring')
+sys.path.insert(0, '/home/raven/monitoring')
 
 # Start in background (skip for now as it needs full service)
 print("⏭️  Skipping live server test (run 'systemctl start anomaly-handler' first)"
@@ -150,7 +150,7 @@ os.environ['POSTGRES_URL'] = "$POSTGRES_URL"
 os.environ['FRIGATE_MQTT_HOST'] = "$MQTT_HOST"
 os.environ['FRIGATE_MQTT_PORT'] = "$MQTT_PORT"
 
-sys.path.insert(0, '/home/swadhin/SARAS/monitoring')
+sys.path.insert(0, '/home/swadhin/RAVEN/monitoring')
 from anomaly_handler import CONFIG
 
 required_keys = ['mqtt', 'frigate', 'database', 'storage', 'alerts', 'thresholds', 'yolo', 'flask']

@@ -86,7 +86,7 @@ class SandboxExecTool(BaseTool):
         if not shutil.which("docker"):
             return {"success": False, "error": "Docker is not installed or not in PATH on the host system."}
 
-        container_name = f"saras_sandbox_{uuid.uuid4().hex[:8]}"
+        container_name = f"raven_sandbox_{uuid.uuid4().hex[:8]}"
 
         # Mount workspace read-write to /workspace inside container
         # Run command inside /workspace

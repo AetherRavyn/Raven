@@ -11,7 +11,7 @@ import uvicorn
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="SARAS Internal Webhook")
+app = FastAPI(title="RAVEN Internal Webhook")
 
 # Mount Prometheus /metrics endpoint
 try:

@@ -1,0 +1,23 @@
+# Auto-provision RAVEN dashboards.
+#
+# Mounted by `monitoring/docker-compose.yml` at
+# `/etc/grafana/provisioning/dashboards/raven.yml`.  Every JSON
+# file in the `path` directory becomes a dashboard in Grafana
+# under the `RAVEN` folder.  We pin `editable: false` so the
+# dashboard JSON in this repo is the source of truth — an
+# operator who edits via the UI will see their changes wiped on
+# the next container restart.
+
+apiVersion: 1
+
+providers:
+  - name: RAVEN
+    orgId: 1
+    folder: RAVEN
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}PAIRING — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">PAIRING</h1>
+  <p class="text-zinc-500 text-[11px]">DM pairing codes · approve / revoke · v32</p>
+  <div class="grid grid-cols-2 gap-3 text-[12px]">
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-zinc-500 text-[10px] uppercase">pending ({{ pending_count }})</span>
+      </div>
+      <ul class="space-y-1" id="pairing-pending-list">
+        {% if pending %}
+          {% for p in pending %}
+            <li class="font-mono text-[12px] flex items-center gap-2" data-code="{{ p.get('code','') }}">
+              <span class="text-warn-500">{{ p.get("code", "?") }}</span>
+              <span class="text-zinc-500">— {{ p.get("platform", "?") }}/{{ p.get("user_id", "?") }}</span>
+              <span class="text-zinc-600 text-[10px]">· expires {{ p.get("expires_at", "?") }}</span>
+              <button class="ml-auto text-[11px] text-zinc-300 hover:text-accent-500 underline"
+                      hx-post="/api/pairing/approve?code={{ p.get('code','') }}&approved_by=admin"
+                      hx-target="#main" hx-swap="outerHTML">approve</button>
+            </li>
+          {% endfor %}
+        {% else %}
+          <li class="text-zinc-600">[no pending pairing codes]</li>
+        {% endif %}
+      </ul>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-zinc-500 text-[10px] uppercase">paired ({{ paired_count }})</span>
+      </div>
+      <ul class="space-y-1" id="pairing-paired-list">
+        {% if paired %}
+          {% for u in paired %}
+            <li class="font-mono text-[12px] flex items-center gap-2" data-user="{{ u.get('user_id','') }}">
+              <span class="text-accent-500">●</span>
+              <span class="text-zinc-300">{{ u.get("platform", "?") }}/{{ u.get("user_id", "?") }}</span>
+              <span class="text-zinc-600 text-[10px]">· paired {{ u.get("paired_at", "?") }}</span>
+              <button class="ml-auto text-[11px] text-zinc-300 hover:text-err-500 underline"
+                      hx-post="/api/pairing/revoke?user_id={{ u.get('user_id','') }}&platform={{ u.get('platform','') }}"
+                      hx-target="#main" hx-swap="outerHTML">revoke</button>
+            </li>
+          {% endfor %}
+        {% else %}
+          <li class="text-zinc-600">[no paired users]</li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</section>
+{% endblock %}

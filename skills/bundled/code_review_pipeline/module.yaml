@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.code_review_pipeline
+display_name: Code Review Pipeline
+version: "1.0.0"
+category: skill
+description: "Automated code review: diff analysis, security scan, test coverage check, and improvement suggestions."
+tags: [code-review, security, testing, git, pr, quality]
+capabilities: [git_tool, file_operations, sandbox_exec, knowledge_graph]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.90
+triggers:
+  - pattern: "review.*code|code.*review|review.*pr"
+    confidence: 0.85
+  - pattern: "check.*diff|what.*changed|git.*review"
+    confidence: 0.80

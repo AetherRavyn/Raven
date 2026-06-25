@@ -5,7 +5,9 @@
   "locale": null,
   "preferred_language": null,
   "communication_style": null,
-  "preferences": [],
+  "preferences": [
+    "concise"
+  ],
   "facts": [],
   "tasks": [],
   "projects": [],
@@ -13,7 +15,7 @@
   "devices": [],
   "decisions": [],
   "tools": [],
-  "updated_at": "2026-04-20T10:28:41.799984+00:00",
+  "updated_at": "2026-06-25T15:38:45.110896+00:00",
   "expires_at": null,
   "confidence": 1.0,
   "pinned": false

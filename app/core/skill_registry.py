@@ -639,3 +639,81 @@ class SkillRegistry:
                 logger.error("Failed to load plugin %s: %s", record["module_id"], e)
 
         return tools
+
+    # ── Query-based matching (Phase 5 v14) ─────────────────────────
+
+    def match_skills(
+        self, query: str, min_confidence: float = 0.0,
+    ) -> list[dict[str, Any]]:
+        """Score every healthy skill against ``query`` using a
+        lightweight token-overlap heuristic.
+
+        Returns the matching records sorted by
+        ``match_confidence`` (descending), each with the
+        confidence attached as ``match_confidence``.  Records
+        below ``min_confidence`` are filtered out.
+
+        The scorer is deliberately simple:
+
+        * Tokenise ``query`` on whitespace + lowercase.
+        * For each healthy record, count how many tokens appear
+          in the concatenation of ``display_name``,
+          ``description``, and ``body``.
+        * ``confidence = matched_tokens / total_query_tokens``.
+
+        Skills without a body are skipped (we can't render
+        anything useful from them).  The output is capped at
+        25 candidates to keep the call cheap.
+        """
+        if not query or not query.strip():
+            return []
+        query_tokens = [tok for tok in query.lower().split() if tok]
+        if not query_tokens:
+            return []
+        out: list[dict[str, Any]] = []
+        for record in self.discover():
+            if record.get("health_state") != "healthy":
+                continue
+            body = (record.get("body") or "").strip()
+            if not body:
+                continue
+            haystack = " ".join(
+                str(record.get(field) or "")
+                for field in ("display_name", "description", "body")
+            ).lower()
+            matched = sum(1 for tok in query_tokens if tok in haystack)
+            if matched == 0:
+                continue
+            confidence = matched / len(query_tokens)
+            if confidence < min_confidence:
+                continue
+            enriched = dict(record)
+            enriched["match_confidence"] = confidence
+            out.append(enriched)
+            if len(out) >= 25:
+                break
+        out.sort(key=lambda r: r["match_confidence"], reverse=True)
+        return out
+
+    def get_matched_skill_texts(
+        self,
+        query: str,
+        min_confidence: float = 0.0,
+        max_skills: int = 3,
+    ) -> str:
+        """Return the concatenated ``### Name (match: NN%)``
+        blocks for the top ``max_skills`` matches.
+
+        Convenience wrapper around :meth:`match_skills` for
+        callers that just want the rendered text (e.g.
+        ``SkillInvoker.get_matched_skills_text``,
+        ``Bootstrapper.build_system_prompt``).  Returns an
+        empty string when no skill matches.
+        """
+        from app.core.skill_invoker import SkillInvoker  # local import: avoid cycle
+
+        matches = self.match_skills(query, min_confidence)[:max_skills]
+        if not matches:
+            return ""
+        invoker = SkillInvoker(min_confidence=min_confidence, max_skills=max_skills)
+        return "\n\n".join(invoker.get_skill_text(m) for m in matches if m.get("body"))

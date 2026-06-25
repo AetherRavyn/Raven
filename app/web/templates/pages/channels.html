@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}CHANNELS — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">CHANNELS</h1>
+  <p class="text-zinc-500 text-[11px]">Gateway channel status · start / stop / restart · v32</p>
+  <div class="grid grid-cols-3 gap-3 text-[12px]" id="channels-summary">
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase">total</div>
+      <div class="text-zinc-100 text-2xl tabular-nums">{{ channels|length if channels else 0 }}</div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase">active</div>
+      <div class="text-accent-500 text-2xl tabular-nums">{{ active_count if active_count else 0 }}</div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase">pid</div>
+      <div class="text-zinc-100 text-2xl tabular-nums">{{ pid if pid else "—" }}</div>
+    </div>
+  </div>
+  <div class="border border-ink-600 bg-ink-800 rounded">
+    <table class="w-full text-[12px]">
+      <thead class="text-zinc-500 border-b border-ink-600">
+        <tr>
+          <th class="text-left px-3 py-1.5">name</th>
+          <th class="text-left px-3 py-1.5">platform</th>
+          <th class="text-left px-3 py-1.5">status</th>
+          <th class="text-left px-3 py-1.5">connected_at</th>
+          <th class="text-left px-3 py-1.5">actions</th>
+        </tr>
+      </thead>
+      <tbody id="channels-tbody">
+        {% if channels %}
+          {% for c in channels %}
+            <tr class="border-b border-ink-700 hover:bg-ink-700" data-channel-name="{{ c.get('name','') }}">
+              <td class="px-3 py-1.5 font-mono text-accent-500">{{ c.get("name", "?") }}</td>
+              <td class="px-3 py-1.5">{{ c.get("platform", "?") }}</td>
+              <td class="px-3 py-1.5">
+                {% if c.get("status") == "connected" %}
+                  <span class="text-accent-500">●</span> connected
+                {% elif c.get("status") == "connecting" %}
+                  <span class="text-warn-500">●</span> connecting
+                {% elif c.get("status") == "error" %}
+                  <span class="text-err-500">●</span> error
+                {% else %}
+                  <span class="text-zinc-600">○</span> {{ c.get("status", "?") }}
+                {% endif %}
+              </td>
+              <td class="px-3 py-1.5 text-zinc-500">{{ c.get("connected_at", "—") }}</td>
+              <td class="px-3 py-1.5 space-x-2 text-[11px]">
+                <button class="text-zinc-300 hover:text-accent-500 underline"
+                        hx-post="/api/channels/start?name={{ c.get('name','') }}"
+                        hx-target="#main" hx-swap="outerHTML">start</button>
+                <button class="text-zinc-300 hover:text-warn-500 underline"
+                        hx-post="/api/channels/stop?name={{ c.get('name','') }}"
+                        hx-target="#main" hx-swap="outerHTML">stop</button>
+                <button class="text-zinc-300 hover:text-zinc-100 underline"
+                        hx-post="/api/channels/restart?name={{ c.get('name','') }}"
+                        hx-target="#main" hx-swap="outerHTML">restart</button>
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="5" class="px-3 py-3 text-zinc-600 text-center">[no channels registered — config via gateway adapter]</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

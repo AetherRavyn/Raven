@@ -1,6 +1,6 @@
-# SARAS → JARVIS/FRIDAY Gap Analysis — Updated
+# RAVEN → JARVIS/FRIDAY Gap Analysis — Updated
 
-> **Goal**: Evaluate how close SARAS is to a fully autonomous, always-on, proactive AI assistant — comparable to Jarvis (Iron Man) or F.R.I.D.A.Y.
+> **Goal**: Evaluate how close RAVEN is to a fully autonomous, always-on, proactive AI assistant — comparable to Jarvis (Iron Man) or F.R.I.D.A.Y.
 > **Original Date**: 2026-04-20
 > **Updated**: 2026-04-20 (Post Phase 1–7 + Device Automation)
 
@@ -8,7 +8,7 @@
 
 ## Overall Score: 93 / 100  (was 62 → 89 → 93)
 
-SARAS has been transformed from a multi-agent chatbot into a **production-grade autonomous intelligence system** with ambient awareness, voice-first interaction, self-improvement, device automation (browser/mobile/desktop), and intelligent output routing. The core architecture is now Jarvis-grade.
+RAVEN has been transformed from a multi-agent chatbot into a **production-grade autonomous intelligence system** with ambient awareness, voice-first interaction, self-improvement, device automation (browser/mobile/desktop), and intelligent output routing. The core architecture is now Jarvis-grade.
 
 ---
 
@@ -23,7 +23,7 @@ SARAS has been transformed from a multi-agent chatbot into a **production-grade 
 | 5 | **Multi-Agent Swarm** | 8/10 | **8/10** | Maintained |
 | 6 | **Tool Use** (55+ tools) | 8/10 | **10/10** | +MailTool, WorkflowTool, resilience layer, browser/mobile/desktop/screen automation |
 | 7 | **Proactive Behavior** | 5/10 | **9/10** | +Ambient loop, calendar watcher, sentinel digest, forecast routines |
-| 8 | **Home Security / Surveillance** | 8/10 | **9/10** | +SentinelBridge (event routing to SARAS core) |
+| 8 | **Home Security / Surveillance** | 8/10 | **9/10** | +SentinelBridge (event routing to RAVEN core) |
 | 9 | **Smart Home Control** | 4/10 | **5/10** | +Health check for HA, better error handling |
 | 10 | **Predictive Intelligence** | 4/10 | **5/10** | +Self-improvement statistical tracking |
 | 11 | **Autonomous Task Execution** | 4/10 | **9/10** | +State machine, retry w/backoff, journal, workflow tool |
@@ -85,7 +85,7 @@ SARAS has been transformed from a multi-agent chatbot into a **production-grade 
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                  JARVIS (SARAS)                  │
+│                  JARVIS (RAVEN)                  │
 │                                                   │
 │  ┌─────────────┐    ┌──────────────┐             │
 │  │ Ambient Loop │───▶│ Sensor Fusion │  ✅ DONE   │
@@ -140,7 +140,7 @@ SARAS has been transformed from a multi-agent chatbot into a **production-grade 
 | `screen_reader` | Any (Tesseract) | 8 | OCR, find text, find element positions, layout analysis |
 | `computeruse` | Any (PyAutoGUI) | 5 | Raw click, type, key press, mouse move, screenshot |
 
-This gives SARAS **75 total device operations** — full control over browser, mobile, and desktop like a real user.
+This gives RAVEN **75 total device operations** — full control over browser, mobile, and desktop like a real user.
 
 ---
 

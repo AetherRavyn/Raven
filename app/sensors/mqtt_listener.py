@@ -1,5 +1,5 @@
 # app/sensors/mqtt_listener.py
-"""Async MQTT subscriber that feeds sensor readings into SARAS.
+"""Async MQTT subscriber that feeds sensor readings into RAVEN.
 
 Connects to the configured MQTT broker, subscribes to all configured topics,
 stores the latest payload per topic in an in-memory dict, and fires BotSignal
@@ -7,12 +7,12 @@ alerts for anomalous conditions (motion, temperature extremes).
 
 Usage:
     asyncio.create_task(
-        run_mqtt_listener(broker_url="mqtt://localhost:1883", topics=["saras/#"])
+        run_mqtt_listener(broker_url="mqtt://localhost:1883", topics=["raven/#"])
     )
 
 State access:
     from app.sensors.mqtt_listener import get_sensor_state
-    state = get_sensor_state()  # {"saras/living_room/temp": {"temperature": 22.5}, ...}
+    state = get_sensor_state()  # {"raven/living_room/temp": {"temperature": 22.5}, ...}
 """
 
 from __future__ import annotations
@@ -31,6 +31,23 @@ _sensor_state: dict[str, dict] = {}
 def get_sensor_state() -> dict[str, dict]:
     """Return the in-memory snapshot of all known sensor topics."""
     return _sensor_state
+
+
+def get_recent_readings() -> list[dict]:
+    """Return recent sensor readings as a list of dicts.
+
+    Used by the autonomous action engine to feed sensor events.
+    Each dict has: topic, value, timestamp.
+    """
+    readings = []
+    for topic, data in _sensor_state.items():
+        readings.append({
+            "topic": topic,
+            "value": data.get("value", data),
+            "timestamp": data.get("timestamp", ""),
+            "payload": data,
+        })
+    return readings
 
 
 async def run_mqtt_listener(

@@ -150,7 +150,7 @@ class VirusTotalTool(BaseTool):
         body: bytes | None = None
 
         if files:
-            boundary = "----saras_vt_boundary"
+            boundary = "----raven_vt_boundary"
             parts: list[bytes] = []
             for field_name, (filename, content, content_type) in files.items():
                 parts.extend(

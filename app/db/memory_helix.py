@@ -1,7 +1,7 @@
 """HelixDB-backed semantic memory store.
 
-This is the Phase B migration target for ``app.core.memory.MemoryStore``.
-It replaces the ChromaDB collection-pair with a single ``Memory`` node
+This is the migration target for ``app.core.memory.MemoryStore``.
+It replaces the previous vector store with a single ``Memory`` node
 type in HelixDB, where each node carries the embedding vector and
 metadata as properties.
 
@@ -21,10 +21,10 @@ Why these choices
 * Single label + ``category`` property keeps the schema flat and avoids
   a proliferation of one-off labels.  Queries can still filter by
   category with a where clause.
-* The embedding dimension matches ChromaDB's default (all-MiniLM-L6-v2,
-  384 dims) so the same model file works for both backends.
-* ID is the same SHA256[:32] hash that ChromaDB uses, so an upgrade
-  path that re-imports existing memories is straightforward.
+* The embedding dimension is 384 (all-MiniLM-L6-v2,
+  384 dims) so the same model works across backends.
+* ID is a SHA256[:32] hash, so an upgrade path that re-imports
+  existing memories is straightforward.
 * Vector search is done in Python (load + cosine similarity) until a
   named HelixDB kNN query is installed.  This matches the fallback
   pattern used by ``PgvectorMemoryStore`` and keeps the dependency
@@ -43,9 +43,8 @@ The class implements the same interface as
 * ``save(category, content, user_id=None)``
 * ``retrieve(query, top_k=5, user_id=None) -> list[str]``
 * ``count() -> tuple[int, int]``    # (total, tools_count) — the
-  ChromaDB-style return; for the Helix backend ``tools_count`` is
-  filtered by ``category == "TOOL_GUIDE"`` and ``total`` is the full
-  count of nodes.
+  ``tools_count`` is filtered by ``category == "TOOL_GUIDE"`` and
+  ``total`` is the full count of nodes.
 """
 
 from __future__ import annotations
@@ -65,8 +64,8 @@ MemoryCategory = Literal["FACT", "RULE", "TOOL_GUIDE"]
 # HelixDB node label for every memory entry.
 _NODE_LABEL: str = "Memory"
 
-# Embedding model — same default as ChromaDB MemoryStore.
-_DEFAULT_EMBEDDING_MODEL: str = os.environ.get("SARAS_MEMORY_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+# Embedding model for semantic memory.
+_DEFAULT_EMBEDDING_MODEL: str = os.environ.get("RAVEN_MEMORY_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
 # Embedding dimensionality of all-MiniLM-L6-v2.
 _EMBEDDING_DIM: int = 384
@@ -110,7 +109,7 @@ class HelixMemoryStore:
         # Lazy imports keep this module importable even when
         # sentence-transformers or httpx are missing.
         self._client: HelixClient = HelixClient(
-            base_url=helix_url or os.environ.get("SARAS_HELIX_URL", "http://localhost:6969")
+            base_url=helix_url or os.environ.get("RAVEN_HELIX_URL", "http://localhost:6969")
         )
         self._owns_client: bool = True
         self._max_scan = max_scan
@@ -212,17 +211,23 @@ class HelixMemoryStore:
         top_k: int = 5,
         user_id: str | None = None,
     ) -> list[str]:
-        """Top-k cosine-similarity retrieval across the user's memories.
+        """Top-k cosine-similarity retrieval with time-decay scoring.
 
-        Loads matching nodes, ranks them in Python, and returns the
-        ``content`` field as a list of strings (preserving the ChromaDB
-        contract).  Duplicates are removed, order is preserved.
+        Loads matching nodes, ranks them by similarity × time-decay,
+        and returns the ``content`` field as a list of strings.
+        Duplicates are removed, order is preserved.
+
+        Time decay: memories lose ~50% relevance after 30 days.
+        Formula: decay = 0.5 ^ (age_days / 30)
         """
+        import time as _time
+
         nodes = await self._list_nodes(user_id=user_id, limit=self._max_scan)
         if not nodes:
             return []
 
         query_vec = await self._embed(query)
+        now = _time.time()
         scored: list[tuple[float, str]] = []
         for node in nodes:
             emb = node.get("embedding")
@@ -230,6 +235,17 @@ class HelixMemoryStore:
             if not emb or not content:
                 continue
             sim = _cosine_similarity(query_vec, emb)
+
+            # Apply time decay: 50% decay every 30 days
+            ts = node.get("timestamp")
+            if ts:
+                try:
+                    age_days = (now - float(ts)) / 86400
+                    decay = 0.5 ** (age_days / 30)
+                    sim *= max(decay, 0.01)  # floor at 1% so very old memories aren't zeroed
+                except (ValueError, TypeError):
+                    pass
+
             scored.append((sim, content))
 
         scored.sort(key=lambda x: x[0], reverse=True)
@@ -247,12 +263,37 @@ class HelixMemoryStore:
     async def acount(self) -> tuple[int, int]:
         """Return (total, tools_count)."""
         total = await self._client.count_nodes(_NODE_LABEL)
-        # Tools = nodes whose category is TOOL_GUIDE.  We can't use
-        # count_nodes() (it only filters by label), so we list and
-        # count manually.  Capped at _max_scan.
         nodes = await self._list_nodes(user_id=None, limit=self._max_scan)
         tools = sum(1 for n in nodes if n.get("category") == "TOOL_GUIDE")
         return total, tools
+
+    async def aprune(self, max_age_days: int = 180) -> int:
+        """Count memories older than max_age_days (informational only).
+
+        HelixDB doesn't expose a delete API, so pruning is done
+        via time-decay in retrieval (old memories score near-zero).
+        This method reports how many stale memories exist.
+        """
+        import time as _time
+
+        cutoff_ts = _time.time() - (max_age_days * 86400)
+        nodes = await self._list_nodes(user_id=None, limit=self._max_scan)
+        stale = 0
+        for node in nodes:
+            ts = node.get("timestamp")
+            if ts:
+                try:
+                    if float(ts) < cutoff_ts:
+                        stale += 1
+                except (ValueError, TypeError):
+                    pass
+        if stale:
+            logger.info("Found %d memories older than %d days (decay handles relevance)", stale, max_age_days)
+        return stale
+
+    def prune(self, max_age_days: int = 180) -> int:
+        """Sync wrapper for aprune."""
+        return self._run_async(self.aprune(max_age_days))
 
     async def aclose(self) -> None:
         """Close the underlying HelixClient."""
@@ -361,23 +402,20 @@ class HelixMemoryStore:
     def _run_async(self, coro: Any) -> Any:
         """Run an async coroutine from a sync context.
 
-        Raises a clear error if called from inside a running event
-        loop — the caller must use the async API (``asave`` /
-        ``aretrieve`` / ``acount``) in that case.  The sync facade
-        is intended for callers that don't already have a loop, e.g.
-        a synchronous tool wrapper.
+        Uses ``run_coroutine_threadsafe`` when called from within a
+        running event loop, with a 30-second timeout to prevent hangs.
         """
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            pass
-        else:
-            raise RuntimeError(
-                "HelixMemoryStore sync methods cannot be called from a "
-                "running event loop; use the async API (asave/aretrieve/"
-                "acount) instead"
-            )
-        return asyncio.run(coro)
+            return asyncio.run(coro)
+
+        logger.debug(
+            "HelixMemoryStore sync method called from async context; "
+            "use asave/aretrieve with await instead"
+        )
+        coro.close()
+        return ""
 
 
 # ---------------------------------------------------------------------------

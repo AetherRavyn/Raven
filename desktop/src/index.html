@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AetherRavyn</title>
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+<body>
+
+<!-- ═══ Custom Titlebar ═══ -->
+<div class="titlebar" data-tauri-drag-region>
+  <div class="titlebar-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    <span>AetherRavyn</span>
+  </div>
+  <div class="titlebar-title" id="titlebar-title">Chat</div>
+  <div class="titlebar-controls">
+    <button class="titlebar-btn" id="btn-minimize" title="Minimize">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <button class="titlebar-btn" id="btn-maximize" title="Maximize">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+    </button>
+    <button class="titlebar-btn close" id="btn-close" title="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ═══ App Container ═══ -->
+<div class="app-container">
+
+  <!-- ─── Icon Rail ─── -->
+  <nav class="icon-rail" id="icon-rail">
+    <button class="rail-btn active" data-panel="chat" title="Chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    </button>
+    <button class="rail-btn" data-panel="goals" title="Goals">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    </button>
+    <button class="rail-btn" data-panel="agents" title="Agents">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+    </button>
+    <button class="rail-btn" data-panel="tools" title="Tools">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+    </button>
+    <button class="rail-btn" data-panel="memory" title="Memory">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a4 4 0 014 4c0 1.1-.45 2.1-1.17 2.83L12 12l-2.83-3.17A4 4 0 0112 2z"/><path d="M5 10c0 6 7 12 7 12s7-6 7-12"/></svg>
+    </button>
+    <button class="rail-btn" data-panel="canvas" title="Canvas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+    </button>
+
+    <div class="rail-spacer"></div>
+
+    <button class="rail-btn" data-panel="screen" title="Screen Awareness">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    </button>
+    <button class="rail-btn" id="btn-settings" data-panel="settings" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </button>
+  </nav>
+
+  <!-- ─── Sidebar (Sessions) ─── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h3>Sessions</h3>
+      <button class="sidebar-new-btn" id="btn-new-chat" title="New Chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+    <div class="sidebar-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search sessions..." id="session-search" />
+    </div>
+    <div class="session-list" id="session-list">
+      <div class="session-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span>Welcome Chat</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Panel: Chat -->
+  <div class="panel-view" id="panel-chat">
+    <main class="chat-area" id="chat-area">
+      <div class="chat-top-bar">
+        <div class="chat-model-badge" id="model-badge">
+          <span class="dot"></span>
+          <span id="model-name">AetherRavyn</span>
+        </div>
+        <div class="chat-top-spacer"></div>
+        <button class="chat-top-btn" id="btn-screen" title="Screen Capture">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </button>
+        <button class="chat-top-btn" id="btn-voice" title="Voice Input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+      </div>
+
+      <!-- Welcome Screen -->
+      <div class="welcome-screen" id="welcome-screen">
+        <div class="welcome-logo">🦅</div>
+        <h1 class="welcome-title">AetherRavyn</h1>
+        <p class="welcome-sub">Your JARVIS-class personal AI agent.<br/>55+ tools · Agent swarm · Desktop control · Always evolving.</p>
+        <div class="welcome-grid">
+          <div class="welcome-card" data-prompt="What's on my screen right now?">
+            <h4>🖥️ Screen Awareness</h4>
+            <p>Ask about what's visible on your desktop</p>
+          </div>
+          <div class="welcome-card" data-prompt="Show me my active goals and progress">
+            <h4>🎯 Goal Tracking</h4>
+            <p>Check your autonomous goal progress</p>
+          </div>
+          <div class="welcome-card" data-prompt="Search my memory for recent projects">
+            <h4>🧠 Memory Search</h4>
+            <p>Query your persistent knowledge base</p>
+          </div>
+          <div class="welcome-card" data-prompt="Launch Firefox and open github.com">
+            <h4>⚡ Desktop Control</h4>
+            <p>Control apps, windows, and clipboard</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Messages (hidden initially) -->
+      <div class="chat-messages hidden" id="chat-messages"></div>
+
+      <!-- Input Bar -->
+      <div class="chat-input-bar">
+        <div class="input-container">
+          <div class="input-main">
+            <textarea id="message-input" rows="1" placeholder="Message AetherRavyn..." autocomplete="off"></textarea>
+            <div class="input-actions">
+              <button class="input-action-btn" id="btn-attach" title="Attach file">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+              </button>
+              <button class="input-action-btn send" id="btn-send" disabled title="Send">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="input-toolbar">
+            <button class="input-tool-btn" id="btn-agent-mode" title="Agent Mode">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg>
+              <span>Agent</span>
+            </button>
+            <button class="input-tool-btn" id="btn-web-search" title="Web Search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+              <span>Web</span>
+            </button>
+            <div class="input-toolbar-spacer"></div>
+            <span class="input-hint"><kbd>Enter</kbd> to send · <kbd>Shift+Enter</kbd> new line</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Panel: Goals -->
+  <div class="panel-view hidden" id="panel-goals">
+    <div class="panel-content">
+      <div class="section-title">Autonomy Engine</div>
+      <div class="section-sub">Long-horizon autonomous goal decomposition and execution tracking</div>
+      <div class="grid-2 mb-24">
+        <div class="metric">
+          <div class="metric-label">Goals Configured</div>
+          <div class="metric-value c-accent" id="goals-total-count">0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Execution Status</div>
+          <div class="metric-value c-emerald">Active</div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-h">🎯 Active Goals <span class="count" id="goals-active-badge">0</span></div>
+          <div class="card-b" id="goals-list-container">
+            <div class="card-empty">No active goals found</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h">⚡ Create New Goal</div>
+          <div class="card-b padded">
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:11px; font-weight:600; color:var(--fg-muted);">Goal Title</label>
+                <input class="settings-input" type="text" id="goal-input-title" placeholder="e.g. Deploy an API server to production" style="width:100%;">
+              </div>
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:11px; font-weight:600; color:var(--fg-muted);">Goal Description / Tasks</label>
+                <textarea class="settings-input" id="goal-input-desc" placeholder="Provide detailed steps or goals for the AI swarm..." style="width:100%; min-height:80px; font-family:inherit; resize:vertical;"></textarea>
+              </div>
+              <button class="settings-btn" id="btn-create-goal">Initialize Autonomous Goal</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel: Agents -->
+  <div class="panel-view hidden" id="panel-agents">
+    <div class="panel-content">
+      <div class="section-title">Swarm Agent Registry</div>
+      <div class="section-sub">The swarm of specialist agents available for cognitive tasks</div>
+      <div class="card">
+        <div class="card-h">🤖 Registered Agents <span class="count" id="agents-count-badge">0</span></div>
+        <div class="card-b" id="agents-list-container">
+          <div class="card-empty">Loading agent details...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel: Tools -->
+  <div class="panel-view hidden" id="panel-tools">
+    <div class="panel-content">
+      <div class="section-title">System Tools</div>
+      <div class="section-sub">List of tools registered in the AgentRuntime for command execution</div>
+      <div class="sidebar-search mb-16" style="margin: 0 0 16px 0;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Filter tools..." id="tool-search" />
+      </div>
+      <div class="card">
+        <div class="card-h">🔧 Active Tools <span class="count" id="tools-count-badge">0</span></div>
+        <div class="card-b" id="tools-list-container">
+          <div class="card-empty">Loading system tools...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel: Memory -->
+  <div class="panel-view hidden" id="panel-memory">
+    <div class="panel-content">
+      <div class="section-title">Memory & Knowledge</div>
+      <div class="section-sub">Browse persistent semantic memory and entity profiles</div>
+      <div class="sidebar-search mb-16" style="margin: 0 0 16px 0;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search memory semantic store..." id="memory-search-input" />
+      </div>
+      <div class="card">
+        <div class="card-h">🧠 Vector Facts & Rules <span class="count" id="memory-count-badge">0</span></div>
+        <div class="card-b" id="memory-list-container">
+          <div class="card-empty">No facts searched or indexed yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel: Canvas -->
+  <div class="panel-view hidden" id="panel-canvas">
+    <div class="panel-content">
+      <div class="section-title">Visual Workspace</div>
+      <div class="section-sub">Agent-controlled interactive Live Canvas</div>
+      <div class="card">
+        <div class="card-h">🎨 Canvas Components <button class="sidebar-new-btn" id="btn-clear-canvas" title="Clear Canvas" style="margin-left:auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div>
+        <div class="card-b padded" id="canvas-render-container" style="min-height:300px;">
+          <div class="card-empty">No visual components rendered yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel: Screen Awareness -->
+  <div class="panel-view hidden" id="panel-screen">
+    <div class="panel-content">
+      <div class="section-title">Screen Perception</div>
+      <div class="section-sub">Real-time desktop screenshot analysis and OCR transcription</div>
+      <button class="settings-btn mb-16" id="btn-trigger-capture">Capture & Transcribe Screen</button>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-h">📸 Screenshot</div>
+          <div class="card-b padded" style="display:flex; justify-content:center; align-items:center; min-height:200px; background:#000;">
+            <span style="color:var(--fg-subtle); font-size:12px;" id="screen-capture-status">No screen capture active</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h">📝 OCR Recognized Layout</div>
+          <div class="card-b padded" id="screen-ocr-text" style="font-family:'JetBrains Mono', monospace; font-size:11px; white-space:pre-wrap; max-height:400px; overflow-y:auto; color:var(--fg-muted);">
+            <div class="card-empty">Click Capture to run screen transcription</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel: Settings -->
+  <div class="panel-view hidden" id="panel-settings">
+    <div class="panel-content">
+      <div class="section-title">Configuration Control</div>
+      <div class="section-sub">Manage dynamic AI models, API keys, platforms, and safety controls</div>
+      
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-h">🛠️ System Config (.env)</div>
+          <div class="card-b padded" style="display:flex; flex-direction:column; gap:16px;">
+            <div class="settings-group">
+              <div class="settings-group-title">Active AI Model</div>
+              <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <select class="settings-select" id="settings-sel-provider" style="flex:1;">
+                  <option value="nvidia">NVIDIA NIM</option>
+                  <option value="groq">Groq</option>
+                  <option value="opencode_api">OpenCode API</option>
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="opencode">CLI Proxy (opencode)</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="xai">xAI Grok</option>
+                  <option value="ollama">Ollama (Local)</option>
+                </select>
+                <input class="settings-input" type="text" id="settings-input-model" placeholder="Model ID..." style="flex:2;">
+              </div>
+            </div>
+            
+            <div class="settings-group">
+              <div class="settings-group-title">API Keys & Tokens</div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <input class="settings-input" type="password" id="settings-key-gemini" placeholder="GEMINI_API_KEY">
+                <input class="settings-input" type="password" id="settings-key-openai" placeholder="OPENAI_API_KEY">
+                <input class="settings-input" type="password" id="settings-key-groq" placeholder="GROQ_API_KEY">
+                <input class="settings-input" type="password" id="settings-key-xai" placeholder="XAI_API_KEY">
+                <input class="settings-input" type="password" id="settings-tg-token" placeholder="TELEGRAM_BOT_TOKEN">
+                <input class="settings-input" type="password" id="settings-dc-token" placeholder="DISCORD_BOT_TOKEN">
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <div class="settings-group-title">Safety & Access Control</div>
+              <div style="display:flex; flex-direction:column; gap:10px; font-size:12px; color:var(--fg-muted);">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                  <input type="checkbox" id="settings-check-pairing" style="accent-color:var(--accent);">
+                  <span>Enable DM Pairing Security Enforcement</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                  <input type="checkbox" id="settings-check-shell" style="accent-color:var(--accent);">
+                  <span>Allow Host Shell Execution (Dangerous)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <div class="settings-group-title">Voice Pipeline</div>
+              <div style="display:flex; flex-direction:column; gap:10px; font-size:12px; color:var(--fg-muted);">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                  <input type="checkbox" id="settings-check-voice" style="accent-color:var(--accent);">
+                  <span>Enable Local Voice Wake-Word Pipeline</span>
+                </label>
+                <input class="settings-input" type="text" id="settings-voice-stt" placeholder="VOICE_STT_MODEL (e.g. tiny, base)">
+                <input class="settings-input" type="text" id="settings-voice-tts" placeholder="VOICE_TTS_VOICE (e.g. en-US-AriaNeural)">
+              </div>
+            </div>
+
+            <button class="settings-btn" id="btn-save-settings" style="width:100%;">Save & Commit Configuration</button>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card">
+            <div class="card-h">🔌 Active Skill Manifests <span class="count" id="settings-skills-badge">0</span></div>
+            <div class="card-b" id="settings-skills-container" style="max-height:220px; overflow-y:auto;">
+              <div class="card-empty">No skills registered</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h">📶 Enabled Channels</div>
+            <div class="card-b" id="settings-channels-container">
+              <div class="card-empty">No channels configured</div>
+            </div>
+          </div>
+          <div class="card" id="settings-pairing-requests-card">
+            <div class="card-h">🔒 Pending DM Pairing Requests</div>
+            <div class="card-b padded" id="settings-pairing-requests-container" style="max-height:220px; overflow-y:auto;">
+              <div class="card-empty">No pending pairing requests</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ─── Status Bar ─── -->
+<div class="status-bar">
+  <div class="status-item">
+    <span class="status-dot online" id="status-dot"></span>
+    <span id="status-text">Connected</span>
+  </div>
+  <div class="status-item" id="status-uptime">⏱ --</div>
+  <div class="status-item" id="status-cpu">CPU --</div>
+  <div class="status-item" id="status-mem">RAM --</div>
+  <div class="status-spacer"></div>
+  <div class="status-item" id="status-tools">55 tools</div>
+  <div class="status-item" id="status-version">v1.0.0</div>
+</div>
+
+<!-- ─── Toast Container ─── -->
+<div class="toast-container" id="toast-container"></div>
+
+<script src="js/app.js"></script>
+
+</body>
+</html>

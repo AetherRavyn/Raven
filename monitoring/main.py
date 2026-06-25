@@ -1,5 +1,5 @@
 """
-SARAS Central Node — Main Application
+RAVEN Central Node — Main Application
 Clean entry point: lifespan, camera processing, and router includes.
 All API routes live in monitoring/routes/.
 """
@@ -58,7 +58,6 @@ from monitoring.routes import analytics as analytics_routes
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-logging.getLogger("neo4j.notifications").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
 # ── Config paths ──────────────────────────────────────────────────────────────
@@ -494,14 +493,14 @@ async def lifespan(app: FastAPI):
     scheduler.stop()
     p2p_node.stop()
     state.db.close()
-    logger.info("SARAS shutdown complete.")
+    logger.info("RAVEN shutdown complete.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # APP CREATION & ROUTER INCLUDES
 # ══════════════════════════════════════════════════════════════════════════════
 
-app = FastAPI(title="SARAS Central Node", version="2.0", lifespan=lifespan)
+app = FastAPI(title="RAVEN Central Node", version="2.0", lifespan=lifespan)
 
 # Signal handlers
 def _force_exit(signum, frame):
@@ -539,7 +538,7 @@ app.include_router(analytics_routes.router)
 if __name__ == "__main__":
     uvicorn.run(
         "monitoring.main:app",
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=8000,
         reload=False,
         timeout_graceful_shutdown=1,

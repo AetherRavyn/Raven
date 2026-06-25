@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -262,12 +266,79 @@ def _resolve_redirect(url: str, timeout: int = 10) -> str:
 
 
 # ---------------------------------------------------------------------------
+# DuckDuckGo free fallback (no API key needed)
+# ---------------------------------------------------------------------------
+def _search_duckduckgo(
+    query: str,
+    count: int,
+    timeout: int = 20,
+) -> List[Dict[str, Any]]:
+    """Search DuckDuckGo — no API key required.
+
+    Uses the ``ddgs`` package when available (handles bot challenges),
+    falls back to raw HTML scraping if not installed.
+    """
+    results: List[Dict[str, Any]] = []
+
+    # Primary: ddgs package (handles bot challenges automatically)
+    try:
+        from ddgs import DDGS  # type: ignore
+
+        for r in DDGS().text(query, max_results=count):
+            title = r.get("title", "")
+            url = r.get("href", "")
+            snippet = r.get("body", "")
+            if title and url:
+                results.append({"title": title, "url": url, "snippet": snippet})
+        if results:
+            return results
+    except Exception:
+        pass
+
+    # Fallback: raw HTML scraping
+    _ddg_ua = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+    )
+    for endpoint in [
+        "https://html.duckduckgo.com/html/",
+        "https://lite.duckduckgo.com/lite/",
+    ]:
+        try:
+            req = urllib.request.Request(
+                endpoint,
+                data=urllib.parse.urlencode({"q": query}).encode("utf-8"),
+                headers={"User-Agent": _ddg_ua},
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                html = resp.read().decode("utf-8", errors="replace")
+            if not html:
+                continue
+            seen: set[str] = set()
+            for match in re.finditer(
+                r'<a[^>]+href="(https?://[^"]+)"[^>]*>(.*?)</a>', html, re.S
+            ):
+                url = match.group(1).strip()
+                title = re.sub(r"<[^>]+>", "", match.group(2)).strip()
+                if not url or not title or url in seen or "duckduckgo.com" in url:
+                    continue
+                seen.add(url)
+                results.append({"title": title, "url": url, "snippet": ""})
+                if len(results) >= count:
+                    return results
+        except (urllib.error.HTTPError, urllib.error.URLError, OSError):
+            continue
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Provider auto-detection
 # ---------------------------------------------------------------------------
 def _detect_provider() -> Tuple[str, str]:
     """
     Return (provider_name, api_key) by checking env vars in documented order:
-    Brave → Gemini → Perplexity → Grok
+    Brave → Gemini → Perplexity → Grok → DuckDuckGo (free fallback)
     """
     brave_key = os.environ.get("BRAVE_API_KEY") or getattr(
         Config, "BRAVE_API_KEY", None
@@ -290,10 +361,8 @@ def _detect_provider() -> Tuple[str, str]:
     grok_key = os.environ.get("XAI_API_KEY") or getattr(Config, "XAI_API_KEY", None)
     if grok_key:
         return "grok", grok_key
-    raise ValueError(
-        "No search API key found. Configure BRAVE_API_KEY, GEMINI_API_KEY, "
-        "PERPLEXITY_API_KEY, OPENROUTER_API_KEY, or XAI_API_KEY."
-    )
+    # Free fallback — no API key required
+    return "duckduckgo", ""
 
 
 def _perplexity_base_url(api_key: str) -> str:
@@ -525,6 +594,8 @@ class WebOperationTool(BaseTool):
                         count=count,
                         timeout=self.TIMEOUT,
                     )
+                elif provider == "duckduckgo":
+                    return _search_duckduckgo(query, count, timeout=self.TIMEOUT)
                 else:
                     raise ValueError(f"Unknown provider: '{provider}'.")
 

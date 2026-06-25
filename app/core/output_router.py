@@ -1,5 +1,5 @@
 # app/core/output_router.py
-"""Output Priority Router — smart routing of SARAS responses.
+"""Output Priority Router — smart routing of RAVEN responses.
 
 Jarvis doesn't blast every alert through speakers. This module classifies
 output by urgency and routes it to the appropriate channel:

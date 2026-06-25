@@ -1,7 +1,7 @@
 # app/tools/desktoptool.py
 """Desktop Application Control Tool.
 
-Enables SARAS to manage desktop applications and windows like a real user:
+Enables RAVEN to manage desktop applications and windows like a real user:
   - List open windows and running applications
   - Focus/minimize/maximize/close windows
   - Launch applications by name or command
@@ -200,9 +200,13 @@ class DesktopControlTool(BaseTool):
                 app = kwargs.get("text", "")
                 if not app:
                     return {"success": False, "error": "App name/command required"}
-                # Try common app launchers
+                # Sanitize to prevent shell injection
+                from app.core.command_sanitizer import sanitize_command
+                safe_cmd = sanitize_command(f"nohup {app} &>/dev/null &")
+                if safe_cmd is None:
+                    return {"success": False, "error": "Command blocked by security filter"}
                 proc = await asyncio.create_subprocess_shell(
-                    f"nohup {app} &>/dev/null &",
+                    safe_cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
@@ -278,7 +282,7 @@ class DesktopControlTool(BaseTool):
 
             elif op == "notification":
                 text = kwargs.get("text", "")
-                title = kwargs.get("title", "SARAS")
+                title = kwargs.get("title", "RAVEN")
                 if shutil.which("notify-send"):
                     await self._run(f"notify-send '{title}' '{text}'")
                     return {"success": True, "action": "notification", "title": title, "text": text}
@@ -340,8 +344,12 @@ class DesktopControlTool(BaseTool):
         return {"success": False, "error": "xdotool required"}
 
     async def _run(self, cmd: str) -> str:
+        from app.core.command_sanitizer import sanitize_command
+        safe_cmd = sanitize_command(cmd, allow_all=True)
+        if safe_cmd is None:
+            return "Error: Command blocked by security filter"
         proc = await asyncio.create_subprocess_shell(
-            cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            safe_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
         return stdout.decode("utf-8", errors="replace")

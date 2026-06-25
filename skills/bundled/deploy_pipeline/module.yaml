@@ -1,0 +1,35 @@
+schema_version: "1.0"
+module_id: skill.deploy_pipeline
+display_name: Deploy Pipeline
+name: Deploy Pipeline
+version: 1.0.0
+category: skill
+description: >
+  Full deployment workflow from build to production, including testing,
+  Docker containerization, deployment, monitoring, and rollback support.
+tags: [deploy, pipeline, docker, ci-cd, production, devops]
+capabilities: [docker-build, testing, deployment, monitoring, rollback]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+maturity: production
+origin: bundled
+
+triggers:
+  - pattern: "deploy.*(?:to|in).*production"
+    confidence: 0.90
+  - pattern: "ship.*it"
+    confidence: 0.80
+  - pattern: "release.*(?:version|update)"
+    confidence: 0.80
+
+dependencies:
+  - name: docker_ops
+    status: available
+    required: false
+  - name: git_ops
+    status: available
+    required: true
+  - name: exec_tool
+    status: available
+    required: true

@@ -1,0 +1,33 @@
+{
+  "author": "RAVEN team",
+  "description": "Prepare for upcoming meetings with agenda, context, participant profiles, and talking points.",
+  "eval_records": [],
+  "inputs": [
+    {
+      "default": null,
+      "description": "",
+      "name": "query",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "meeting_prep",
+  "outputs": [],
+  "permissions": [],
+  "promotion_threshold": 20,
+  "risk_level": "low",
+  "schema_version": "1.0",
+  "source": "bundled",
+  "tags": [
+    "meeting",
+    "preparation",
+    "calendar",
+    "productivity",
+    "agenda",
+    "agenda-creation",
+    "participant-research",
+    "talking-points"
+  ],
+  "trust": "workspace",
+  "version": "1.0.0"
+}

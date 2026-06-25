@@ -1,0 +1,493 @@
+{
+  "project": {
+    "name": "saras",
+    "display_name": "SARAS (AetherRavyn)",
+    "description": "AetherRavyn — a JARVIS-class personal AI agent with 16 specialist sub-agents, 75+ tools, self-evolving skills, and ambient awareness",
+    "version": "0.1.0",
+    "python_version": ">=3.12,<3.14",
+    "entry_point": "main.py",
+    "cli_entry_point": "app.cli.main:main",
+    "package_manager": "uv",
+    "license": null
+  },
+  "languages": {
+    "python": {
+      "version": "3.12",
+      "file_count": 706,
+      "role": "primary",
+      "is_async": true,
+      "type_hints": true
+    },
+    "javascript": {
+      "file_count": 20,
+      "role": "secondary",
+      "context": "web dashboard frontend, monitoring dashboard"
+    },
+    "css": {
+      "file_count": 14,
+      "role": "secondary",
+      "context": "web dashboard styling, monitoring"
+    },
+    "html": {
+      "file_count": 33,
+      "role": "secondary",
+      "context": "web dashboard templates (Jinja2), monitoring dashboard"
+    },
+    "rust": {
+      "file_count": 38,
+      "role": "tertiary",
+      "context": "desktop app (Tauri) in desktop/src-tauri/"
+    },
+    "shell": {
+      "file_count": 7,
+      "role": "support",
+      "context": "scripts/, deployment helpers"
+    },
+    "markdown": {
+      "file_count": 118,
+      "role": "documentation",
+      "context": "docs/, prompts/, skills/, SOUL.md, MEMORY.md, Agent.md, AGENTS.md, Skills.md"
+    },
+    "toml": {
+      "file_count": null,
+      "role": "configuration",
+      "context": "pyproject.toml, helix.toml, monitoring configs"
+    },
+    "yaml": {
+      "file_count": 29,
+      "role": "configuration",
+      "context": "CI/CD workflows, docker-compose, module manifests"
+    }
+  },
+  "frameworks": {
+    "fastapi": {
+      "role": "web framework",
+      "version": ">=0.129.0",
+      "context": "web dashboard, API server"
+    },
+    "uvicorn": {
+      "role": "ASGI server",
+      "version": ">=0.34.0",
+      "context": "serves FastAPI app"
+    },
+    "sqlalchemy": {
+      "role": "ORM",
+      "version": ">=2.0.46",
+      "context": "database models, session management"
+    },
+    "asyncpg": {
+      "role": "async PostgreSQL driver",
+      "version": ">=0.30.0",
+      "context": "async database access"
+    },
+    "pgvector": {
+      "role": "vector search",
+      "version": ">=0.3.6",
+      "context": "semantic memory search"
+    },
+    "alembic": {
+      "role": "database migrations",
+      "version": ">=1.16.0",
+      "context": "schema versioning"
+    },
+    "discord_py": {
+      "role": "messaging platform connector",
+      "version": ">=2.6.4",
+      "context": "Discord bot integration"
+    },
+    "python_telegram_bot": {
+      "role": "messaging platform connector",
+      "version": ">=22.6",
+      "context": "Telegram bot integration"
+    },
+    "slack_bolt": {
+      "role": "messaging platform connector",
+      "version": ">=1.22.0",
+      "context": "Slack bot integration"
+    },
+    "structlog": {
+      "role": "logging",
+      "version": ">=24.0.0",
+      "context": "structured logging throughout"
+    },
+    "prometheus_client": {
+      "role": "metrics",
+      "version": ">=0.21.0",
+      "context": "application metrics export"
+    },
+    "opentelemetry": {
+      "role": "observability",
+      "version": ">=1.39.0",
+      "context": "distributed tracing"
+    },
+    "redis": {
+      "role": "caching / pub-sub",
+      "version": ">=7.2.0",
+      "context": "session state, caching"
+    },
+    "neo4j": {
+      "role": "graph database",
+      "version": ">=6.1.0",
+      "context": "knowledge graph storage"
+    },
+    "chromadb": {
+      "role": "vector database",
+      "version": ">=0.6.0",
+      "context": "semantic memory, embeddings"
+    },
+    "sentence_transformers": {
+      "role": "embeddings",
+      "version": ">=3.4.0",
+      "context": "text embedding generation"
+    },
+    "supabase": {
+      "role": "backend-as-a-service",
+      "version": ">=2.28.0",
+      "context": "cloud database and auth"
+    },
+    "httpx": {
+      "role": "HTTP client",
+      "version": ">=0.28.1",
+      "context": "async HTTP requests to external APIs"
+    },
+    "apscheduler": {
+      "role": "task scheduling",
+      "version": ">=3.10.4",
+      "context": "background jobs, cron-like tasks"
+    },
+    "playwright": {
+      "role": "browser automation",
+      "version": ">=1.58.0",
+      "context": "web browsing, computer use"
+    },
+    "docker": {
+      "role": "container management",
+      "version": ">=7.0.0",
+      "context": "sandbox execution, monitoring"
+    },
+    "ultralytics": {
+      "role": "computer vision",
+      "version": ">=8.4.14",
+      "context": "YOLO object detection in monitoring"
+    },
+    "opencv": {
+      "role": "image processing",
+      "version": ">=4.13.0.92",
+      "context": "camera snapshot processing, monitoring"
+    },
+    "whisper": {
+      "role": "speech-to-text",
+      "versions": {
+        "faster_whisper": ">=1.1.0",
+        "pywhispercpp": ">=1.4.0",
+        "vosk": ">=0.3.45"
+      },
+      "context": "voice pipeline STT"
+    },
+    "piper_tts": {
+      "role": "text-to-speech",
+      "version": ">=1.3.0",
+      "context": "on-device TTS for personality voice"
+    },
+    "openai": {
+      "role": "LLM provider",
+      "context": "OpenAI API integration via provider pattern"
+    },
+    "anthropic": {
+      "role": "LLM provider",
+      "context": "Claude API integration via provider pattern"
+    },
+    "google_genai": {
+      "role": "LLM provider",
+      "version": ">=1.63.0",
+      "context": "Gemini API integration"
+    },
+    "xai_sdk": {
+      "role": "LLM provider",
+      "version": ">=1.6.1",
+      "context": "xAI (Grok) API integration"
+    },
+    "ollama": {
+      "role": "LLM provider (local)",
+      "context": "local model inference"
+    },
+    "mcp": {
+      "role": "tool protocol",
+      "version": ">=1.26.0",
+      "context": "Model Context Protocol server/client"
+    },
+    "tauri": {
+      "role": "desktop framework",
+      "context": "desktop companion app in desktop/"
+    },
+    "streamlit": {
+      "role": "admin dashboard",
+      "context": "optional admin dashboard"
+    },
+    "pytest": {
+      "role": "testing",
+      "version": ">=8.3.0",
+      "context": "test framework with pytest-asyncio"
+    },
+    "ruff": {
+      "role": "linter/formatter",
+      "version": ">=0.9.0",
+      "context": "code quality enforcement"
+    },
+    "pyright": {
+      "role": "type checker",
+      "version": ">=1.1.400",
+      "context": "static type analysis"
+    }
+  },
+  "databases": {
+    "postgresql": {
+      "driver": "asyncpg + SQLAlchemy",
+      "image": "pgvector/pgvector:pg16",
+      "extensions": ["pgvector"],
+      "context": "primary relational + vector storage"
+    },
+    "redis": {
+      "image": "redis:7-alpine",
+      "context": "caching, pub-sub, session state"
+    },
+    "neo4j": {
+      "image": "neo4j:5",
+      "context": "knowledge graph"
+    },
+    "helixdb": {
+      "image": "ghcr.io/helixdb/enterprise-dev:latest",
+      "context": "persistent memory + knowledge graph backend"
+    },
+    "chromadb": {
+      "context": "local vector store for semantic memory"
+    },
+    "sqlite": {
+      "context": "scheduler state, identity, local fallbacks"
+    }
+  },
+  "infrastructure": {
+    "docker": true,
+    "docker_compose": true,
+    "ci_cd": "GitHub Actions",
+    "ci_workflows": [".github/workflows/ci.yml", ".github/workflows/release.yml"],
+    "container_registry": "ghcr.io",
+    "monitoring_stack": ["Prometheus", "Grafana"],
+    "deployment": "Docker-based, uvicorn ASGI"
+  },
+  "code_quality": {
+    "linter": "ruff (rules: E, F, W)",
+    "formatter": "ruff format (double quotes, space indent, LF)",
+    "type_checker": "pyright (basic mode)",
+    "security_scanner": "bandit + detect-secrets",
+    "pre_commit_hooks": [
+      "ruff",
+      "ruff-format",
+      "pyright",
+      "detect-secrets",
+      "trailing-whitespace",
+      "end-of-file-fixer",
+      "check-yaml",
+      "check-toml",
+      "check-merge-conflict",
+      "check-added-large-files",
+      "check-json",
+      "mixed-line-ending",
+      "detect-private-key"
+    ],
+    "line_length": 100
+  },
+  "file_stats": {
+    "total_files": 12002,
+    "excluded_dirs": [".git", "__pycache__", ".venv", ".mypy_cache", ".pytest_cache", ".ruff_cache", "saras.egg-info", ".hypothesis", ".codex", ".skills", ".puku-cli", ".kiro", ".helix", ".claude", "vosk-model*"],
+    "source_files": {
+      "python": 706,
+      "markdown": 118,
+      "html": 33,
+      "yaml": 29,
+      "yml": 9,
+      "javascript": 20,
+      "css": 14,
+      "shell": 7,
+      "json": null,
+      "jsonl": 36,
+      "text": 8,
+      "svg": 8,
+      "png": 53,
+      "wav": 37
+    }
+  },
+  "directory_structure": {
+    "app": {
+      "description": "Main application package",
+      "subdirs": {
+        "agents": "16 specialist sub-agents (finance, researcher, security, reviewer, sysadmin, developer, assistant, news, moral, homeguardian, communications, scientist, productivity, dataengineer, negotiation)",
+        "api": "API server endpoints",
+        "canvas": "Live canvas renderer",
+        "cli": "CLI interface (main, doctor, onboard, edge_node, mode_cmd)",
+        "companion": "Desktop companion client (notifications, palette, cache, status)",
+        "core": "Central engine: orchestrator, runtime, planner, scheduler, memory, persona, skills, agents, hooks, workflow, perception, metacognition, etc.",
+        "core/audit": "Audit logging and dashboard",
+        "core/continuity": "Cross-session identity and handoff",
+        "core/conversation": "Conversation memory and compression",
+        "core/cost_router": "LLM cost estimation and routing",
+        "core/planning": "Multi-step task planning and execution",
+        "core/policy_v2": "Policy engine v2",
+        "core/privacy": "Privacy detection, redaction, consent, retention",
+        "core/proactive_core": "Proactive intelligence (nudges, anticipation, anomalies, delivery)",
+        "core/scheduling": "Event-driven scheduling and signals",
+        "core/skill_v2": "Skill system v2 (manifest, registry, signing)",
+        "core/trust": "Trust layer (citations, fact-check, rollback, explanation)",
+        "core/verifier": "Output verification",
+        "dashboard": "Dashboard utilities",
+        "db": "Database layer (SQLAlchemy models, HelixDB client, memory/KG adapters)",
+        "discord": "Discord connector",
+        "gateway": "Protocol gateway (session routing, adapters)",
+        "irc": "IRC connector (placeholder)",
+        "mcp": "MCP server/client (Model Context Protocol)",
+        "matrix": "Matrix connector (placeholder)",
+        "media": "Media processing (image XAI)",
+        "minichat": "CLI minichat interface",
+        "modules": "Modular extension platform (loader, registry, event bridge, permissions, manifest, health, dashboard, CLI)",
+        "observability": "Metrics, logging, tracing (OpenTelemetry + Prometheus)",
+        "provider": "LLM provider abstraction (OpenAI, Anthropic, Google, xAI, CLI proxy, factory, registry, manager)",
+        "providers": "Additional providers (xAI, Ollama, Killo)",
+        "routines": "Background routines (morning briefing, evening review, weekly digest, calendar watcher, autonomy worker, etc.)",
+        "runtime": "Runtime supervisor, degraded mode, outbox recovery",
+        "sensors": "Sensor integration (camera bridge, MQTT listener, webhook server)",
+        "settings": "Configuration and validation",
+        "signal": "Signal connector (placeholder)",
+        "slack": "Slack connector",
+        "telegram": "Telegram connector",
+        "tools": "75+ tools (websearch, file, git, write, exec, memory, kg, browser, docker, finance, smart home, etc.)",
+        "voice": "Voice pipeline (wake word, STT, TTS, speaker ID, pipeline orchestration)",
+        "web": "Web dashboard (FastAPI server, Jinja2 templates, static assets, endpoints)",
+        "whatsapp": "WhatsApp connector (Baileys bridge)"
+      }
+    },
+    "monitoring": {
+      "description": "Home surveillance monitoring system",
+      "components": ["Flask app", "YOLO detection", "Neo4j/Postgres", "Grafana dashboards", "ESP camera integration"]
+    },
+    "desktop": {
+      "description": "Tauri desktop companion app",
+      "components": ["Rust backend (src-tauri/)", "Web frontend"]
+    },
+    "companion-shell": {
+      "description": "Companion shell integration",
+      "file_count": 2625
+    },
+    "agent_reach": {
+      "description": "Agent reachability intelligence module",
+      "file_count": 39
+    },
+    "bridge": {
+      "description": "Bridge connectors",
+      "file_count": 3
+    },
+    "skills": {
+      "description": "Skill system (bundled, community, learned, imported)",
+      "subdirs": {
+        "bundled": "16 built-in skills (code_explain, code_reviewer, daily_briefing, data_analysis, deploy_pipeline, email_triage, file_organizer, git_pr_review, incident_response, meeting_prep, meeting_summarizer, morning_briefing, project_setup, research_deep_dive, research_synthesis, security_audit, system_health_check, weekly_review)",
+        "community": "Community skills (home_protection)",
+        "learned": "Self-learned skills",
+        "imported": "Imported skills",
+        "crypto_price": "Crypto price skill",
+        "virustotal-scanner": "VirusTotal scanner skill"
+      }
+    },
+    "tests": {
+      "description": "Test suite",
+      "files_in_tests_dir": 140,
+      "files_at_root": 56,
+      "total_test_files": 196,
+      "framework": "pytest + pytest-asyncio",
+      "categories": ["unit", "integration", "e2e", "visual snapshot", "web pages", "eval"]
+    },
+    "docs": {
+      "description": "Project documentation",
+      "files": [
+        "00-overview.md",
+        "01-system-architecture.md",
+        "02-platform-connectors.md",
+        "03-voice-personality.md",
+        "04-tools-ecosystem.md",
+        "05-sensor-awareness.md",
+        "06-safety-moderation.md",
+        "07-ml-depth.md",
+        "08-deployment-scaling.md",
+        "09-repository-structure.md",
+        "10-picoclaw-integration-low-cost-iot-distributed-ai.md",
+        "11-zeroclaw-study-report.md",
+        "12-modular-platform-integration.md",
+        "13-jarvis-friday-gap-analysis-2026-06.md"
+      ]
+    },
+    "prompts": {
+      "description": "System prompt templates",
+      "files": [
+        "system_prompt.txt",
+        "tool_instructions.txt",
+        "safety_preamble.txt",
+        "sensor_context.txt",
+        "friendly.txt",
+        "professional.txt"
+      ]
+    },
+    "scripts": {
+      "description": "Utility and deployment scripts",
+      "files": [
+        "start_helix.sh",
+        "coverage.sh",
+        "test.sh",
+        "audit_query.py",
+        "audit_channel_truths.py",
+        "eval_to_prom.py",
+        "regression_gate.py",
+        "nightly_eval.py",
+        "rotate_eval_reports.py",
+        "migrate_skills_to_v2.py",
+        "export_mobilenet_v2_features.py"
+      ]
+    },
+    "plan": {
+      "description": "Architecture and strategy planning docs",
+      "files": [
+        "00-gap-analysis-vs-openclaw-nemoclaw-mirofish.md",
+        "01-jarvis-friday-master-plan.md",
+        "02-modular-architecture-blueprint.md",
+        "03-module-manifest-and-event-schema.md",
+        "04-phased-task-checklist.md",
+        "05-ux-gap-remediation-plan.md"
+      ]
+    }
+  },
+  "key_files": {
+    "main.py": "Application entry point — starts Telegram, Discord, Slack, WhatsApp, Voice, MQTT, Web, Streamlit, and ambient loop",
+    "pyproject.toml": "Project manifest — 80+ dependencies, ruff/pyright/pytest config",
+    "Makefile": "Build, test, lint, typecheck, coverage, Docker, HelixDB lifecycle",
+    "Dockerfile": "Python 3.12-slim container with uv, ffmpeg, portaudio",
+    "docker-compose.yml": "Full stack: saras + PostgreSQL (pgvector) + Redis + Neo4j + Prometheus + Grafana",
+    "AGENTS.md": "Workspace instructions for AI agents",
+    "SOUL.md": "Agent identity definition",
+    "MEMORY.md": "Persistent user knowledge",
+    "Skills.md": "Skills system documentation",
+    "Agent.md": "Agent architecture documentation",
+    "README.md": "Project readme"
+  },
+  "architecture_patterns": [
+    "async-first (asyncio throughout)",
+    "event-driven architecture (in-process bus, ambient loop)",
+    "provider abstraction (LLM providers via factory/registry)",
+    "modular extension platform (module loader, event bridge)",
+    "multi-channel connectors (Telegram, Discord, Slack, WhatsApp, IRC, Matrix, Signal, Web)",
+    "plugin/skill system (manifest-based, versioned, signed, learned)",
+    "ambient intelligence (background heartbeat, self-improvement, proactive nudges)",
+    "cognition ladder (multi-tier reasoning: System 1 → System 2)",
+    "cost-aware routing (LLM provider selection by cost/health)",
+    "trust & safety layer (citations, fact-check, rollback, audit, privacy zones)",
+    "observability stack (OpenTelemetry tracing + Prometheus metrics + structlog)"
+  ],
+  "scan_timestamp": "2026-06-22",
+  "scanner_version": "1.0"
+}

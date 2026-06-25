@@ -1,0 +1,23 @@
+schema_version: "1.0"
+module_id: skill.meeting_prep
+display_name: Meeting Prep
+name: Meeting Prep
+version: 1.0.0
+category: skill
+description: >
+  Prepare for upcoming meetings with agenda, context, participant profiles,
+  and talking points.
+tags: [meeting, preparation, calendar, productivity, agenda]
+capabilities: [agenda-creation, participant-research, talking-points]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+maturity: production
+origin: bundled
+
+triggers:
+  - pattern: "prepare.*(?:for|meeting)"
+    confidence: 0.85
+  - pattern: "meeting.*prep"
+    confidence: 0.90
+  - context: "calendar event approaching within 30 minutes"

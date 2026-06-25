@@ -624,7 +624,7 @@ class TestRegistryHelixStore:
     ) -> None:
         from app.core.privacy.registry import _try_build_helix_store
 
-        monkeypatch.setenv("SARAS_PRIVACY_HELIX", "0")
+        monkeypatch.setenv("RAVEN_PRIVACY_HELIX", "0")
         result = _try_build_helix_store(consent_store, retention_manager)
         assert result is None
 

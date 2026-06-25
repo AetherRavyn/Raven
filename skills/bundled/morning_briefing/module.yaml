@@ -1,0 +1,33 @@
+schema_version: "1.0"
+module_id: skill.morning_briefing
+display_name: Morning Briefing
+name: Morning Briefing
+version: 1.0.0
+category: skill
+description: >
+  Comprehensive morning briefing covering weather, calendar, tasks, news highlights,
+  and portfolio status. Delivered proactively at the configured time.
+tags: [briefing, morning, weather, calendar, news, productivity]
+capabilities: [weather-check, calendar-review, task-summary, news-digest]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+maturity: production
+origin: bundled
+
+triggers:
+  - pattern: "morning.*briefing"
+    confidence: 0.95
+  - pattern: "daily.*summary"
+    confidence: 0.85
+  - pattern: "what.*happening.*today"
+    confidence: 0.80
+  - context: "scheduled cron trigger at morning time"
+
+dependencies:
+  - name: weather_tool
+    status: available
+    required: false
+  - name: google_calendar
+    status: available
+    required: false

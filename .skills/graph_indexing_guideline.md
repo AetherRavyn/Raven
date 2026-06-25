@@ -1,6 +1,6 @@
 # Graph Indexing System – Quick Reference Guide
 
-> **Purpose**: This document provides a concise, high‑level overview of the indexing/graph subsystem used throughout the SARAS codebase. It is intended for AI agents (or developers) that need to reason about the system without digging into every source file.
+> **Purpose**: This document provides a concise, high‑level overview of the indexing/graph subsystem used throughout the RAVEN codebase. It is intended for AI agents (or developers) that need to reason about the system without digging into every source file.
 
 ---
 
@@ -26,7 +26,7 @@
 - `app/tools/kgtool.py` – Defines `KnowledgeGraphTool` (async API to Neo4j). Used lazily by `WorkspaceGraph.sync_user`.
 - `app/api/edge.py` – Exposes a **DeviceGraph** REST API for registering nodes, updating sensor state, and querying active nodes.
 - `monitoring/src/db/neo4j.py` – Low‑level Neo4j driver implementation.
-- `app/settings/config.py` – Configuration constants, notably `GRAPH_DB_PATH` (default `MEMORY_ROOT/graph/saras.sqlite`).
+- `app/settings/config.py` – Configuration constants, notably `GRAPH_DB_PATH` (default `MEMORY_ROOT/graph/raven.sqlite`).
 
 ---
 

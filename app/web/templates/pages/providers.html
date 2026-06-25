@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}PROVIDERS — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3" x-data="providersEditor()">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">PROVIDERS</h1>
+  <p class="text-zinc-500 text-[11px]">
+    API keys &amp; base URLs for every LLM / voice / search provider RAVEN
+    can route through. <span class="text-accent-500">v34 providers — keys
+    apply immediately to the running swarm.</span> Process-local overlay:
+    restart to revert to <code>.env</code>. Keys are never echoed back —
+    only status (set / unset) and a short preview.
+  </p>
+
+  <!-- Current auto-router pick -->
+  <div class="border border-ink-600 bg-ink-800 rounded p-2 text-[11px] flex flex-wrap gap-x-4 gap-y-1 items-center">
+    <span class="text-zinc-500 uppercase tracking-wider text-[10px]">AutoRouter pick</span>
+    <template x-if="autoPick && autoPick.available">
+      <span>
+        <span class="text-emerald-400" x-text="autoPick.provider || 'unknown'"></span>
+        <span class="text-zinc-600">/</span>
+        <span class="text-zinc-300" x-text="autoPick.model || 'unknown'"></span>
+      </span>
+    </template>
+    <template x-if="autoPick && !autoPick.available">
+      <span class="text-rose-400">
+        unavailable: <span x-text="autoPick.error || 'no model selected'"></span>
+      </span>
+    </template>
+    <button type="button" @click="reload()" class="ml-auto text-[10px] text-zinc-400 hover:text-zinc-200">
+      ↻ refresh
+    </button>
+  </div>
+
+  <!-- Status banner -->
+  <div x-show="status" x-cloak
+       :class="statusOk ? 'border-emerald-700 bg-emerald-900/30 text-emerald-300' : 'border-rose-700 bg-rose-900/30 text-rose-300'"
+       class="border rounded p-2 text-[11px]"
+       x-text="status"></div>
+
+  <!-- Provider groups -->
+  <form @submit.prevent="save()" class="space-y-3">
+    <template x-for="(group, groupName) in groups" :key="groupName">
+      <div class="border border-ink-600 bg-ink-800 rounded">
+        <div class="px-3 py-1.5 border-b border-ink-700 text-[10px] uppercase tracking-widest text-zinc-500"
+             x-text="groupName + ' (' + group.length + ')'"></div>
+        <div class="p-2 space-y-1">
+          <template x-for="p in group" :key="p.env">
+            <div class="grid grid-cols-12 gap-2 items-center text-[12px] py-1">
+              <!-- label + status -->
+              <div class="col-span-3">
+                <div class="text-zinc-200" x-text="p.label"></div>
+                <div class="text-zinc-600 text-[10px] font-mono" x-text="p.env"></div>
+              </div>
+              <!-- input -->
+              <div class="col-span-6">
+                <input :type="p.kind === 'key' ? 'password' : 'text'"
+                       :name="p.env"
+                       :placeholder="placeholderFor(p)"
+                       @focus="$event.target.select()"
+                       class="w-full bg-ink-900 border border-ink-600 rounded px-2 py-1 text-zinc-200 font-mono text-[11px]" />
+                <div class="text-zinc-600 text-[10px] mt-0.5" x-text="p.help"></div>
+              </div>
+              <!-- status badge -->
+              <div class="col-span-3 text-right text-[10px] space-y-0.5">
+                <div>
+                  <span x-show="p.status === 'set'"
+                        class="text-emerald-400 uppercase tracking-wider"
+                        title="Key is loaded">● set</span>
+                  <span x-show="p.status === 'unset'"
+                        class="text-zinc-600 uppercase tracking-wider"
+                        title="No key loaded">○ unset</span>
+                </div>
+                <div class="text-zinc-600 font-mono" x-text="p.preview"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <div class="border-t border-ink-700 pt-2 flex gap-2 justify-end">
+      <button type="button" @click="clearAll()"
+              class="px-3 py-1 text-[11px] rounded border border-rose-700 text-rose-300 hover:bg-rose-900/30"
+              title="Clear every provider key from the in-memory overlay">
+        Clear all keys
+      </button>
+      <button type="button" @click="reload()"
+              class="px-3 py-1 text-[11px] rounded border border-ink-600 text-zinc-300 hover:bg-ink-700">
+        Reload
+      </button>
+      <button type="submit" :disabled="busy"
+              class="px-3 py-1 text-[11px] rounded bg-accent-600 text-ink-900 font-semibold hover:bg-accent-500 disabled:opacity-50">
+        <span x-show="!busy">Save keys</span>
+        <span x-show="busy">Saving…</span>
+      </button>
+    </div>
+  </form>
+
+  <div class="text-zinc-600 text-[10px] space-y-1">
+    <p>
+      <strong>How routing works.</strong>
+      Every agent first asks <code>AutoModelRouter.get_best_model()</code>
+      for a pick based on the keys you've set here and in <code>.env</code>.
+      API keys (HTTP) are always preferred over the local-CLI fallback
+      (<code>claude</code>/<code>qwen</code>/<code>gemini</code>/<code>kilocode</code> binaries).
+    </p>
+    <p>
+      <strong>Security.</strong> Keys are stored only in process memory —
+      never written to <code>.env</code> by the dashboard.  The form posts
+      over <code>127.0.0.1</code> (secure context for <code>getUserMedia</code>
+      + same-origin policy).  Use a reverse proxy + TLS if exposing the
+      dashboard on a LAN.
+    </p>
+  </div>
+</section>
+
+<script>
+function providersEditor() {
+  return {
+    groups: {},
+    autoPick: null,
+    busy: false,
+    status: '',
+    statusOk: true,
+    async init() {
+      await this.reload();
+    },
+    placeholderFor(p) {
+      if (p.status === 'set' && p.preview) return 'Currently: ' + p.preview + ' (leave blank to keep)';
+      if (p.kind === 'key') return 'paste API key…';
+      return 'https://…';
+    },
+    async reload() {
+      try {
+        const r = await fetch('/api/providers/list');
+        const j = await r.json();
+        this.groups = j.providers || {};
+        this.autoPick = j.auto_pick || null;
+        this.status = `Loaded ${j.count} provider(s) across ${Object.keys(this.groups).length} group(s).`;
+        this.statusOk = true;
+      } catch (e) {
+        this.status = 'Failed to load: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+    async save() {
+      this.busy = true;
+      try {
+        const form = document.querySelector('form');
+        const body = new URLSearchParams(new FormData(form));
+        // Strip empty fields — empty means "leave unchanged", not
+        // "clear" (clearing is done via the explicit Clear button).
+        for (const [k, v] of [...body.entries()]) {
+          if (v === '') body.delete(k);
+        }
+        const r = await fetch('/api/providers/keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        });
+        const j = await r.json();
+        const errs = j.errors || [];
+        if (j.ok) {
+          this.status = `Saved ${j.count} provider key(s) — auto-router will pick them on the next dispatch.`;
+          this.statusOk = true;
+        } else if (errs.length) {
+          this.status = `Saved with errors: ${errs.map(e => e.field + ' (' + e.error + ')').join(', ')}`;
+          this.statusOk = false;
+        } else {
+          this.status = 'Save failed: ' + (j.error || 'unknown');
+          this.statusOk = false;
+        }
+        await this.reload();
+      } catch (e) {
+        this.status = 'Network error: ' + e.message;
+        this.statusOk = false;
+      } finally {
+        this.busy = false;
+      }
+    },
+    async clearAll() {
+      if (!confirm('Clear every provider key from the in-memory overlay? This affects the running swarm immediately.')) return;
+      this.busy = true;
+      try {
+        const r = await fetch('/api/providers/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ field: '__all__' }),
+        });
+        const j = await r.json();
+        this.status = `Cleared ${j.count} provider key(s). AutoRouter will fall back to .env on next dispatch.`;
+        this.statusOk = true;
+        await this.reload();
+      } catch (e) {
+        this.status = 'Clear failed: ' + e.message;
+        this.statusOk = false;
+      } finally {
+        this.busy = false;
+      }
+    },
+  };
+}
+</script>
+{% endblock %}

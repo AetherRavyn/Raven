@@ -1,7 +1,7 @@
-# SARAS UX Gap Remediation Plan
+# RAVEN UX Gap Remediation Plan
 
 ## Goal
-Make SARAS feel like a coherent, inspectable, companion-style product instead of a powerful but fragmented system.
+Make RAVEN feel like a coherent, inspectable, companion-style product instead of a powerful but fragmented system.
 
 ## UX Principles
 - Show state before action.
@@ -14,7 +14,7 @@ Make SARAS feel like a coherent, inspectable, companion-style product instead of
 ## Gap-to-UX Map
 
 ### 1. Product-level cohesion
-Problem: SARAS has many strong subsystems, but users do not yet get one unified product feel.
+Problem: RAVEN has many strong subsystems, but users do not yet get one unified product feel.
 
 UX fix:
 - Add one command-center home screen.
@@ -47,7 +47,7 @@ UX fix:
 - Keep the operator UI readable on desktop and usable on mobile.
 
 ### 5. Presence layer
-Problem: SARAS feels backend-heavy instead of companion-like.
+Problem: RAVEN feels backend-heavy instead of companion-like.
 
 UX fix:
 - Add presence states: listening, thinking, briefing, alerting, companion, idle.
@@ -95,7 +95,7 @@ UX fix:
 - Keep the same labels, actions, and confirmations across channels.
 
 ### 11. Proactive UX
-Problem: SARAS is still mostly reactive.
+Problem: RAVEN is still mostly reactive.
 
 UX fix:
 - Add a daily brief.
@@ -132,7 +132,7 @@ Add briefs, follow-ups, degraded mode, and edge companion views.
 
 ## Exit Criteria
 - A new user can onboard in one flow.
-- A user can understand what SARAS is doing at a glance.
+- A user can understand what RAVEN is doing at a glance.
 - The operator UI shows module health, memory, tasks, and feedback in one place.
 - Risky actions are explicit and reviewable.
-- SARAS feels like one assistant across all surfaces.
+- RAVEN feels like one assistant across all surfaces.

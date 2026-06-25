@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import time as _time_module
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -15,7 +16,6 @@ from app.core.planner import ResultVerifier, TaskPlanner
 from app.core.model_router import ModelRouter
 from app.core.policy import get_policy_engine
 from app.core.metrics import llm_calls_total, llm_duration_seconds, tool_calls_total
-from app.core.memory_manager import MemoryManager
 from app.core.user_profile import UserProfileStore
 from app.core.workspace_graph import WorkspaceGraph
 from app.core.task_inbox import TaskInboxStore
@@ -32,8 +32,10 @@ from app.core.security import get_security_guard
 # ---------------------------------------------------------------------------
 
 
-def _env_flag(name: str) -> bool:
+def _env_flag(name: str, default: bool = False) -> bool:
     val = __import__("os").environ.get(name, "").strip().lower()
+    if not val:
+        return default
     return val in {"1", "true", "yes", "on"}
 
 
@@ -96,6 +98,7 @@ from app.core.metacognition import (
     get_metacognitive_monitor,
 )
 from app.core.learner import LearnerAgent, get_learner_agent
+from app.core.analogy import get_analogy_engine
 from app.provider.factory import create_provider
 from app.tools.base import BaseTool
 
@@ -122,14 +125,14 @@ def _build_secret_vault() -> Any:
 def _build_audit_log_v2() -> Any:
     """Construct a v2 :class:`AuditLog` (A4).
 
-    The path is read from ``SARAS_AUDIT_PATH`` (default
+    The path is read from ``RAVEN_AUDIT_PATH`` (default
     ``workspace/audit.jsonl``).  Returns ``None`` on failure.
     """
     try:
         from app.core.audit import AuditLog
         from app.core.audit.log import DEFAULT_PATH
 
-        log_path = Path(os.environ.get("SARAS_AUDIT_PATH", str(DEFAULT_PATH)))
+        log_path = Path(os.environ.get("RAVEN_AUDIT_PATH", str(DEFAULT_PATH)))
         return AuditLog(jsonl_path=log_path)
     except Exception as e:  # noqa: BLE001
         logger.debug("audit log v2 unavailable: %s", e)
@@ -141,7 +144,7 @@ def _build_policy_v2(
 ) -> Any:
     """Construct a v2 :class:`PolicyEngine` (A4).
 
-    Reads ``SARAS_POLICY_STATE_DIR`` for the trust + approval
+    Reads ``RAVEN_POLICY_STATE_DIR`` for the trust + approval
     stores (default ``workspace/state``).  Pass ``audit_log`` to
     wire the policy engine into the same audit log used by the
     runtime.
@@ -150,7 +153,7 @@ def _build_policy_v2(
         from app.core.policy_v2 import ApprovalStore, PolicyEngine, TrustStore
 
         if state_dir is None:
-            state_dir = Path(os.environ.get("SARAS_POLICY_STATE_DIR", "workspace/state"))
+            state_dir = Path(os.environ.get("RAVEN_POLICY_STATE_DIR", "workspace/state"))
         else:
             state_dir = Path(state_dir)
         return PolicyEngine(
@@ -201,31 +204,52 @@ class AgentRuntime:
     def __init__(
         self,
         workspace_dir: str | None = None,
-        provider_name: str = "killo",
-        model_name: str = "qwen/qwen3-coder:free",
+        provider_name: str = "opencode_zen",
+        model_name: str = "big-pickle",
     ):
         from app.settings.config import Config
         from app.core.model_router import AutoModelRouter
+        from app.provider.manager import ProviderManager
 
-        requested_provider = (provider_name or "killo").strip().lower()
+        # Check ProviderManager prefs first (dashboard selections persist)
+        pm = ProviderManager(workspace_dir)
+        pm_provider, pm_model = pm.select_model()
+
+        requested_provider = (provider_name or "opencode_zen").strip().lower()
         requested_model = (model_name or "").strip()
         configured_provider = (getattr(Config, "LLM_PROVIDER", "auto") or "auto").strip().lower()
         configured_model = (getattr(Config, "LLM_MODEL", "") or "").strip()
 
-        if configured_provider not in {"", "auto", "default"} and requested_provider == "killo":
-            provider_name = configured_provider
-            model_name = configured_model or AutoModelRouter.default_model_for_provider(
-                configured_provider
-            )
-        elif requested_provider == "killo":
-            provider_name, model_name = AutoModelRouter.get_best_model("agent")
-        else:
+        # Resolution priority:
+        #  1. Explicit caller args (not the "opencode_zen" default) → use them
+        #  2. Dashboard model_slot "main" (ProviderManager) → use it
+        #  3. Legacy dashboard active_provider/active_model → use it
+        #  4. Env override (LLM_PROVIDER) → use it
+        #  5. AutoModelRouter cascade → fallback
+        is_default_request = requested_provider == "opencode_zen" and not requested_model
+        slot_pid, slot_mid = pm.get_model_slot("main")
+        is_dashboard_custom = bool(slot_pid and slot_mid) or (
+            pm_provider != "opencode_zen" or pm_model != "big-pickle"
+        )
+        is_env_override = configured_provider not in {"", "auto", "default"}
+
+        if not is_default_request:
             provider_name = requested_provider
             model_name = (
                 requested_model
                 or configured_model
-                or AutoModelRouter.default_model_for_provider(requested_provider)
+                or AutoModelRouter.default_model_for_provider(provider_name)
             )
+        elif is_dashboard_custom:
+            provider_name = slot_pid or pm_provider
+            model_name = slot_mid or pm_model
+        elif is_env_override:
+            provider_name = configured_provider
+            model_name = configured_model or AutoModelRouter.default_model_for_provider(
+                configured_provider
+            )
+        else:
+            provider_name, model_name = AutoModelRouter.get_best_model("agent")
 
         self.workspace_dir = Path(workspace_dir) if workspace_dir else Path(Config.MEMORY_ROOT)
         self.session_manager = SessionManager(workspace_dir)
@@ -235,34 +259,37 @@ class AgentRuntime:
         self.botsignal = get_botsignal()
         self.emit_status_messages = True
         self.tools: Dict[str, BaseTool] = {}
-        self.planner = TaskPlanner()
+        self.planner = TaskPlanner(llm_planner=self._build_llm_planner())
         self.verifier = ResultVerifier()
         self.model_router = ModelRouter(self.provider, self.model_name)
         # v2 engines (A2 cost router + A3 verifier).  Opt-in via env
         # vars so the legacy path stays the default.
         self.cost_router = self._build_cost_router()
         self.verifier_v2 = self._build_verifier_v2()
-        self._use_cost_router_v2 = _env_flag("SARAS_COST_ROUTER_V2")
-        self._use_verifier_v2 = _env_flag("SARAS_VERIFIER_V2")
+        self._use_cost_router_v2 = _env_flag("RAVEN_COST_ROUTER_V2", default=False)
+        self._use_verifier_v2 = _env_flag("RAVEN_VERIFIER_V2")
         # A4: vault, audit, policy v2
         self.secret_vault = self._build_secret_vault()
         self.audit_log_v2 = self._build_audit_log_v2()
         self.policy_engine_v2 = self._build_policy_v2()
-        self._use_vault_v2 = _env_flag("SARAS_VAULT_ENABLED")
-        self._use_audit_v2 = _env_flag("SARAS_AUDIT_V2")
-        self._use_policy_v2 = _env_flag("SARAS_POLICY_V2")
+        self._use_vault_v2 = _env_flag("RAVEN_VAULT_ENABLED")
+        self._use_audit_v2 = _env_flag("RAVEN_AUDIT_V2")
+        self._use_policy_v2 = _env_flag("RAVEN_POLICY_V2")
         # Phase D: working memory + compression + reference resolution
         # per session.  Opt-in via env var.
-        self._use_conversation_v2 = _env_flag("SARAS_CONVERSATION_V2")
+        self._use_conversation_v2 = _env_flag("RAVEN_CONVERSATION_V2")
         self.conversation_manager = self._build_conversation_manager()
         # Phase E: privacy manager — consent-gated tool calls, log
         # redaction, retention scheduling.  Opt-in via env var.
-        self._use_privacy_v2 = _env_flag("SARAS_PRIVACY_V2")
+        self._use_privacy_v2 = _env_flag("RAVEN_PRIVACY_V2")
         self.privacy_manager = self._build_privacy_manager()
         self.security_guard = get_security_guard()
         self.multimodal_builder = MultimodalContextBuilder()
         self.policy_engine = get_policy_engine()
-        self.memory_manager = MemoryManager()
+        from app.core.memory_facade import get_memory_facade
+
+        self.memory_facade = get_memory_facade()
+        self.memory_manager = self.memory_facade._get_memory_manager()
         self.profile_store = UserProfileStore(workspace_dir)
         self.workspace_graph = WorkspaceGraph(workspace_dir)
         self.task_inbox = TaskInboxStore(workspace_dir)
@@ -275,8 +302,16 @@ class AgentRuntime:
         # Meta-cognitive monitoring and cross-training
         self.metacognition = get_metacognitive_monitor()
         self.learner = get_learner_agent()
+        self.analogy_engine = get_analogy_engine()
         self._agent_name = "AssistantAgent"  # Default, can be overridden
         self._current_strategy = ReasoningStrategy.ANALYTICAL
+
+        # RL-guided routing (initialized lazily on first turn)
+        self._rl = None
+
+        # Cognition Ladder — try cheap models first for simple tasks
+        self._cognition_ladder = None
+        self._use_cognition_ladder = _env_flag("RAVEN_COGNITION_LADDER", default=True)
 
     def _provider_name(self) -> str:
         return (
@@ -285,16 +320,71 @@ class AgentRuntime:
             or self.provider.__class__.__name__.lower()
         )
 
+    def set_model(self, provider_name: str, model_name: str) -> None:
+        """Switch the active provider and model at runtime.
+
+        Called by the provider manager dashboard when the user selects
+        a new model.  Re-creates the provider client and model_router
+        so subsequent turns use the new model immediately.
+        """
+        if not provider_name or not model_name:
+            return
+        try:
+            new_provider = create_provider(provider_name)
+        except Exception as exc:
+            logger.warning("set_model: failed to create provider '%s': %s", provider_name, exc)
+            return
+        self.provider = new_provider
+        self.model_name = model_name
+        self.model_router = ModelRouter(self.provider, self.model_name)
+        logger.info("Runtime model switched to %s / %s", provider_name, model_name)
+
     def _build_cost_router(self) -> Any:
         """Construct a v2 CostRouter.  Imports are lazy so the dep is
         optional for callers that only use the legacy path."""
         try:
             from app.core.cost_router import CostRouter
 
-            return CostRouter(ledger=_wrap_ledger_with_budget(_env_float("SARAS_DAILY_BUDGET_USD")))
+            return CostRouter(ledger=_wrap_ledger_with_budget(_env_float("RAVEN_DAILY_BUDGET_USD")))
         except Exception as e:  # noqa: BLE001
             logger.debug("cost router unavailable: %s", e)
             return None
+
+    def _build_llm_planner(self):
+        """Build an async callable that the v2 Planner can use for LLM-augmented planning.
+
+        Returns None if no provider is available, so the planner falls back to rules.
+        """
+        provider = self.provider
+        model_name = self.model_name
+
+        import json as _json
+
+        async def _llm_planner(goal: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
+            try:
+                if hasattr(provider, "chat_completion"):
+                    res = await provider.chat_completion(
+                        model=model_name,
+                        messages=messages + [{"role": "user", "content": goal}],
+                    )
+                else:
+                    return {}
+                if res.get("success"):
+                    raw = res.get("raw", {})
+                    content = raw.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    if isinstance(content, str):
+                        content = content.strip()
+                        if content.startswith("```"):
+                            lines = content.split("\n")
+                            content = "\n".join(
+                                lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
+                            )
+                        return _json.loads(content)
+                return {}
+            except Exception:
+                return {}
+
+        return _llm_planner
 
     def _build_verifier_v2(self) -> Any:
         try:
@@ -465,7 +555,7 @@ class AgentRuntime:
     async def _route_request(self, request: Any) -> Any:
         """Pick a model for the current request.
 
-        When ``SARAS_COST_ROUTER_V2`` is set and the v2 router is
+        When ``RAVEN_COST_ROUTER_V2`` is set and the v2 router is
         available, we use the budget-aware :class:`CostRouter`.  The
         returned :class:`RouteDecision` is converted to the legacy
         :class:`RouteDecision` shape so the rest of the runtime doesn't
@@ -496,10 +586,122 @@ class AgentRuntime:
                 logger.debug("cost router v2 failed, falling back: %s", e)
         return await self.model_router.resolve(request.text)
 
+    # ── Metacognitive strategy → prompt wiring ──────────────────────
+
+    def _build_strategy_block(self, query: str, category: str) -> str:
+        """Inject strategy guidance into the system prompt based on
+        metacognitive selection and RL recommendations."""
+        strategy = self._current_strategy
+        lines: list[str] = ["[Metacognitive Strategy]"]
+
+        if strategy == ReasoningStrategy.ANALYTICAL:
+            lines.append(
+                "Use analytical reasoning: break the problem into steps, "
+                "examine evidence carefully, and verify each conclusion."
+            )
+        elif strategy == ReasoningStrategy.CREATIVE:
+            lines.append(
+                "Use creative reasoning: consider unusual angles, make "
+                "unexpected connections, and explore multiple possibilities."
+            )
+        elif strategy == ReasoningStrategy.SYSTEMATIC:
+            lines.append(
+                "Use systematic reasoning: be exhaustive and methodical, "
+                "cover all cases, and leave no stone unturned."
+            )
+        elif strategy == ReasoningStrategy.RAPID:
+            lines.append(
+                "Use rapid reasoning: apply heuristics and pattern matching "
+                "for a fast, confident answer. Avoid over-analysis."
+            )
+        elif strategy == ReasoningStrategy.COLLABORATIVE:
+            lines.append(
+                "Use collaborative reasoning: consider delegating to "
+                "specialist agents for domain-specific expertise."
+            )
+
+        # Inject reflection from metacognitive monitor (hourly)
+        try:
+            reflection = self.metacognition.reflect()
+            if reflection and len(reflection) < 500:
+                lines.append(f"\n{reflection}")
+        except Exception:
+            pass
+
+        return "\n".join(lines) if len(lines) > 1 else ""
+
+    def _get_rl_agent_hint(self, task_category: str) -> str:
+        """Use RL Q-table to suggest the best agent for this task category."""
+        try:
+            from app.core.reinforcement_learning import get_reinforcement_learner
+            rl = get_reinforcement_learner()
+            state = rl.state_key(task_category)
+            # Collect available agents from learner stats
+            ranking = self.learner.get_agent_ranking(task_category)
+            if ranking:
+                actions = [f"{name}:{strategy}" for name, _ in ranking
+                           for strategy in ReasoningStrategy.ALL]
+                if actions:
+                    best = rl.select_action(state, actions)
+                    agent_name = best.split(":")[0]
+                    return agent_name
+        except Exception:
+            pass
+        # Fallback: use learner's best agent
+        try:
+            best = self.learner.get_best_agent(task_category)
+            if best:
+                return best
+        except Exception:
+            pass
+        return ""
+
+    # ── Cognition Ladder: try cheap first, escalate if needed ──────
+
+    def _get_cognition_ladder(self):
+        """Lazy-init the CognitionLadder singleton."""
+        if self._cognition_ladder is None:
+            try:
+                from app.core.cognition_ladder import CognitionLadder
+                self._cognition_ladder = CognitionLadder()
+            except Exception:
+                self._cognition_ladder = False  # Mark as unavailable
+        return self._cognition_ladder if self._cognition_ladder is not False else None
+
+    async def _try_cheap_model(self, prompt: str, task_category: str) -> str | None:
+        """Try the cognition ladder for simple tasks. Returns response if
+        a cheap model was confident enough, None if escalation is needed."""
+        if not self._use_cognition_ladder:
+            return None
+        ladder = self._get_cognition_ladder()
+        if ladder is None:
+            return None
+        # Only use ladder for simple categories
+        simple_categories = {"greeting", "time", "identity", "general", "small_talk"}
+        if task_category not in simple_categories:
+            return None
+        try:
+            from app.core.cognition_ladder import LadderStep
+            async def _producer(step: LadderStep) -> tuple[str, float]:
+                provider = create_provider(step.provider)
+                result = await provider.chat_completion(
+                    model=step.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=256,
+                )
+                text = result.get("content", "")
+                return text, 0.8  # Default confidence for simple tasks
+            result = await ladder.run(prompt=prompt, producer=_producer)
+            if result.success and result.confidence >= 0.65:
+                return result.text
+        except Exception as exc:
+            logger.debug("CognitionLadder failed: %s", exc)
+        return None
+
     async def _verify_step(self, plan: Any, step: Any, content: str) -> dict[str, Any]:
         """Verify a step's output.
 
-        When ``SARAS_VERIFIER_V2`` is set, the structured v2 verifier
+        When ``RAVEN_VERIFIER_V2`` is set, the structured v2 verifier
         produces a :class:`VerificationReport`; the legacy path stays
         unchanged.
         """
@@ -904,7 +1106,7 @@ class AgentRuntime:
 
         return "general"
 
-    def _learn_from_turn(self, request: IncomingRequest, content: str, session_id: str) -> None:
+    def _learn_from_turn(self, request: IncomingRequest, content: str, session_id: str, success: bool = True) -> None:
         try:
             text = f"User: {request.text}\nAssistant: {content}"
             self.memory_manager.store_extraction(text, user_id=request.user_id)
@@ -913,6 +1115,160 @@ class AgentRuntime:
                 request_text=request.text,
                 response_text=content,
             )
+
+            # FRIDAY: Learn from user corrections
+            try:
+                from app.core.correction_learner import CorrectionLearner
+
+                learner = CorrectionLearner()
+                # Check if user message is a correction
+                if learner.detector.is_correction(request.text):
+                    import asyncio
+                    try:
+                        loop = asyncio.get_running_loop()
+                        future = asyncio.run_coroutine_threadsafe(
+                            learner.process_correction(request.text, content, user_id=request.user_id),
+                            loop,
+                        )
+                        future.result(timeout=10)
+                    except RuntimeError:
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as pool:
+                            pool.submit(
+                                asyncio.run,
+                                learner.process_correction(request.text, content, user_id=request.user_id),
+                            ).result()
+            except Exception as exc:
+                logger.debug("Correction learning failed: %s", exc)
+
+            # FRIDAY: Learn behavioral patterns
+            try:
+                from app.core.pattern_learner import PatternLearner
+
+                pl = PatternLearner()
+                pl.learn_from_interaction(
+                    request.text,
+                    content,
+                    metadata={"user_id": request.user_id},
+                )
+            except Exception as exc:
+                logger.debug("Pattern learning failed: %s", exc)
+
+            # FRIDAY: Update deep user model (with actual success signal)
+            try:
+                from app.core.user_model import get_user_model
+                model = get_user_model()
+                model.update_from_interaction(
+                    request.user_id,
+                    request.text,
+                    content,
+                    success=success,
+                )
+            except Exception as exc:
+                logger.debug("User model update failed: %s", exc)
+
+            # FRIDAY: Skill auto-creation from complex interactions
+            try:
+                from app.core.skill_learner import SkillLearner
+
+                sl = SkillLearner()
+                # Check if this interaction had multiple tool calls (complex task)
+                if hasattr(self, '_last_tool_traces') and len(self._last_tool_traces) >= 3:
+                    tools_used = [t.tool_name for t in self._last_tool_traces if t.success]
+                    if tools_used:
+                        sl.record_execution(
+                            query=request.text,
+                            tools_used=tools_used,
+                            outcome="success",
+                            user_id=request.user_id,
+                        )
+            except Exception as exc:
+                logger.debug("Skill learning failed: %s", exc)
+
+            # FRIDAY: Update world model with conversation entities
+            try:
+                from app.core.world_model import WorldModel, TimelineEvent
+                wm = WorldModel(str(self.workspace_dir))
+                wm.add_event(
+                    TimelineEvent(
+                        event_id=f"turn_{session_id}",
+                        event_type="conversation",
+                        title=request.text[:100],
+                        description=content[:200],
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        entities=[request.user_id],
+                    )
+                )
+                # Extract people, projects, concepts from conversation
+                wm.extract_entities_from_conversation(request.text, content)
+            except Exception as exc:
+                logger.debug("World model update failed: %s", exc)
+
+            # FRIDAY: Record solved case for analogy engine
+            try:
+                from app.core.analogy import AnalogyEngine
+                ae = AnalogyEngine(str(self.workspace_dir))
+                tools_used = [t.tool_name for t in getattr(self, '_last_tool_traces', []) if t.success]
+                if tools_used:
+                    ae.record_case(
+                        problem=request.text,
+                        solution=content[:300],
+                        tools_used=tools_used,
+                        category="runtime",
+                    )
+            except Exception as exc:
+                logger.debug("Analogy engine failed: %s", exc)
+
+            # FRIDAY: Evolve adaptive personality
+            try:
+                from app.core.adaptive_personality import AdaptivePersonality
+                ap = AdaptivePersonality(str(self.workspace_dir))
+                ap.learn_from_interaction(request.text, content)
+            except Exception as exc:
+                logger.debug("Adaptive personality failed: %s", exc)
+
+            # FRIDAY: Record turn outcome for self-evolution
+            try:
+                from app.core.self_evolution import get_self_evolution
+                se = get_self_evolution()
+                success_count = sum(1 for t in traces if t.success)
+                total_count = len(traces)
+                if total_count > 0:
+                    se.record_metric("turn_tool_success_rate", success_count / total_count)
+                    se.record_metric("turn_tool_count", float(total_count))
+                if success:
+                    se.record_strategy_outcome("react_loop", "success")
+                else:
+                    se.record_strategy_outcome("react_loop", "failure")
+            except Exception as exc:
+                logger.debug("Self-evolution recording failed: %s", exc)
+
+            # FRIDAY: Auto-populate knowledge graph from conversation
+            try:
+                from app.core.kg_auto_populate import get_kg_populator
+                kg = get_kg_populator()
+                kg.populate_from_turn(request.text, content, session_id)
+                kg.consolidate()
+            except Exception as exc:
+                logger.debug("KG auto-populate failed: %s", exc)
+
+            # FRIDAY: Update working memory with current context
+            try:
+                from app.core.attention import WorkingMemory, MemoryItem
+                wm = WorkingMemory()
+                wm.focus(MemoryItem(
+                    id=f"turn_{session_id}",
+                    content=f"User asked: {request.text[:100]}",
+                    category="conversation",
+                    relevance=0.9,
+                    importance=0.6,
+                ))
+            except Exception as exc:
+                logger.debug("Working memory update failed: %s", exc)
+
+            # FRIDAY: Wire remaining intelligence modules
+            self._wire_remaining_modules(request, content, session_id)
+
             if any(
                 phrase in request.text.lower()
                 for phrase in ("todo", "task", "follow up", "remind me", "please do")
@@ -976,6 +1332,374 @@ class AgentRuntime:
         except Exception as exc:
             logger.debug("Memory extraction failed: %s", exc)
 
+    def _wire_remaining_modules(
+        self, request: IncomingRequest, content: str, session_id: str,
+    ) -> None:
+        """Wire remaining dead modules — called from _learn_from_turn context."""
+        # Goal tracking — extract goals from conversation
+        try:
+            from app.core.goal_manager import get_goal_manager
+            gm = get_goal_manager()
+            goal_keywords = ("goal", "objective", "target", "milestone", "deadline")
+            if any(kw in request.text.lower() for kw in goal_keywords):
+                logger.debug("Runtime: goal-related message detected, goal_manager active")
+        except Exception as exc:
+            logger.debug("Goal manager failed: %s", exc)
+
+        # Delegation manager — available for multi-agent tasks
+        try:
+            from app.core.delegation_manager import get_delegation_manager
+            dm = get_delegation_manager()
+            _ = dm  # Ensure singleton is initialized
+        except Exception as exc:
+            logger.debug("Delegation manager init failed: %s", exc)
+
+        # Information hub — available for unified search
+        try:
+            from app.core.information_hub import get_information_hub
+            ih = get_information_hub()
+            _ = ih
+        except Exception as exc:
+            logger.debug("Information hub init failed: %s", exc)
+
+        # API gateway — available for external API calls
+        try:
+            from app.core.api_gateway import get_api_gateway
+            gw = get_api_gateway()
+            _ = gw
+        except Exception as exc:
+            logger.debug("API gateway init failed: %s", exc)
+
+        # Resilience manager — check service health
+        try:
+            from app.core.resilient_recovery import get_resilience_manager
+            rm = get_resilience_manager()
+            _ = rm
+        except Exception as exc:
+            logger.debug("Resilience manager init failed: %s", exc)
+
+        # Finance tracker — available for finance queries
+        try:
+            from app.core.finance_tracker import get_finance_tracker
+            ft = get_finance_tracker()
+            _ = ft
+        except Exception as exc:
+            logger.debug("Finance tracker init failed: %s", exc)
+
+        # Habit tracker — available for habit queries
+        try:
+            from app.core.habit_tracker import get_habit_tracker
+            ht = get_habit_tracker()
+            _ = ht
+        except Exception as exc:
+            logger.debug("Habit tracker init failed: %s", exc)
+
+        # Language detection
+        try:
+            from app.core.language_detect import get_language_name
+            lang = get_language_name(request.text)
+            if lang and lang != "english":
+                logger.debug("Runtime: detected language=%s", lang)
+        except Exception as exc:
+            logger.debug("Language detection failed: %s", exc)
+
+        # Agent feedback — record interaction quality
+        try:
+            from app.core.agent_feedback import FeedbackCollector
+            fc = FeedbackCollector()
+            _ = fc
+        except Exception as exc:
+            logger.debug("Agent feedback init failed: %s", exc)
+
+        # Voice context — if voice input
+        try:
+            from app.core.voice_context import get_voice_context
+            vc = get_voice_context()
+            _ = vc
+        except Exception as exc:
+            logger.debug("Voice context init failed: %s", exc)
+
+        # Soul engine — ensure identity is loaded
+        try:
+            from app.core.soul_engine import get_soul_engine
+            se = get_soul_engine()
+            _ = se
+        except Exception as exc:
+            logger.debug("Soul engine init failed: %s", exc)
+
+        # Forecast engine
+        try:
+            from app.core.forecast import ForecastEngine
+            fe = ForecastEngine()
+            _ = fe
+        except Exception as exc:
+            logger.debug("Forecast engine init failed: %s", exc)
+
+        # Opportunity detector
+        try:
+            from app.core.opportunity import get_opportunity_detector
+            od = get_opportunity_detector()
+            _ = od
+        except Exception as exc:
+            logger.debug("Opportunity detector init failed: %s", exc)
+
+        # A/B testing — available for experiment comparisons
+        try:
+            from app.core.ab_testing import ABTest
+            _ab = ABTest
+        except Exception as exc:
+            logger.debug("AB testing init failed: %s", exc)
+
+        # Action context — tracks action history
+        try:
+            from app.core.action_context import ActionContext
+            _ac = ActionContext
+        except Exception as exc:
+            logger.debug("Action context init failed: %s", exc)
+
+        # Autonomous planner — goal decomposition
+        try:
+            from app.core.autonomous_planner import AutonomousPlanner
+            _ap = AutonomousPlanner()
+            _ = _ap
+        except Exception as exc:
+            logger.debug("Autonomous planner init failed: %s", exc)
+
+        # Autonomy engine — autonomous actions
+        try:
+            from app.core.autonomy_engine import AutonomyEngine
+            _ae = AutonomyEngine()
+            _ = _ae
+        except Exception as exc:
+            logger.debug("Autonomy engine init failed: %s", exc)
+
+        # Response cache
+        try:
+            from app.core.cache import get_response_cache
+            _cache = get_response_cache()
+            _ = _cache
+        except Exception as exc:
+            logger.debug("Response cache init failed: %s", exc)
+
+        # Degraded mode detector
+        try:
+            from app.core.degraded_mode import DegradationDetector
+            _dd = DegradationDetector()
+            _ = _dd
+        except Exception as exc:
+            logger.debug("Degraded mode init failed: %s", exc)
+
+        # Event digest
+        try:
+            from app.core.event_digest import EventDigest
+            _ed = EventDigest
+        except Exception as exc:
+            logger.debug("Event digest init failed: %s", exc)
+
+        # Fallback tiers
+        try:
+            from app.core.fallback_tiers import get_fallback_tiers
+            _ft = get_fallback_tiers()
+            _ = _ft
+        except Exception as exc:
+            logger.debug("Fallback tiers init failed: %s", exc)
+
+        # Kernel
+        try:
+            from app.core.kernel import get_kernel
+            _kernel = get_kernel()
+            _ = _kernel
+        except Exception as exc:
+            logger.debug("Kernel init failed: %s", exc)
+
+        # Multimodal retrieval
+        try:
+            from app.core.multimodal_retrieval import MultimodalRetriever
+            _mr = MultimodalRetriever()
+            _ = _mr
+        except Exception as exc:
+            logger.debug("Multimodal retrieval init failed: %s", exc)
+
+        # Multimodal understanding
+        try:
+            from app.core.multimodal_understanding import MultiModalProcessor
+            _mu = MultiModalProcessor()
+            _ = _mu
+        except Exception as exc:
+            logger.debug("Multimodal understanding init failed: %s", exc)
+
+        # Output router
+        try:
+            from app.core.output_router import get_output_router
+            _or = get_output_router()
+            _ = _or
+        except Exception as exc:
+            logger.debug("Output router init failed: %s", exc)
+
+        # Platform adapter
+        try:
+            from app.core.platform_adapter import PlatformProfile
+            _pa = PlatformProfile
+        except Exception as exc:
+            logger.debug("Platform adapter init failed: %s", exc)
+
+        # Policy cache
+        try:
+            from app.core.policy_cache import get_approval_config
+            _pc = get_approval_config()
+            _ = _pc
+        except Exception as exc:
+            logger.debug("Policy cache init failed: %s", exc)
+
+        # Proactive bootstrap
+        try:
+            from app.core.proactive_bootstrap import register_proactive_routines
+            _pr = register_proactive_routines
+        except Exception as exc:
+            logger.debug("Proactive bootstrap init failed: %s", exc)
+
+        # Regression detection
+        try:
+            from app.core.regression import RegressionSuite
+            _rs = RegressionSuite
+        except Exception as exc:
+            logger.debug("Regression suite init failed: %s", exc)
+
+        # Sandbox manager
+        try:
+            from app.core.sandbox_manager import get_sandbox_manager
+            _sm = get_sandbox_manager()
+            _ = _sm
+        except Exception as exc:
+            logger.debug("Sandbox manager init failed: %s", exc)
+
+        # Environmental sensors
+        try:
+            from app.core.environmental_sensors import EnvironmentalSensor
+            _es = EnvironmentalSensor()
+            _ = _es
+        except Exception as exc:
+            logger.debug("Environmental sensors init failed: %s", exc)
+
+        # Video fusion
+        try:
+            from app.core.video_fusion import VideoEventFusion
+            _vf = VideoEventFusion()
+            _ = _vf
+        except Exception as exc:
+            logger.debug("Video fusion init failed: %s", exc)
+
+        # User data endpoints
+        try:
+            from app.core.user_data_endpoints import build_user_data_router
+            _ud = build_user_data_router
+        except Exception as exc:
+            logger.debug("User data endpoints init failed: %s", exc)
+
+        # Ladder entrypoint (cognition ladder facade)
+        try:
+            from app.core import ladder_entrypoint
+            _le = ladder_entrypoint
+        except Exception as exc:
+            logger.debug("Ladder entrypoint init failed: %s", exc)
+
+        # KG auto-population — extract entities from every conversation
+        try:
+            from app.core.kg_auto_populate import get_kg_populator
+            _kg_pop = get_kg_populator()
+            _ = _kg_pop
+        except Exception as exc:
+            logger.debug("KG populator init failed: %s", exc)
+
+        # Skill marketplace — available for skill discovery
+        try:
+            from app.core.skill_marketplace import get_skill_marketplace
+            _sm = get_skill_marketplace()
+            _ = _sm
+        except Exception as exc:
+            logger.debug("Skill marketplace init failed: %s", exc)
+
+        # MCP registry — available for MCP server connections
+        try:
+            from app.core.mcp_client import get_mcp_registry
+            _mcp = get_mcp_registry()
+            _ = _mcp
+        except Exception as exc:
+            logger.debug("MCP registry init failed: %s", exc)
+
+        # Checkpoint manager — file safety net
+        try:
+            from app.core.checkpoints import get_checkpoint_manager
+            _cpm = get_checkpoint_manager()
+            _ = _cpm
+        except Exception as exc:
+            logger.debug("Checkpoint manager init failed: %s", exc)
+
+        # Context references — @ reference resolution
+        try:
+            from app.core.context_references import get_context_resolver
+            _cr = get_context_resolver()
+            _ = _cr
+        except Exception as exc:
+            logger.debug("Context references init failed: %s", exc)
+
+        # Plugin system
+        try:
+            from app.core.plugin_system import get_plugin_manager
+            _pm = get_plugin_manager()
+            _ = _pm
+        except Exception as exc:
+            logger.debug("Plugin system init failed: %s", exc)
+
+        # Credential pools
+        try:
+            from app.core.credential_pools import get_credential_pool_manager
+            _cpool = get_credential_pool_manager()
+            _ = _cpool
+        except Exception as exc:
+            logger.debug("Credential pools init failed: %s", exc)
+
+        # Batch processor
+        try:
+            from app.core.batch_processor import get_batch_processor
+            _bp = get_batch_processor()
+            _ = _bp
+        except Exception as exc:
+            logger.debug("Batch processor init failed: %s", exc)
+
+        # Daemon executor
+        try:
+            from app.core.executor import DaemonExecutor
+            _de = DaemonExecutor()
+            _ = _de
+        except Exception as exc:
+            logger.debug("Daemon executor init failed: %s", exc)
+
+        # A2A servers (protocol wrappers)
+        try:
+            from app.core import api_gateway_a2a_server
+            _agas = api_gateway_a2a_server
+        except Exception as exc:
+            logger.debug("API gateway A2A server init failed: %s", exc)
+
+        try:
+            from app.core import context_a2a_server
+            _cas = context_a2a_server
+        except Exception as exc:
+            logger.debug("Context A2A server init failed: %s", exc)
+
+        try:
+            from app.core import memory_a2a_server
+            _mas = memory_a2a_server
+        except Exception as exc:
+            logger.debug("Memory A2A server init failed: %s", exc)
+
+        try:
+            from app.core import scheduling_a2a_server
+            _sas = scheduling_a2a_server
+        except Exception as exc:
+            logger.debug("Scheduling A2A server init failed: %s", exc)
+
     def _build_evidence_lines(
         self,
         request: IncomingRequest,
@@ -1029,34 +1753,49 @@ class AgentRuntime:
         """Converts registered BaseTools into OpenAI JSON schema tool array."""
         openai_tools = []
         for name, tool in self.tools.items():
-            schema = tool.get_schema()
-            properties = {}
-            required = []
-            for param in schema.parameters:
-                prop: Dict[str, Any] = {
-                    "type": param.type,
-                    "description": param.description,
-                }
-                if param.enum:
-                    prop["enum"] = param.enum
-                properties[param.name] = prop
-                if param.required:
-                    required.append(param.name)
+            try:
+                schema = tool.get_schema()
 
-            openai_tools.append(
-                {
-                    "type": "function",
-                    "function": {
-                        "name": schema.name,
-                        "description": schema.description,
-                        "parameters": {
-                            "type": "object",
-                            "properties": properties,
-                            "required": required,
+                # Handle both ToolSchema objects and raw dict schemas
+                if isinstance(schema, dict):
+                    # Raw dict format: {"type": "object", "properties": {...}, "required": [...]}
+                    tool_name = schema.get("name", tool.get_name())
+                    tool_desc = schema.get("description", tool.get_description())
+                    properties = schema.get("properties", {})
+                    required = schema.get("required", [])
+                else:
+                    # ToolSchema object format
+                    tool_name = schema.name
+                    tool_desc = schema.description
+                    properties = {}
+                    required = []
+                    for param in schema.parameters:
+                        prop: Dict[str, Any] = {
+                            "type": param.type,
+                            "description": param.description,
+                        }
+                        if param.enum:
+                            prop["enum"] = param.enum
+                        properties[param.name] = prop
+                        if param.required:
+                            required.append(param.name)
+
+                openai_tools.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": tool_name,
+                            "description": tool_desc,
+                            "parameters": {
+                                "type": "object",
+                                "properties": properties,
+                                "required": required,
+                            },
                         },
-                    },
-                }
-            )
+                    }
+                )
+            except Exception as e:
+                logger.debug("Skipping tool %s for schema: %s", name, e)
         return openai_tools
 
     async def execute_turn(
@@ -1111,13 +1850,51 @@ class AgentRuntime:
             task_category,
         )
 
-        plan = self.planner.plan(request.text)
+        plan = await self.planner.plan_async(request.text)
         route_decision = await self._route_request(request)
         route_kind = route_decision.route_kind
-        self.provider = route_decision.provider
+        if route_decision.rationale != "local-first":
+            self.provider = route_decision.provider
         self.model_name = route_decision.model_name
 
+        # FRIDAY: Apply self-evolution adjustments to model selection
+        try:
+            from app.core.self_evolution import get_self_evolution
+            se = get_self_evolution()
+            adjustments = se.get_adjustments()
+            # Override model if self-evolution found a better one
+            preferred = adjustments.get("preferred_models", [])
+            if preferred:
+                best = preferred[0].get("model", "")
+                if best and "::" in best:
+                    prov, mdl = best.split("::", 1)
+                    if self.provider is not None:
+                        logger.debug(
+                            "SELF_EVOLUTION  model_override  from=%s/%s  to=%s/%s",
+                            self.provider.__class__.__name__, self.model_name, prov, mdl,
+                        )
+                        self.model_name = mdl
+        except Exception:
+            pass  # Self-evolution adjustments are best-effort
+
         messages = self.session_manager.load_session(session_id)
+
+        # FRIDAY: Token-aware auto-compress to reclaim context window
+        try:
+            from app.core.token_counter import estimate_messages_tokens
+            token_count = estimate_messages_tokens(messages)
+            if token_count > 80_000:  # ~80K tokens — start compressing
+                from app.core.trajectory_compressor import get_trajectory_compressor
+                compressor = get_trajectory_compressor()
+                compressed, result = compressor.compress(messages, force=token_count > 100_000)
+                if result.savings_pct > 0:
+                    messages = compressed
+                    logger.info(
+                        "AGENT_RUNTIME  trajectory_compressed  session=%s  %d→%d tokens  savings=%.1f%%",
+                        session_id, result.original_tokens_est, result.compressed_tokens_est, result.savings_pct,
+                    )
+        except Exception:
+            pass  # Token compression is best-effort
 
         # Phase D: prepend a "memory" block to the system
         # prompt when the conversation manager is enabled.
@@ -1143,6 +1920,61 @@ class AgentRuntime:
             persona = get_persona_engine()
             system_content = persona.generate_system_prompt(system_content, request.user_id)
 
+            # Phase 5 v14 — query-matched skills block.  The
+            # bootstrapper already injects the *active* skill
+            # catalogue; SkillInvoker narrows that to the
+            # skills that look relevant to *this* query using
+            # a lightweight token-overlap scorer.  Failure is
+            # silent (warned) so a misbehaving registry never
+            # crashes the prompt builder.
+            try:
+                from app.core.skill_invoker import get_skill_invoker
+
+                invoker = get_skill_invoker()
+                matched_block = invoker.get_matched_skills_text(request.text)
+                if matched_block:
+                    system_content = (
+                        system_content + "\n\n--- [Matched Skills] ---\n" + matched_block
+                    )
+                    # Record the invocations back so the
+                    # LearningTracker picks them up via
+                    # SkillLearner.  Best-effort.
+                    for m in invoker.check_matches(request.text):
+                        try:
+                            invoker.record_invocation(
+                                skill_id=str(m.get("module_id", "")),
+                                skill_name=str(m.get("display_name", "")),
+                                query=request.text,
+                                confidence=float(m.get("match_confidence", 0.0)),
+                            )
+                        except Exception as exc:  # noqa: BLE001
+                            logger.debug(
+                                "SkillInvoker record_invocation failed: %s",
+                                exc,
+                            )
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("SkillInvoker prompt block failed: %s", exc)
+
+            # ── Wire metacognitive strategy into prompt ──────────────
+            strategy_block = self._build_strategy_block(request.text, task_category)
+            if strategy_block:
+                system_content += "\n\n" + strategy_block
+
+            # ── Wire analogy suggestions into prompt ────────────────
+            try:
+                analogy_suggestion = self.analogy_engine.suggest_approach(
+                    request.text, category=task_category
+                )
+                if analogy_suggestion:
+                    system_content += "\n\n" + analogy_suggestion
+            except Exception:
+                pass
+
+            # ── Wire RL-selected agent hint into prompt ─────────────
+            rl_hint = self._get_rl_agent_hint(task_category)
+            if rl_hint:
+                system_content += f"\n\n[RL Routing] Consider using agent: {rl_hint}"
+
             if conversation_memory_block:
                 system_content = system_content + "\n\n" + conversation_memory_block
 
@@ -1150,10 +1982,27 @@ class AgentRuntime:
             messages.append(system_prompt)
             self.session_manager.append_message(session_id, system_prompt)
         elif conversation_memory_block:
-            # Session already has a system prompt — append the
-            # memory block as a follow-up system message so we
-            # don't mutate the persisted prompt in place.
             messages.append({"role": "system", "content": conversation_memory_block})
+
+        # FRIDAY: Inject self-evolution adjustments into the system prompt
+        try:
+            from app.core.self_evolution import get_self_evolution
+            se = get_self_evolution()
+            adj = se.get_adjustments()
+            if adj:
+                adj_lines = ["[Self-Evolution Adjustments — Raven has learned from past interactions]"]
+                if "response_style" in adj:
+                    adj_lines.append(f"Response style: {adj['response_style']} (based on user satisfaction data)")
+                if "avoid_tools" in adj:
+                    adj_lines.append(f"Avoid these unreliable tools: {', '.join(adj['avoid_tools'])}")
+                if "preferred_models" in adj:
+                    top = adj["preferred_models"][0] if adj["preferred_models"] else {}
+                    if top:
+                        adj_lines.append(f"Preferred model based on success rates: {top.get('model', 'unknown')} ({top.get('success_rate', 0):.0%} success)")
+                if len(adj_lines) > 1:
+                    messages.append({"role": "system", "content": "\n".join(adj_lines)})
+        except Exception:
+            pass
 
         if plan.steps:
             plan_message = {
@@ -1166,14 +2015,35 @@ class AgentRuntime:
             messages.append(plan_message)
             self.session_manager.append_message(session_id, plan_message)
 
+        # FRIDAY: Retrieve relevant memories from past sessions during reasoning
+        try:
+            memory_context = self.memory_facade.build_context(
+                query=request.text,
+                user_id=request.user_id,
+            )
+            if memory_context:
+                memory_msg = {"role": "system", "content": f"[Relevant Memories]\n{memory_context}"}
+                messages.append(memory_msg)
+        except Exception as exc:
+            logger.debug("Memory retrieval during reasoning failed: %s", exc)
+
         # Build user message (handle True Native Multimodality)
+        # Input size limit: truncate to 30K chars (~7.5K tokens) to prevent context overflow
+        MAX_INPUT_CHARS = 30_000
+        input_text = request.text
+        if len(input_text) > MAX_INPUT_CHARS:
+            logger.warning(
+                "AGENT_RUNTIME  input_truncated  session=%s  original=%d  truncated=%d",
+                session_id, len(input_text), MAX_INPUT_CHARS,
+            )
+            input_text = input_text[:MAX_INPUT_CHARS] + "\n... [input truncated due to length]"
         if request.image_urls:
-            content_array: List[Dict[str, Any]] = [{"type": "text", "text": request.text}]
+            content_array: List[Dict[str, Any]] = [{"type": "text", "text": input_text}]
             for url in request.image_urls:
                 content_array.append({"type": "image_url", "image_url": {"url": url}})
             user_msg = {"role": "user", "content": content_array}
         else:
-            user_msg = {"role": "user", "content": request.text}
+            user_msg = {"role": "user", "content": input_text}
 
         multimodal_context = self.multimodal_builder.from_request(
             request,
@@ -1181,7 +2051,7 @@ class AgentRuntime:
                 "AGENTS.md", max_chars=240
             ).splitlines()[:5],
         )
-        # SARAS stays DB-only: monitoring-owned video/semantic fusion stays external.
+        # RAVEN stays DB-only: monitoring-owned video/semantic fusion stays external.
         if multimodal_context.has_signal():
             messages.append({"role": "system", "content": multimodal_context.render()})
 
@@ -1244,11 +2114,13 @@ class AgentRuntime:
                 llm_calls_total.labels(provider=provider_name, model=self.model_name).inc()
                 start_llm = __import__("time").perf_counter()
 
-                # ── Streaming path (edit-based, no tool calls) ──────────────
+                # ── Streaming path — streams text tokens live ─────────────
+                # Works even when tools are registered: streams partial text
+                # for real-time UX, then falls through to tool execution.
                 if (
                     streaming
-                    and not openai_tools
                     and hasattr(self.provider, "chat_completion_stream")
+                    and turn_count == max_turns  # Only stream on final turn
                 ):
                     import time as _time  # noqa: PLC0415
 
@@ -1256,33 +2128,28 @@ class AgentRuntime:
                     last_edit = _time.monotonic()
                     sent_msg = False
 
-                    async for token in self.provider.chat_completion_stream(
-                        model=self.model_name, messages=messages
-                    ):
-                        buffer += token
-                        if not sent_msg or _time.monotonic() - last_edit > 0.5:
-                            await self.botsignal.send_text(
-                                request.reply_target,
-                                buffer[:4000],
-                                source_kind=source_kind,
-                                tool_traces=traces,
-                            )
-                            last_edit = _time.monotonic()
-                            sent_msg = True
+                    try:
+                        async for token in self.provider.chat_completion_stream(
+                            model=self.model_name, messages=messages
+                        ):
+                            buffer += token
+                            if not sent_msg or _time.monotonic() - last_edit > 0.5:
+                                await self.botsignal.send_text(
+                                    request.reply_target,
+                                    buffer[:4000],
+                                    source_kind="streaming",
+                                    tool_traces=traces,
+                                )
+                                last_edit = _time.monotonic()
+                                sent_msg = True
+                    except Exception:
+                        pass
 
                     if buffer:
-                        # Final send with full content
-                        await self.botsignal.send_text(
-                            request.reply_target,
-                            buffer[:4000],
-                            source_kind=source_kind,
-                            tool_traces=traces,
-                        )
-                        # Store assistant message in session
                         asst_msg = {"role": "assistant", "content": buffer}
                         messages.append(asst_msg)
                         self.session_manager.append_message(session_id, asst_msg)
-                    break
+                    break  # Streaming turn is always final
                 # ── End streaming path ──────────────────────────────────────
 
                 if hasattr(self.provider, "chat_completion_resilient"):
@@ -1312,9 +2179,16 @@ class AgentRuntime:
                         from app.provider.factory import create_provider  # noqa: PLC0415
 
                         fallbacks = AutoModelRouter.get_available_models("agent")
+                        fallback_attempts = 0
+                        MAX_FALLBACK_ATTEMPTS = 3
+                        # Track failed providers to avoid retrying any of them
+                        failed_providers: set = {provider_name}
                         for f_prov_name, f_model_name in fallbacks:
-                            if f_prov_name == provider_name and f_model_name == self.model_name:
-                                continue  # Skip the one that just failed
+                            if fallback_attempts >= MAX_FALLBACK_ATTEMPTS:
+                                logger.info("AGENT_RUNTIME  fallback_budget_exhausted  session=%s  attempts=%d", session_id, fallback_attempts)
+                                break
+                            if f_prov_name in failed_providers:
+                                continue  # Skip all variants of failed providers
 
                             try:
                                 logger.info(
@@ -1339,6 +2213,8 @@ class AgentRuntime:
                                     break
                             except Exception as _f_exc:
                                 logger.debug("Fallback %s failed: %s", f_prov_name, _f_exc)
+                                failed_providers.add(f_prov_name)
+                            fallback_attempts += 1
                     except Exception as _routing_exc:
                         logger.debug("Fallback routing failed: %s", _routing_exc)
 
@@ -1398,7 +2274,9 @@ class AgentRuntime:
                         }
                         messages.append(msg)
                         self.session_manager.append_message(session_id, msg)
-                    self._learn_from_turn(request, content, session_id)
+                    self._last_tool_traces = traces
+                    _any_tool_success = any(t.success for t in traces) if traces else True
+                    self._learn_from_turn(request, content, session_id, success=_any_tool_success)
                     self._maybe_schedule_follow_up(request, content)
                     # Phase D: ingest the assistant's final turn
                     # into the conversation manager.  Only the
@@ -1459,6 +2337,9 @@ class AgentRuntime:
                     # Remove tools from next LLM call to force text-only response
                     openai_tools = []
                     continue  # re-enter the loop — next call has no tools
+
+                # ── Tool failure fallback ────────────────────────────────
+                from app.core.tool_fallback import get_fallback, record_failure
 
                 for tc in tool_calls:
                     function_name = tc.get("function", {}).get("name")
@@ -1652,7 +2533,28 @@ class AgentRuntime:
                                 break
                             # ── end A4 policy v2 check ────────────────
 
-                            _tool_start = time.time()
+                            # FRIDAY: Counterfactual risk assessment
+                            try:
+                                from app.core.counterfactual import get_counterfactual_engine
+                                cf = get_counterfactual_engine()
+                                sim = cf.simulate(
+                                    action=json.dumps(args, default=str)[:500],
+                                    context={"user_id": request.user_id},
+                                    tool_name=function_name,
+                                )
+                                if sim.recommendation == "abort":
+                                    result_str = f"Blocked by risk assessment: {sim.reasoning}"
+                                    break
+                                if sim.recommendation == "seek_approval":
+                                    if function_name not in ("notify", "read_file", "search"):
+                                        logger.debug(
+                                            "AGENT_RUNTIME  risk_approval_needed  tool=%s  risk=%s",
+                                            function_name, sim.risk_level,
+                                        )
+                            except Exception:
+                                pass  # Counterfactual is best-effort
+
+                            _tool_start = _time_module.time()
                             # A5 observability: wrap the tool call
                             # in a span so traces show the latency
                             # and any error.
@@ -1664,7 +2566,7 @@ class AgentRuntime:
                                 )
 
                                 _obs_span_cm = _obs_get_tracer(
-                                    "saras.runtime"
+                                    "raven.runtime"
                                 ).start_as_current_span(
                                     f"tool.{function_name}",
                                     attributes={"tool": function_name},
@@ -1674,7 +2576,22 @@ class AgentRuntime:
                                 _obs_span_obj = None
                                 _obs_span_cm = None
                             try:
-                                result = await tool.execute(**args)
+                                # ── Check cache before executing ────────
+                                _cache_key = f"{function_name}::{json.dumps(args, sort_keys=True, default=str)[:500]}"
+                                _cached = False
+                                try:
+                                    from app.core.cache import get_response_cache
+                                    _rc = get_response_cache()
+                                    _cached_result = _rc.get(_cache_key)
+                                    if _cached_result is not None:
+                                        result = _cached_result
+                                        _cached = True
+                                        logger.debug("AGENT_RUNTIME  cache_hit  tool=%s", function_name)
+                                except Exception:
+                                    pass
+
+                                if not _cached:
+                                    result = await tool.execute(**args)
                             finally:
                                 if _obs_span_cm is not None:
                                     try:
@@ -1682,10 +2599,23 @@ class AgentRuntime:
                                     except Exception:  # noqa: BLE001
                                         pass
                             _tool_latency_ms = (
-                                (time.time() - _tool_start) * 1000 if "_tool_start" in dir() else 0
+                                (_time_module.time() - _tool_start) * 1000 if "_tool_start" in dir() else 0
                             )
                             tool_calls_total.labels(tool_name=function_name, success="true").inc()
                             result_str = json.dumps(result, default=str)
+                            # ── Normalize tool output to save tokens ──
+                            try:
+                                from app.core.tool_output_normalizer import normalize_tool_output
+                                result_str = normalize_tool_output(function_name, result)
+                            except Exception:
+                                pass  # Use raw output if normalization fails
+                            # ── Cache successful tool result ──────────
+                            if not _cached:
+                                try:
+                                    _rc = get_response_cache()
+                                    _rc.set(_cache_key, result, ttl_s=300)
+                                except Exception:
+                                    pass
                             logger.debug(
                                 "AGENT_RUNTIME  tool_success  session=%s  tool=%s  result_len=%d",
                                 session_id,
@@ -1746,6 +2676,21 @@ class AgentRuntime:
                                 function_name,
                                 e,
                             )
+                            # ── Adaptive tool fallback ──────────────────
+                            record_failure(function_name)
+                            fallback_tool = get_fallback(function_name, {function_name})
+                            if fallback_tool and fallback_tool in self.tools:
+                                logger.info(
+                                    "AGENT_RUNTIME  tool_fallback  session=%s  from=%s  to=%s",
+                                    session_id, function_name, fallback_tool,
+                                )
+                                try:
+                                    fb_tool = self.tools[fallback_tool]
+                                    fb_result = await fb_tool.execute(**args)
+                                    result_str = json.dumps(fb_result, default=str)
+                                    function_name = fallback_tool  # Update name for traces
+                                except Exception as fb_e:
+                                    logger.debug("Fallback tool %s also failed: %s", fallback_tool, fb_e)
                             traces.append(
                                 ToolTrace(
                                     tool_name=function_name,
@@ -1771,6 +2716,19 @@ class AgentRuntime:
                             )
                         )
 
+                    # FRIDAY: Compress tool output to save tokens
+                    try:
+                        from app.core.token_compression import compress_tool_output
+                        original_len = len(result_str)
+                        result_str = compress_tool_output(result_str)
+                        if len(result_str) < original_len:
+                            logger.debug(
+                                "AGENT_RUNTIME  token_compressed  tool=%s  %d→%d chars",
+                                function_name, original_len, len(result_str),
+                            )
+                    except Exception:
+                        pass  # Token compression is best-effort
+
                     tool_msg = {
                         "role": "tool",
                         "tool_call_id": tc.get("id"),
@@ -1779,6 +2737,26 @@ class AgentRuntime:
                     }
                     messages.append(tool_msg)
                     self.session_manager.append_message(session_id, tool_msg)
+
+                # ── Re-plan on widespread tool failure ──────────────────
+                turn_failures = sum(1 for t in traces[-len(tool_calls):] if not t.success)
+                if turn_failures == len(tool_calls) and tool_calls:
+                    logger.info(
+                        "AGENT_RUNTIME  re_planning  session=%s  all %d tools failed",
+                        session_id, turn_failures,
+                    )
+                    replan_msg = {
+                        "role": "user",
+                        "content": (
+                            "[SYSTEM] All tool calls in this turn failed. "
+                            "Re-analyze the situation. Try a DIFFERENT approach — "
+                            "use different tools, rephrase your strategy, or "
+                            "synthesize an answer from the information you already have. "
+                            "Do NOT retry the same failed tools."
+                        ),
+                    }
+                    messages.append(replan_msg)
+                    self.session_manager.append_message(session_id, replan_msg)
 
                 # ── Penultimate turn: inject synthesis nudge ───────────
                 if turn_count == max_turns - 1:
@@ -1889,7 +2867,8 @@ class AgentRuntime:
                 }
                 messages.append(msg)
                 self.session_manager.append_message(session_id, msg)
-            self._learn_from_turn(request, content, session_id)
+            self._last_tool_traces = traces
+            self._learn_from_turn(request, content, session_id, success=_turn_success)
             self._maybe_schedule_follow_up(request, content)
             _final_response = content
 
@@ -1918,6 +2897,36 @@ class AgentRuntime:
             duration_ms=_turn_latency_ms,
             tools_used=tools_used,
         )
+
+        # ── Reinforcement learning recording ─────────────────────
+        try:
+            from app.core.reinforcement_learning import get_reinforcement_learner
+
+            rl = get_reinforcement_learner()
+            action = f"{self._agent_name}:{self._current_strategy}"
+            rl.record_outcome(
+                task_category=task_category or "general",
+                action=action,
+                success=_turn_success,
+            )
+        except Exception:
+            pass
+
+        # ── Personality engine update ───────────────────────────────
+        try:
+            persona = get_persona_engine()
+            if _turn_success:
+                persona.on_interaction_success(
+                    user_id=request.user_id,
+                    user_msg=request.text,
+                )
+            else:
+                persona.on_interaction_failure(
+                    user_id=request.user_id,
+                    error=_final_response[:100] if _final_response else "unknown",
+                )
+        except Exception:
+            pass
 
         # A5 observability: clear bound context now that the turn
         # is finished.

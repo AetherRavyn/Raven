@@ -1,9 +1,10 @@
 # app/db/session.py
-"""Async SQLAlchemy engine and session factory."""
+"""Async SQLAlchemy engine and session factory (SQLite only)."""
 
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -14,15 +15,17 @@ logger = logging.getLogger(__name__)
 _engine = None
 _session_factory = None
 
-_DEFAULT_URL = "sqlite+aiosqlite:///workspace/saras.db"
+_DEFAULT_URL = "sqlite+aiosqlite:///workspace/raven.db"
 
 
 def get_engine():
     global _engine
     if _engine is None:
-        url = Config.DATABASE_URL or _DEFAULT_URL
+        db_path = Path(Config.GRAPH_DB_PATH)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        url = f"sqlite+aiosqlite:///{db_path}"
         _engine = create_async_engine(url, echo=False)
-        logger.info("DB engine created: %s", url.split("@")[-1] if "@" in url else url)
+        logger.info("DB engine created: %s", db_path)
     return _engine
 
 
@@ -36,10 +39,7 @@ def get_session_factory():
 
 
 async def init_db() -> None:
-    """Create all tables.
-
-    For development / SQLite fallback. In production use Alembic migrations.
-    """
+    """Create all tables."""
     from app.db.models import Base
 
     async with get_engine().begin() as conn:

@@ -32,6 +32,12 @@ from app.core.audit.dashboard import (
     format_json,
     format_timeline,
 )
+from app.core.audit.envelope_bridge import (
+    audit_event_to_envelope,
+    envelope_to_audit_event,
+    install_envelope_emitter,
+    is_audit_envelope,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -141,4 +147,9 @@ __all__ = [
     "format_timeline",
     "format_csv",
     "format_json",
+    # Phase 2.6 envelope bridge
+    "audit_event_to_envelope",
+    "envelope_to_audit_event",
+    "is_audit_envelope",
+    "install_envelope_emitter",
 ]

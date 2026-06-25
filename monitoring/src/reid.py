@@ -51,62 +51,58 @@ class ReID:
                 self.MODEL_PATH,
             )
 
-        self._load_persons_from_neo4j()
+        self._load_persons_from_graph()
         self._backfill_known_from_disk()
 
     # ------------------------------------------------------------------
-    # STARTUP: load all Person nodes from Neo4j into memory
+    # STARTUP: load all Person nodes from graph into memory
     # ------------------------------------------------------------------
 
-    def _load_persons_from_neo4j(self):
-        """Populate known_db + unknown_db from existing Neo4j Person nodes."""
+    def _load_persons_from_graph(self):
+        """Populate known_db + unknown_db from existing graph Person nodes."""
         if self.db.neo4j.driver is None:
-            logger.warning("Neo4j unavailable – starting with empty caches")
+            logger.warning("Graph storage unavailable – starting with empty caches")
             return
         try:
-            with self.db.neo4j.driver.session() as s:
-                rows = s.run(
-                    "MATCH (p:Person) "
-                    "RETURN p.person_id AS pid, p.features AS features, p.metadata AS meta"
-                )
-                for r in rows:
-                    pid = r["pid"]
-                    features = r["features"]
-                    raw_meta = r["meta"] or "{}"
-                    meta = (
-                        json.loads(raw_meta)
-                        if isinstance(raw_meta, str)
-                        else (raw_meta or {})
-                    )
-                    if not features:
-                        continue
-                    emb = np.array(features, dtype=np.float32)
+            import sqlite3 as _sqlite3
+            db_path = self.db.neo4j._db_path
+            conn = _sqlite3.connect(db_path)
+            rows = conn.execute(
+                "SELECT person_id, features, metadata FROM persons"
+            ).fetchall()
+            conn.close()
+            for pid, features_json, meta_json in rows:
+                features = json.loads(features_json) if features_json else []
+                meta = json.loads(meta_json) if meta_json else {}
+                if not features:
+                    continue
+                emb = np.array(features, dtype=np.float32)
 
-                    # Skip embeddings that don't match the current model's output size
-                    if self.session and emb.shape[0] != self.session.get_outputs()[0].shape[1]:
-                        logger.warning(f"Skipping {pid} due to embedding size mismatch (expected {self.session.get_outputs()[0].shape[1]}, got {emb.shape[0]})")
-                        continue
+                # Skip embeddings that don't match the current model's output size
+                if self.session and emb.shape[0] != self.session.get_outputs()[0].shape[1]:
+                    logger.warning(f"Skipping {pid} due to embedding size mismatch")
+                    continue
 
-                    if meta.get("is_known"):
-                        self.known_db[meta.get("label", pid)] = emb
-                    else:
-                        self.unknown_db[pid] = {
-                            "embedding": emb,
-                            "first_seen": meta.get("first_seen", ""),
-                            "last_seen": meta.get("last_seen", ""),
-                            "visit_count": meta.get("visit_count", 1),
-                            "label": meta.get("label", pid),
-                        }
+                if meta.get("is_known"):
+                    self.known_db[meta.get("label", pid)] = emb
+                else:
+                    self.unknown_db[pid] = {
+                        "embedding": emb,
+                        "first_seen": meta.get("first_seen", ""),
+                        "last_seen": meta.get("last_seen", ""),
+                        "visit_count": meta.get("visit_count", 1),
+                        "label": meta.get("label", pid),
+                    }
             logger.info(
-                "Neo4j: loaded %d known + %d unknown persons",
+                "Graph: loaded %d known + %d unknown persons",
                 len(self.known_db),
                 len(self.unknown_db),
             )
         except Exception as e:
-            logger.error("Failed to load persons from Neo4j: %s", e)
+            logger.error("Failed to load persons from graph: %s", e)
 
     def _backfill_known_from_disk(self):
-        """Load/refresh face images from KNOWN_DIR into known_db and Neo4j."""
+        """Load/refresh face images from KNOWN_DIR into known_db and graph."""
         if self.session is None or not os.path.exists(self.KNOWN_DIR):
             return
 
@@ -162,7 +158,7 @@ class ReID:
                     continue
                 self.known_db[name] = emb
                 now = datetime.now().isoformat()
-                self._neo4j_upsert(
+                self._graph_upsert(
                     name,
                     emb,
                     {
@@ -185,8 +181,8 @@ class ReID:
     # NEO4J HELPERS
     # ------------------------------------------------------------------
 
-    def _neo4j_upsert(self, person_id: str, emb: np.ndarray, extra_meta: dict):
-        """MERGE a Person node in Neo4j with fresh embedding + metadata."""
+    def _graph_upsert(self, person_id: str, emb: np.ndarray, extra_meta: dict):
+        """Upsert a Person node in the graph with fresh embedding + metadata."""
         now = datetime.now().isoformat()
         meta = {"last_seen": now, **extra_meta}
         if "first_seen" not in meta:
@@ -197,13 +193,13 @@ class ReID:
             metadata=meta,
         )
 
-    def _neo4j_increment_visit(self, uid: str, emb: np.ndarray):
+    def _graph_increment_visit(self, uid: str, emb: np.ndarray):
         """Update last_seen + visit_count for a returning unknown visitor."""
         now = datetime.now().isoformat()
         meta = self.unknown_db[uid]
         meta["last_seen"] = now
         meta["visit_count"] += 1
-        self._neo4j_upsert(
+        self._graph_upsert(
             uid,
             emb,
             {
@@ -302,10 +298,9 @@ class ReID:
         Priority:
           1. Named identity (known_db)      -> returns (name, distance)
           2. Returning unknown visitor      -> updates visit metadata, returns (unknown_XXXX, distance)
-          3. Brand-new visitor              -> registers in Neo4j + SQLite, returns (unknown_XXXX, distance)
+          3. Brand-new visitor              -> registers in graph + SQLite, returns (unknown_XXXX, distance)
 
-        All sightings are logged to the SQLite events table and the
-        SEEN_IN relationship is updated in Neo4j.
+        SEEN_IN relationship is updated in graph.
         """
         img = Image.fromarray(imagearry).convert("RGB")
         emb = self.embedding(img)
@@ -350,7 +345,7 @@ class ReID:
         if best_uid:
             logger.debug("Best unknown match: %s, score: %f", best_uid, best_uscore)
         if best_uid and best_uscore <= self.THRESHOLD:
-            self._neo4j_increment_visit(best_uid, emb)
+            self._graph_increment_visit(best_uid, emb)
             self.db.neo4j.add_camera(camera_id)
             self.db.neo4j.add_relationship(best_uid, camera_id, datetime.now())
             self._sqlite_log_sighting(best_uid, camera_id, best_uscore)
@@ -365,7 +360,7 @@ class ReID:
             "visit_count": 1,
             "label": uid,
         }
-        self._neo4j_upsert(
+        self._graph_upsert(
             uid,
             emb,
             {
@@ -387,13 +382,13 @@ class ReID:
     # ------------------------------------------------------------------
 
     def add_identity(self, imagearry: np.ndarray, name: str) -> str:
-        """Register a face as a named known identity (disk image + Neo4j)."""
+        """Register a face as a named known identity (disk image + graph)."""
         img = Image.fromarray(imagearry).convert("RGB")
         emb = self.embedding(img)
         self.known_db[name] = emb
         img.save(os.path.join(self.KNOWN_DIR, f"{name}.jpg"))
         now = datetime.now().isoformat()
-        self._neo4j_upsert(
+        self._graph_upsert(
             name,
             emb,
             {
@@ -410,7 +405,7 @@ class ReID:
         """
         Give a real name to an auto-assigned unknown visitor.
 
-        Updates in-memory caches and Neo4j.  If you have a fresh face
+        Updates in-memory caches and graph.  If you have a fresh face
         image available, call add_identity() instead (it also saves to disk).
         """
         if uid not in self.unknown_db:
@@ -418,7 +413,7 @@ class ReID:
         meta = self.unknown_db.pop(uid)
         emb = meta["embedding"]
         self.known_db[name] = emb
-        self._neo4j_upsert(
+        self._graph_upsert(
             name,
             emb,
             {
@@ -454,7 +449,7 @@ class ReID:
         }
 
 class ReIDService:
-    """Microservice wrapper for ReID using Redis MessageBus."""
+    """Microservice wrapper for ReID using MessageBus."""
     def __init__(self, bus, config: Dict = None):
         self.bus = bus
         self.reid = ReID(config or {})

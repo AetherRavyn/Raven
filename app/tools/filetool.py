@@ -341,7 +341,7 @@ class AdvancedFileOperationTool(BaseTool):
                                     "file": str(path),
                                 }
                             )
-        except:
+        except Exception:
             pass
         return matches
 
@@ -389,7 +389,7 @@ class AdvancedFileOperationTool(BaseTool):
                 except UnicodeDecodeError:
                     continue
             return "unknown"
-        except:
+        except Exception:
             return "error"
 
     def _backup_file(self, path: Path) -> None:

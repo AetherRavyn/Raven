@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% block title %}KNOWLEDGE GRAPH — RAVEN{% endblock %}
+{% block head_extra %}
+<style>
+.fade-in { animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+#kg-network { width: 100%; height: 400px; border-radius: 4px; }
+</style>
+<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+{% endblock %}
+{% block main %}
+<section class="space-y-4" x-data="knowledgeGraph()">
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <h1 class="text-zinc-100 text-sm tracking-wider uppercase">Knowledge Graph</h1>
+      <p class="text-zinc-500 text-[11px] mt-0.5">
+        HelixDB-powered entity-relationship graph. Browse, search, and visualize.
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-zinc-600 text-[10px]" x-text="'v' + dbVersion"></span>
+      <button type="button" @click="reload()"
+              class="text-[10px] text-zinc-400 hover:text-zinc-200 border border-ink-600 rounded px-2 py-1">
+        ↻ Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div x-show="status" x-cloak x-transition
+       :class="statusOk ? 'border-emerald-700 bg-emerald-900/30 text-emerald-300' : 'border-rose-700 bg-rose-900/30 text-rose-300'"
+       class="border rounded p-2 text-[11px] fade-in" x-text="status"></div>
+
+  <!-- Summary cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Entities</div>
+      <div class="mt-1 text-accent-500 text-lg font-semibold" x-text="stats.entity_count || '—'"></div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Relationships</div>
+      <div class="mt-1 text-zinc-200 text-lg font-semibold" x-text="stats.relationship_count || '—'"></div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Backend</div>
+      <div class="mt-1 text-zinc-200 text-lg font-semibold" x-text="stats.backend || '—'"></div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Health</div>
+      <div class="mt-1 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full" :class="stats.healthy ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+        <span class="text-zinc-200 text-[13px]" x-text="stats.healthy ? 'Connected' : 'Offline'"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="border border-ink-600 bg-ink-800 rounded p-3 fade-in">
+    <div class="flex gap-2">
+      <input type="text" x-model="searchQuery" @keydown.enter="searchEntities()"
+             placeholder="Search entities by name, type, or property…"
+             class="flex-1 bg-ink-900 border border-ink-600 rounded px-2 py-1.5 text-zinc-200 text-[12px]" />
+      <button type="button" @click="searchEntities()"
+              class="px-3 py-1.5 text-[11px] rounded bg-accent-600 text-ink-900 font-semibold hover:bg-accent-500":disabled="!searchQuery.trim()">
+        Search
+      </button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <!-- Entity list -->
+    <div class="border border-ink-600 bg-ink-800 rounded p-3 fade-in min-h-0">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-zinc-400 text-[10px] uppercase tracking-wider">
+          <span x-show="!searchQuery">All Entities</span>
+          <span x-show="searchQuery">Results</span>
+          <span class="text-zinc-600" x-text="'(' + entities.length + ')'"></span>
+        </div>
+      </div>
+      <div class="space-y-1 max-h-[300px] overflow-y-auto">
+        <template x-for="e in entities" :key="e.name">
+          <div class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors"
+               :class="selectedEntity?.name === e.name ? 'bg-accent-500/10 border border-accent-500/30' : 'hover:bg-ink-700'"
+               @click="selectEntity(e)">
+            <span class="w-1.5 h-1.5 rounded-full shrink-0"
+                  :class="kindColor(e.kind || 'entity')"></span>
+            <span class="text-zinc-200 text-[12px] truncate" x-text="e.name"></span>
+            <span class="text-zinc-600 text-[9px] shrink-0" x-text="e.kind || ''"></span>
+            <span class="ml-auto text-zinc-700 text-[9px]" x-text="edgeCount(e) + ' edges'"></span>
+          </div>
+        </template>
+        <div x-show="!entities.length" class="text-zinc-600 text-center py-4 text-[11px]">
+          <span x-show="!searchQuery">No entities in the graph yet.</span>
+          <span x-show="searchQuery">No results for "<span x-text="searchQuery"></span>"</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Entity detail / Graph -->
+    <div class="space-y-3">
+      <!-- Entity detail -->
+      <div x-show="selectedEntity" class="border border-ink-600 bg-ink-800 rounded p-3 fade-in">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <div class="text-accent-500 text-[13px] font-semibold" x-text="selectedEntity?.name"></div>
+            <div class="text-zinc-500 text-[10px]" x-text="selectedEntity?.kind || 'entity'"></div>
+          </div>
+          <button type="button" @click="centerGraph(selectedEntity)" class="text-[10px] text-zinc-500 hover:text-accent-500 border border-ink-600 rounded px-2 py-0.5">
+            Focus
+          </button>
+        </div>
+        <div class="space-y-1 text-[11px]">
+          <template x-for="(val, key) in entityProps" :key="key">
+            <div class="flex gap-2">
+              <span class="text-zinc-500 shrink-0" x-text="key + ':'"></span>
+              <span class="text-zinc-300 break-words font-mono" x-text="typeof val === 'object' ? JSON.stringify(val) : val"></span>
+            </div>
+          </template>
+        </div>
+        <div class="mt-2" x-show="selectedEdges.length">
+          <div class="text-zinc-500 text-[10px] uppercase tracking-wider mb-1">Relationships</div>
+          <div class="space-y-1">
+            <template x-for="edge in selectedEdges" :key="edge.to + edge.relation">
+              <div class="flex items-center gap-1 text-[11px] px-1 py-0.5 hover:bg-ink-700/50 rounded cursor-pointer"
+                   @click="searchAndSelect(edge.to)">
+                <span class="text-zinc-400">—</span>
+                <span class="text-warn-500 text-[10px]" x-text="edge.relation"></span>
+                <span class="text-zinc-400">→</span>
+                <span class="text-accent-500" x-text="edge.to"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- Graph visualization -->
+      <div class="border border-ink-600 bg-ink-800 rounded p-3 fade-in">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-zinc-400 text-[10px] uppercase tracking-wider">Graph View</div>
+          <div class="flex gap-1">
+            <button type="button" @click="zoomIn()" class="text-[10px] px-1.5 py-0.5 text-zinc-500 hover:text-zinc-200 border border-ink-600 rounded">+</button>
+            <button type="button" @click="zoomOut()" class="text-[10px] px-1.5 py-0.5 text-zinc-500 hover:text-zinc-200 border border-ink-600 rounded">−</button>
+            <button type="button" @click="zoomFit()" class="text-[10px] px-1.5 py-0.5 text-zinc-500 hover:text-zinc-200 border border-ink-600 rounded">Fit</button>
+          </div>
+        </div>
+        <div id="kg-network" class="bg-ink-900/50 rounded"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+function knowledgeGraph() {
+  return {
+    stats: { entity_count: 0, relationship_count: 0, backend: '—', healthy: false },
+    entities: [],
+    selectedEntity: null,
+    searchQuery: '',
+    dbVersion: '1.0',
+    status: '',
+    statusOk: true,
+    _network: null,
+    _nodes: null,
+    _edges: null,
+
+    init() {
+      this.reload();
+    },
+
+    async reload() {
+      try {
+        const statsR = await fetch('/api/kg/stats');
+        this.stats = await statsR.json();
+        const entsR = await fetch('/api/kg/entities');
+        const entsData = await entsR.json();
+        this.entities = entsData.entities || [];
+        this.status = this.stats.healthy
+          ? this.stats.entity_count + ' entities, ' + this.stats.relationship_count + ' relationships — ' + this.stats.backend
+          : 'HelixDB is offline — check connection';
+        this.statusOk = this.stats.healthy;
+        this.renderGraph();
+      } catch (e) {
+        this.status = 'Failed to load: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    get entityProps() {
+      if (!this.selectedEntity) return {};
+      const { name, kind, edges, user_id, ...props } = this.selectedEntity;
+      return props;
+    },
+
+    get selectedEdges() {
+      return this.selectedEntity?.edges || [];
+    },
+
+    edgeCount(e) {
+      return e.edges?.length || 0;
+    },
+
+    kindColor(kind) {
+      const colors = {
+        person: 'bg-accent-500',
+        organization: 'bg-blue-500',
+        place: 'bg-warn-500',
+        concept: 'bg-purple-500',
+        tool: 'bg-rose-500',
+        event: 'bg-emerald-500',
+        project: 'bg-cyan-500',
+        technology: 'bg-violet-500',
+      };
+      return colors[kind.toLowerCase()] || 'bg-zinc-500';
+    },
+
+    async searchEntities() {
+      if (!this.searchQuery.trim()) return;
+      try {
+        const r = await fetch('/api/kg/search?q=' + encodeURIComponent(this.searchQuery));
+        const j = await r.json();
+        this.entities = j.entities || [];
+        this.selectedEntity = null;
+      } catch (e) {
+        this.status = 'Search failed: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    async searchAndSelect(name) {
+      this.searchQuery = name;
+      const r = await fetch('/api/kg/search?q=' + encodeURIComponent(name));
+      const j = await r.json();
+      this.entities = j.entities || [];
+      this.selectedEntity = this.entities.find(e => e.name === name) || null;
+    },
+
+    async selectEntity(e) {
+      this.selectedEntity = e;
+      this.centerGraph(e);
+    },
+
+    // ── Network graph ────────────────────────────────────────────
+    renderGraph() {
+      const container = document.getElementById('kg-network');
+      if (!container) return;
+
+      const nodes = new vis.DataSet(
+        this.entities.map(e => ({
+          id: e.name,
+          label: e.name.length > 20 ? e.name.slice(0, 18) + '…' : e.name,
+          title: e.name + (e.kind ? ' (' + e.kind + ')' : ''),
+          group: e.kind || 'entity',
+          color: this.kindColor(e.kind || 'entity').replace('bg-', '#').replace('-500', ''),
+          borderWidth: 0,
+          size: 12 + (e.edges?.length || 0) * 2,
+        }))
+      );
+
+      const edgeSet = new Set();
+      const edges = [];
+      for (const e of this.entities) {
+        for (const edge of (e.edges || [])) {
+          const key = e.name + '->' + edge.to + ':' + edge.relation;
+          if (!edgeSet.has(key)) {
+            edgeSet.add(key);
+            edges.push({
+              from: e.name,
+              to: edge.to,
+              label: edge.relation,
+              arrows: 'to',
+              color: { color: '#3a3a3a', highlight: '#7cf08a' },
+              font: { color: '#888', size: 9, strokeWidth: 0 },
+              width: 0.5,
+            });
+          }
+        }
+      }
+
+      const edgeDataSet = new vis.DataSet(edges);
+
+      const options = {
+        physics: {
+          solver: 'forceAtlas2Based',
+          forceAtlas2Based: { gravitationalConstant: -40, springLength: 150, springConstant: 0.02 },
+          stabilization: { iterations: 100 },
+        },
+        nodes: {
+          font: { color: '#ccc', size: 11, face: 'JetBrains Mono' },
+          shape: 'dot',
+          scaling: { label: { enabled: true, min: 10, max: 16 } },
+        },
+        edges: {
+          smooth: { type: 'continuous' },
+        },
+        interaction: {
+          hover: true,
+          tooltipDelay: 200,
+          navigationButtons: true,
+        },
+        groups: {
+          entity: { color: '#666' },
+          person: { color: '#7cf08a' },
+          organization: { color: '#3b82f6' },
+          place: { color: '#f0c87c' },
+          concept: { color: '#a78bfa' },
+          tool: { color: '#f07c7c' },
+          event: { color: '#34d399' },
+          project: { color: '#22d3ee' },
+          technology: { color: '#8b5cf6' },
+        },
+      };
+
+      this._nodes = nodes;
+      this._edges = edgeDataSet;
+      this._network = new vis.Network(container, { nodes, edges: edgeDataSet }, options);
+
+      this._network.on('click', (params) => {
+        if (params.nodes.length) {
+          const name = params.nodes[0];
+          const entity = this.entities.find(e => e.name === name) || { name };
+          this.selectedEntity = entity;
+        }
+      });
+    },
+
+    centerGraph(entity) {
+      if (!this._network || !entity) return;
+      this._network.focus(entity.name, { scale: 1.5, animation: true });
+    },
+
+    zoomIn() { if (this._network) { const s = this._network.getScale(); this._network.setScale(s * 1.3); } },
+    zoomOut() { if (this._network) { const s = this._network.getScale(); this._network.setScale(s * 0.7); } },
+    zoomFit() { if (this._network) this._network.fit({ animation: true }); },
+  };
+}
+</script>
+{% endblock %}

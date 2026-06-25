@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.document_qa
+display_name: Document Q&A
+version: "1.0.0"
+category: skill
+description: "Ask questions about PDFs, Word docs, and Excel spreadsheets. Extract, summarize, and analyze document content."
+tags: [document, pdf, docx, excel, analysis, qa]
+capabilities: [pdf_reader, docx_reader, excel_reader]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.90
+triggers:
+  - pattern: "read.*pdf|summarize.*document|what.*doc(x|ument)"
+    confidence: 0.85
+  - pattern: "analyze.*spreadsheet|what.*excel|read.*xlsx"
+    confidence: 0.85

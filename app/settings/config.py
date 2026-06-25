@@ -16,7 +16,25 @@ load_dotenv()
 class Config:
     LLM_PROVIDER = (os.getenv("LLM_PROVIDER", "auto") or "auto").strip()
     LLM_MODEL = (os.getenv("LLM_MODEL", "") or "").strip()
+    # Phase 6 — when True, the new app/core/planning/ planner leads.
+    # The legacy app/core/planner.py shim still works for one release
+    # so users can flip back via RAVEN_PLANNER_V2=false.
+    RAVEN_PLANNER_V2 = os.getenv("RAVEN_PLANNER_V2", "true").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "y",
+        "on",
+    }
+    # SQLite path for the plan store.  Relative paths are resolved
+    # against MEMORY_ROOT.  Empty string disables SQLite (in-memory
+    # only — not recommended for production).
+    PLAN_STORE_SQLITE = os.getenv("PLAN_STORE_SQLITE", "plan_store.sqlite").strip()
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
+    TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH", "")
+    TELEGRAM_PHONE = os.getenv("TELEGRAM_PHONE", "")
+    TELEGRAM_WEBHOOK_URL = os.getenv("TELEGRAM_WEBHOOK_URL", "")
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
     DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID", "1213902756633518181"))
     DISCORD_ENABLE_MESSAGE_CONTENT_INTENT = os.getenv(
@@ -31,13 +49,9 @@ class Config:
     HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
     BYTEZ_API_KEY = os.getenv("BYTEZ_API_KEY")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-    KILLO_API_KEY = os.getenv("KILLO_API_KEY") or os.getenv("KILO_API_KEY")
-    KILLO_BASE_URL = os.getenv("KILLO_BASE_URL", "https://api.kilo.ai/api/gateway")
-    OPENCODE_MODEL = os.getenv("OPENCODE_MODEL", "opencode/minimax-m2.5-free")
-    QWEN_CLI_MODEL = os.getenv("QWEN_CLI_MODEL", "qwen3-235b-a22b")
-    GEMINI_CLI_MODEL = os.getenv("GEMINI_CLI_MODEL", "")
-    KILOCODE_MODEL = os.getenv("KILOCODE_MODEL", "qwen/qwen3-coder:free")
-    CLI_PROXY_TIMEOUT = int(os.getenv("CLI_PROXY_TIMEOUT", "120"))
+    OPENCODE_ZEN_API_KEY = os.getenv("OPENCODE_ZEN_API_KEY", "no-key-needed")
+    OPENCODE_ZEN_BASE_URL = os.getenv("OPENCODE_ZEN_BASE_URL", "https://opencode.ai/zen/v1")
+    OPENCODE_ZEN_MODEL = os.getenv("OPENCODE_ZEN_MODEL", "big-pickle")
     XAI_API_KEY = os.getenv("XAI_API_KEY")
     XAI_GRPC_HOST = os.getenv("XAI_GRPC_HOST", "api.x.ai:443")
     XAI_VISION_MODEL = os.getenv("XAI_VISION_MODEL", "grok-2-vision-latest")
@@ -96,7 +110,7 @@ class Config:
         "yes",
     }
     VOICE_STT_MODEL: str = os.getenv("VOICE_STT_MODEL", "tiny")  # tiny/base/small
-    VOICE_TTS_VOICE: str = os.getenv("VOICE_TTS_VOICE", "en-US-AriaNeural")
+    VOICE_TTS_VOICE: str = os.getenv("VOICE_TTS_VOICE", "")  # legacy BCP-47 name; deprecated in v33
     VOICE_WAKE_WORD_THRESHOLD: float = float(os.getenv("VOICE_WAKE_WORD_THRESHOLD", "0.5"))
     VOICE_MIC_DEVICE: int | None = (
         int(os.environ.get("VOICE_MIC_DEVICE", "0")) if os.environ.get("VOICE_MIC_DEVICE") else None
@@ -108,22 +122,65 @@ class Config:
     }
     # Per-user TTS voice customization: "user_id:voice_name,user_id2:voice_name2"
     VOICE_TTS_VOICES: str = os.getenv("VOICE_TTS_VOICES", "")
-    # Infrastructure
-    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-    DATABASE_URL = os.getenv("DATABASE_URL", "")
     # ---------------------------------------------------------
-    # MEMORY & KNOWLEDGE STORE (Unified Vector/Graph System)
+    # v33 voice stack — whisper.cpp STT + Piper-TTS personality
+    # ---------------------------------------------------------
+    # Whisper.cpp (replaces faster-whisper, v33)
+    WHISPER_CPP_MODEL: str = os.getenv(
+        "WHISPER_CPP_MODEL", "workspace/models/whisper/ggml-tiny.bin"
+    )
+    WHISPER_CPP_OFFLINE: bool = os.getenv("WHISPER_CPP_OFFLINE", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    WHISPER_CPP_LANGUAGE: str = os.getenv("WHISPER_CPP_LANGUAGE", "en")
+    WHISPER_CPP_THREADS: int = int(os.getenv("WHISPER_CPP_THREADS", "2"))
+    # Piper-TTS (replaces edge-tts, v33).  autherRaven is the
+    # default personality voice shipped on disk.
+    PIPER_VOICE_MODEL: str = os.getenv("PIPER_VOICE_MODEL", "app/voice/en_US-lessac-medium.onnx")
+    PIPER_VOICE_CONFIG: str = os.getenv(
+        "PIPER_VOICE_CONFIG", "app/voice/en_US-lessac-medium.onnx.json"
+    )
+    PIPER_VOICE_NAME: str = os.getenv("PIPER_VOICE_NAME", "autherRaven")
+    # Browser voice WS endpoint (v33) — server-side gate.
+    ENABLE_BROWSER_VOICE: bool = os.getenv("ENABLE_BROWSER_VOICE", "true").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    # ---------------------------------------------------------
+    # MODULAR EXTENSION PLATFORM
+    # ---------------------------------------------------------
+    # When set to a non-empty path, main.py boots the Module_Platform
+    # against the directory and auto-loads every module found there.
+    # Empty (default) leaves the platform dormant — the registry
+    # itself remains usable from tests and from explicit CLI calls
+    # (``raven modules ...``), but no module is hot-loaded at
+    # startup.  See ``docs/12-modular-platform-integration.md``.
+    MODULES_ROOT: str = os.getenv("RAVEN_MODULES_ROOT", "")
+    # Trust gating (Req 5.x): a module whose manifest declares
+    # ``trust_level: community`` is refused auto-load at startup;
+    # only ``workspace`` and ``system`` trust levels auto-load.
+    # Set to ``false`` to require explicit approval for every
+    # module (useful on multi-tenant / shared hosts).
+    MODULES_AUTO_LOAD_COMMUNITY: bool = os.getenv(
+        "RAVEN_MODULES_AUTO_LOAD_COMMUNITY", "false"
+    ).lower() in {"1", "true", "yes", "on"}
+    # Infrastructure
+    # ---------------------------------------------------------
+    # MEMORY & KNOWLEDGE STORE (HelixDB + SQLite only)
     # ---------------------------------------------------------
     MEMORY_ROOT: str = os.getenv("MEMORY_ROOT", "workspace/memory")
     VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", f"{MEMORY_ROOT}/vector")
-    GRAPH_DB_PATH: str = os.getenv("GRAPH_DB_PATH", f"{MEMORY_ROOT}/graph/saras.sqlite")
+    GRAPH_DB_PATH: str = os.getenv("GRAPH_DB_PATH", f"{MEMORY_ROOT}/graph/raven.sqlite")
     STATE_DB_PATH: str = os.getenv("STATE_DB_PATH", f"{MEMORY_ROOT}/state/ledger.sqlite")
-    # Memory backend selector: chroma (default) | pgvector | helix
-    # helix = HelixDB unified graph+vector engine (Phase B)
-    MEMORY_BACKEND: str = os.getenv("MEMORY_BACKEND", "chroma")
-    # Knowledge graph backend selector: neo4j (default) | helix
-    # helix = HelixDB unified graph+vector engine (Phase B)
-    KG_BACKEND: str = os.getenv("KG_BACKEND", "neo4j")
+    # Memory backend selector: helix (default)
+    MEMORY_BACKEND: str = os.getenv("MEMORY_BACKEND", "helix")
+    # Knowledge graph backend selector: helix (default)
+    KG_BACKEND: str = os.getenv("KG_BACKEND", "helix")
     # Embedding model used by every memory backend.
     MEMORY_EMBEDDING_MODEL: str = os.getenv("MEMORY_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
@@ -136,14 +193,14 @@ class Config:
     # Privacy & Trust (Phase E) — gate every tool call on the
     # per-user consent ledger and run log lines through the
     # privacy redactor.
-    PRIVACY_V2_ENABLED: bool = os.getenv("SARAS_PRIVACY_V2", "false").lower() in {
+    PRIVACY_V2_ENABLED: bool = os.getenv("RAVEN_PRIVACY_V2", "false").lower() in {
         "1",
         "true",
         "yes",
         "on",
     }
     # Mirror consent + retention writes to HelixDB for durability.
-    PRIVACY_HELIX_ENABLED: bool = os.getenv("SARAS_PRIVACY_HELIX", "true").lower() in {
+    PRIVACY_HELIX_ENABLED: bool = os.getenv("RAVEN_PRIVACY_HELIX", "true").lower() in {
         "1",
         "true",
         "yes",
@@ -155,7 +212,7 @@ class Config:
     # a sources footer (only if at least one citation was gathered
     # during the turn).  Off by default to preserve channel
     # compatibility (some downstream renderers strip brackets).
-    CITATIONS_IN_RESULTS: bool = os.getenv("SARAS_CITATIONS_IN_RESULTS", "false").lower() in {
+    CITATIONS_IN_RESULTS: bool = os.getenv("RAVEN_CITATIONS_IN_RESULTS", "false").lower() in {
         "1",
         "true",
         "yes",
@@ -164,7 +221,7 @@ class Config:
     # When true, the runtime also runs fact-checking on the final
     # response — claims without supporting evidence are flagged in
     # the audit log.  Pairs with CITATIONS_IN_RESULTS.
-    FACT_CHECK_IN_RESULTS: bool = os.getenv("SARAS_FACT_CHECK_IN_RESULTS", "false").lower() in {
+    FACT_CHECK_IN_RESULTS: bool = os.getenv("RAVEN_FACT_CHECK_IN_RESULTS", "false").lower() in {
         "1",
         "true",
         "yes",
@@ -172,7 +229,7 @@ class Config:
     }
     # When true, mutations executed by tools are auto-registered
     # with the RollbackManager so the user can undo them later.
-    AUTO_ROLLBACK: bool = os.getenv("SARAS_AUTO_ROLLBACK", "true").lower() in {
+    AUTO_ROLLBACK: bool = os.getenv("RAVEN_AUTO_ROLLBACK", "true").lower() in {
         "1",
         "true",
         "yes",
@@ -185,23 +242,53 @@ class Config:
     MQTT_BROKER_URL = os.getenv("MQTT_BROKER_URL", "")
     MQTT_USERNAME = os.getenv("MQTT_USERNAME", "")
     MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
-    MQTT_TOPICS: list[str] = os.getenv("MQTT_TOPICS", "saras/#").split(",")
+    MQTT_TOPICS: list[str] = os.getenv("MQTT_TOPICS", "raven/#").split(",")
     # WhatsApp (Baileys bridge)
     WHATSAPP_BRIDGE_URL = os.getenv("WHATSAPP_BRIDGE_URL", "")
+    WHATSAPP_WHAPI_TOKEN = os.getenv("WHATSAPP_WHAPI_TOKEN", "")
+    WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "")
+    # SIP / Phone (Twilio)
+    TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+    TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+    TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
+    # SIP / Phone (Plivo)
+    PLIVO_AUTH_ID = os.getenv("PLIVO_AUTH_ID", "")
+    PLIVO_AUTH_TOKEN = os.getenv("PLIVO_AUTH_TOKEN", "")
+    PLIVO_PHONE_NUMBER = os.getenv("PLIVO_PHONE_NUMBER", "")
+    # Direct SIP (self-hosted PBX / Asterisk)
+    SIP_URI = os.getenv("SIP_URI", "")
+    SIP_USER = os.getenv("SIP_USER", "")
+    SIP_PASSWORD = os.getenv("SIP_PASSWORD", "")
+    SIP_REALM = os.getenv("SIP_REALM", "")
+    # Call webhook URL (public URL for Twilio/Plivo to reach back)
+    CALL_WEBHOOK_URL = os.getenv("CALL_WEBHOOK_URL", "")
+    # Call recording
+    CALL_RECORDING_ENABLED: bool = os.getenv("CALL_RECORDING_ENABLED", "false").lower() in {
+        "1", "true", "yes", "y", "on",
+    }
     # Web dashboard
-    WEB_DASHBOARD_ENABLED: bool = os.getenv("WEB_DASHBOARD_ENABLED", "false").lower() in {
+    WEB_DASHBOARD_ENABLED: bool = os.getenv("WEB_DASHBOARD_ENABLED", "true").lower() in {
         "1",
         "true",
         "yes",
     }
     WEB_DASHBOARD_PORT: int = int(os.getenv("WEB_DASHBOARD_PORT", "8090"))
-    WEB_DASHBOARD_HOST: str = os.getenv("WEB_DASHBOARD_HOST", "0.0.0.0")
+    WEB_DASHBOARD_HOST: str = os.getenv("WEB_DASHBOARD_HOST", "127.0.0.1")
+    # Hermes-class dashboard (v31, 2026-06-21) — Jinja2 template
+    # and static-asset directories.  Defaults live under app/web/
+    # so a fresh checkout "just works" without env-var setup.
+    DASHBOARD_TEMPLATES_DIR: str = os.getenv("RAVEN_DASHBOARD_TEMPLATES_DIR", "app/web/templates")
+    DASHBOARD_STATIC_DIR: str = os.getenv("RAVEN_DASHBOARD_STATIC_DIR", "app/web/static")
+    # Hermes dashboard binds to 127.0.0.1 by default (single-user).
+    # Override with RAVEN_DASHBOARD_HOST=0.0.0.0 to expose on LAN.
+    DASHBOARD_HOST: str = os.getenv("RAVEN_DASHBOARD_HOST", "127.0.0.1")
+    DASHBOARD_PORT: int = int(os.getenv("RAVEN_DASHBOARD_PORT", "8765"))
     # Streamlit dashboard
     STREAMLIT_DASHBOARD_ENABLED: bool = os.getenv(
         "STREAMLIT_DASHBOARD_ENABLED", "false"
     ).lower() in {"1", "true", "yes"}
     STREAMLIT_DASHBOARD_PORT: int = int(os.getenv("STREAMLIT_DASHBOARD_PORT", "8501"))
-    STREAMLIT_DASHBOARD_HOST: str = os.getenv("STREAMLIT_DASHBOARD_HOST", "0.0.0.0")
+    STREAMLIT_DASHBOARD_HOST: str = os.getenv("STREAMLIT_DASHBOARD_HOST", "127.0.0.1")
     # Safety & Sandboxing
     ALLOW_HOST_SHELL_EXECUTION: bool = os.getenv("ALLOW_HOST_SHELL_EXECUTION", "false").lower() in {
         "1",

@@ -1,12 +1,38 @@
 # app/voice/transcribe.py
 """Async audio-to-text transcription.
 
+v33 refactor.  The previous engine was ``faster-whisper``
+(CTranslate2 Python wrapper).  v33 swaps it for
+``pywhispercpp`` (a Python binding to the C++ ``whisper.cpp``
+inference engine) so RAVEN can share the same loaded model
+across the on-device pipeline, the Telegram inbound handler,
+the Discord/Slack attachment path, and the new browser
+``WS /voice/{user_id}`` stream.
+
 Engine priority (lowest resource first that's available):
-  1. faster-whisper ``tiny`` model, CPU, int8 quantisation
-     — ~39 MB model, ~100 MB peak RAM, ~0.5× real-time on a single core.
-     — Auto-downloaded from Hugging Face on first use.
-  2. Vosk small English model (offline fallback)
-     — ~50 MB model, needs vosk-model-small-en-us-0.15/ directory.
+
+  1. **whisper.cpp** via ``pywhispercpp`` (CPU, ggml quantised
+     model, ~75 MB on disk for ``ggml-tiny.bin``).  Configurable
+     via :envvar:`WHISPER_CPP_MODEL`,
+     :envvar:`WHISPER_CPP_LANGUAGE`, :envvar:`WHISPER_CPP_THREADS`.
+     When :envvar:`WHISPER_CPP_OFFLINE=1` and the model file is
+     missing, the loader raises instead of silently falling
+     back so test envs fail fast.
+  2. **Vosk** small English model — fully offline, no network.
+     The model ships at
+     :file:`app/voice/vosk-model-small-en-us-0.15/`.
+
+Why the engine-loader API is ``_get_whisper_cpp_model()``
+(renamed from ``_get_whisper_model()``):
+the new loader is *not* drop-in compatible with the old
+``faster_whisper.WhisperModel``.  The C++ binding has a
+different constructor signature, supports ggml model files
+(not HuggingFace repo names), and exposes its own
+``Model.transcribe`` method that returns a *generator of
+segments* with a different attribute layout
+(``Segment.text`` vs ``Segment.text`` — the same, but
+``info.language_probability`` is read once at the start of
+``transcribe`` rather than returned alongside).
 
 Usage:
     text = await transcribe_audio("/path/to/audio.ogg")
@@ -23,134 +49,198 @@ import tempfile
 import threading
 import wave
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 _CURRENT = Path(__file__).parent
 _VOSK_MODEL_PATH = _CURRENT / "vosk-model-small-en-us-0.15"
 
-# ── faster-whisper model cache (loaded once, thread-safe) ─────────────────────
-_whisper_model = None
-_whisper_lock = threading.Lock()
+# ── whisper.cpp model cache (loaded once, thread-safe) ─────────────────
+_whisper_cpp_model: Any = None
+_whisper_cpp_lock = threading.Lock()
 
 
-def _get_whisper_model():
-    """Load (or return cached) faster-whisper model.
+def _get_whisper_cpp_model() -> Any:
+    """Load (or return cached) whisper.cpp model via pywhispercpp.
 
-    Uses the model size from Config.VOICE_STT_MODEL (default "tiny").
-    Returns None if faster-whisper is not installed.
+    Resolution order:
+    1. :envvar:`WHISPER_CPP_MODEL` — path to a ``ggml-*.bin`` file.
+    2. ``Config.VOICE_STT_MODEL`` (legacy env var) — used as a
+       HuggingFace repo name like ``tiny``; passed to pywhispercpp
+       which downloads it on first use.
+    3. ``tiny`` — the default.
+
+    Returns ``None`` if pywhispercpp is not installed.  Raises
+    :class:`FileNotFoundError` when :envvar:`WHISPER_CPP_OFFLINE=1`
+    and the model file is missing — this is the test-env
+    fast-fail behaviour.
     """
-    global _whisper_model
-    with _whisper_lock:
-        if _whisper_model is not None:
-            return _whisper_model
+    global _whisper_cpp_model
+    with _whisper_cpp_lock:
+        if _whisper_cpp_model is not None:
+            return _whisper_cpp_model
         try:
-            from faster_whisper import WhisperModel  # type: ignore
-
-            # Dynamically read model size from config without circular imports
-            try:
-                from app.settings.config import Config
-
-                model_size = getattr(Config, "VOICE_STT_MODEL", "tiny")
-            except Exception:
-                model_size = "tiny"
-
-            # int8 quantisation cuts RAM by ~4×; cpu_threads=2 caps CPU usage
-            _whisper_model = WhisperModel(
-                model_size,
-                device="cpu",
-                compute_type="int8",
-                cpu_threads=2,
-                num_workers=1,
-            )
-            logger.info(
-                "faster-whisper loaded: model=%s device=cpu compute=int8", model_size
-            )
-            return _whisper_model
+            from pywhispercpp.model import Model  # type: ignore
         except ImportError:
             logger.info(
-                "faster-whisper not installed — falling back to Vosk. "
-                "Install with: uv add faster-whisper"
+                "pywhispercpp not installed — falling back to Vosk. "
+                "Install with: uv add pywhispercpp"
             )
             return None
-        except Exception as exc:
+        try:
+            from app.settings.config import Config  # noqa: PLC0415
+
+            model_path = getattr(
+                Config, "WHISPER_CPP_MODEL", None
+            )
+            language = getattr(
+                Config, "WHISPER_CPP_LANGUAGE", "en"
+            )
+            threads = int(
+                getattr(Config, "WHISPER_CPP_THREADS", 2)
+            )
+        except Exception:  # noqa: BLE001
+            model_path = None
+            language = "en"
+            threads = 2
+
+        offline = os.getenv("WHISPER_CPP_OFFLINE", "").lower() in {
+            "1", "true", "yes", "on"
+        }
+        if model_path and not os.path.exists(model_path):
+            if offline:
+                raise FileNotFoundError(
+                    f"WHISPER_CPP_MODEL points at {model_path!r} "
+                    "but the file does not exist "
+                    "(WHISPER_CPP_OFFLINE=1)."
+                )
+            logger.debug(
+                "WHISPER_CPP_MODEL=%s missing; pywhispercpp "
+                "will download on first use", model_path,
+            )
+
+        try:
+            _whisper_cpp_model = Model(
+                model_path or "tiny",
+                language=language,
+                n_threads=threads,
+            )
+            logger.info(
+                "whisper.cpp loaded: model=%s language=%s threads=%d",
+                model_path or "tiny", language, threads,
+            )
+            return _whisper_cpp_model
+        except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "faster-whisper failed to load: %s — using Vosk fallback", exc
+                "whisper.cpp failed to load: %s — using Vosk "
+                "fallback", exc,
             )
             return None
 
 
-# ── Public async API ──────────────────────────────────────────────────────────
+def reset_whisper_cpp_for_tests() -> None:
+    """Drop the cached model.  Tests call this in teardown."""
+    global _whisper_cpp_model
+    with _whisper_cpp_lock:
+        _whisper_cpp_model = None
+
+
+# ── Public async API ─────────────────────────────────────────────────
 
 
 async def transcribe_audio(audio_path: str) -> str:
     """Convert any audio file to text.
 
-    Runs the blocking engine in a thread pool so the asyncio loop stays free.
-    Returns empty string on any failure — never raises.
+    Runs the blocking engine in a thread pool so the asyncio
+    loop stays free.  Returns empty string on any failure —
+    never raises.
     """
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _transcribe_sync, audio_path)
+    return await loop.run_in_executor(
+        None, _transcribe_sync, audio_path
+    )
 
 
-# ── Blocking implementations ──────────────────────────────────────────────────
+# ── Blocking implementations ──────────────────────────────────────────
 
 
 def _transcribe_sync(audio_path: str) -> str:
     """Pick the best available engine and transcribe *audio_path*."""
-    model = _get_whisper_model()
+    try:
+        model = _get_whisper_cpp_model()
+    except FileNotFoundError as exc:
+        # WHISPER_CPP_OFFLINE=1 + missing model — the loader raised.
+        # v33 risk-callout (d): this is a user-actionable config
+        # error, not a transient failure.  Log loud (WARNING)
+        # so the user notices; fall through to Vosk if it's
+        # available, otherwise return "" so the chat path
+        # doesn't crash.
+        logger.warning(
+            "whisper.cpp model missing and WHISPER_CPP_OFFLINE=1: %s "
+            "— falling back to Vosk (run "
+            "scripts/download-whisper-model.sh to fix)",
+            exc,
+        )
+        model = None
     if model is not None:
-        result = _transcribe_whisper(audio_path, model)
-        if result:
-            return result
-        # If whisper returned empty (e.g. silence), fall through to Vosk
-        return result  # "" is fine
+        result = _transcribe_whisper_cpp(audio_path, model)
+        # Whisper returns "" on silence / non-speech; that's
+        # a legitimate answer, not a fallback trigger.
+        return result
 
     return _transcribe_vosk(audio_path)
 
 
-def _transcribe_whisper(audio_path: str, model) -> str:
-    """Transcribe using faster-whisper.
+def _transcribe_whisper_cpp(audio_path: str, model: Any) -> str:
+    """Transcribe using the loaded whisper.cpp model.
 
-    beam_size=1 keeps CPU usage minimal while still being accurate.
-    vad_filter=True skips silent segments — saves both time and hallucinations.
+    ``pywhispercpp``'s ``Model.transcribe`` returns a
+    ``list[Segment]`` directly (it materialises the
+    generator in C++ land).  Each ``Segment`` exposes ``t0``,
+    ``t1``, and ``text``.  No VAD pre-filter — pywhispercpp
+    does not expose faster-whisper's ``vad_filter`` parameter
+    by default; silence is handled by the natural end-of-audio
+    token.
     """
     try:
-        segments, info = model.transcribe(
-            audio_path,
-            beam_size=1,  # greedy — lowest CPU, still good accuracy
-            vad_filter=True,  # skip silent chunks → avoid hallucinations
-            vad_parameters=dict(
-                min_silence_duration_ms=500,
-                speech_pad_ms=200,
-            ),
+        segments = model.transcribe(audio_path)
+        if not segments:
+            return ""
+        text = " ".join(
+            seg.text.strip() for seg in segments if seg.text
         )
-        text = " ".join(seg.text.strip() for seg in segments if seg.text.strip())
         if text:
             logger.debug(
-                "whisper transcribed lang=%s prob=%.2f len=%d",
-                info.language,
-                info.language_probability,
-                len(text),
+                "whisper.cpp transcribed len=%d from %s",
+                len(text), os.path.basename(audio_path),
             )
         return text.strip()
-    except Exception as exc:
-        logger.warning("faster-whisper transcription error: %s", exc)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "whisper.cpp transcription error for %s: %s",
+            audio_path, exc,
+        )
         return ""
 
 
 def _transcribe_vosk(audio_path: str) -> str:
     """Transcribe using Vosk (fully offline, no network required).
 
-    Converts the input to WAV mono 16 kHz 16-bit before feeding Vosk.
-    Requires the vosk-model-small-en-us-0.15/ directory next to this file.
+    Converts the input to WAV mono 16 kHz 16-bit before feeding
+    Vosk.  Requires the ``vosk-model-small-en-us-0.15/``
+    directory next to this file.
     """
     try:
         from pydub import AudioSegment  # type: ignore
         from vosk import KaldiRecognizer, Model  # type: ignore
 
         audio = AudioSegment.from_file(audio_path)
-        audio = audio.set_channels(1).set_frame_rate(16_000).set_sample_width(2)
+        audio = (
+            audio.set_channels(1)
+            .set_frame_rate(16_000)
+            .set_sample_width(2)
+        )
 
         fd, wav_path = tempfile.mkstemp(suffix=".wav")
         os.close(fd)
@@ -158,7 +248,9 @@ def _transcribe_vosk(audio_path: str) -> str:
             audio.export(wav_path, format="wav")
             vosk_model = Model(str(_VOSK_MODEL_PATH))
             with wave.open(wav_path, "rb") as wf:
-                rec = KaldiRecognizer(vosk_model, wf.getframerate())
+                rec = KaldiRecognizer(
+                    vosk_model, wf.getframerate()
+                )
                 results: list[str] = []
                 while True:
                     data = wf.readframes(4000)
@@ -173,6 +265,9 @@ def _transcribe_vosk(audio_path: str) -> str:
         finally:
             os.unlink(wav_path)
 
-    except Exception as exc:
-        logger.warning("vosk transcription error for %s: %s", audio_path, exc)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "vosk transcription error for %s: %s",
+            audio_path, exc,
+        )
         return ""

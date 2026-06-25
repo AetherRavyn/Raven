@@ -1,8 +1,8 @@
 # 03 - Module Manifest and Event Schema Specification
 
-**Project:** SARAS  
-**Document purpose:** Define the canonical specification for SARAS modules, manifests, capabilities, permissions, lifecycle, health, and event contracts.  
-**Scope:** This document is the foundation for building SARAS as a low-compute, modular, JARVIS / FRIDAY-class personal intelligence operating system.  
+**Project:** RAVEN  
+**Document purpose:** Define the canonical specification for RAVEN modules, manifests, capabilities, permissions, lifecycle, health, and event contracts.  
+**Scope:** This document is the foundation for building RAVEN as a low-compute, modular, JARVIS / FRIDAY-class personal intelligence operating system.  
 **Status:** Draft specification, intended to become the contract all future modules follow.  
 **Date:** 2026-03-29
 
@@ -10,7 +10,7 @@
 
 # 1. Why This Document Exists
 
-SARAS is evolving from a large application into a **modular intelligence platform**.
+RAVEN is evolving from a large application into a **modular intelligence platform**.
 
 That means every major subsystem must become a well-defined module:
 
@@ -24,7 +24,7 @@ That means every major subsystem must become a well-defined module:
 - UI surfaces
 - external perception systems like `agent_reach`
 
-Without a strict module manifest and event schema, SARAS will become harder to extend, harder to reason about, and harder to operate safely.
+Without a strict module manifest and event schema, RAVEN will become harder to extend, harder to reason about, and harder to operate safely.
 
 This document defines:
 
@@ -36,7 +36,7 @@ This document defines:
 6. lifecycle/state model
 7. health and status contracts
 8. validation rules
-9. examples for real SARAS module types
+9. examples for real RAVEN module types
 
 This document should be treated as the **contract layer** for all future architecture work.
 
@@ -82,7 +82,7 @@ Every module must expose enough metadata to support:
 - simulation replay
 
 ## 2.5 Product coherence
-Modules are technical units, but SARAS must still feel like one intelligence.
+Modules are technical units, but RAVEN must still feel like one intelligence.
 So manifests must support:
 - persona-linked modules
 - presence-linked modules
@@ -110,7 +110,7 @@ This spec introduces the following core objects:
 
 # 4. Module Definition
 
-A **module** is a runtime-loadable SARAS subsystem with:
+A **module** is a runtime-loadable RAVEN subsystem with:
 
 - a unique identity
 - a manifest
@@ -219,7 +219,7 @@ Example:
 - `1.0`
 
 #### `module_id`
-Globally unique identifier in SARAS namespace.
+Globally unique identifier in RAVEN namespace.
 
 Rules:
 - lowercase
@@ -503,7 +503,7 @@ Examples:
 
 # 12. Resource Profile Declaration
 
-This is essential for low-compute SARAS.
+This is essential for low-compute RAVEN.
 
 Every module must declare a resource profile.
 
@@ -601,7 +601,7 @@ Every module must declare dependencies explicitly.
 
 Dependencies may point to:
 
-- other SARAS modules
+- other RAVEN modules
 - Python packages
 - Node services
 - system binaries
@@ -814,7 +814,7 @@ Metrics are module-specific, but common fields may include:
 
 # 18. Event System Overview
 
-The SARAS event schema is the backbone of modular communication.
+The RAVEN event schema is the backbone of modular communication.
 
 Everything meaningful should be representable as an event.
 
@@ -987,7 +987,7 @@ Suggested fields:
 
 # 22. Event Type Taxonomy
 
-SARAS should standardize event types by domain.
+RAVEN should standardize event types by domain.
 
 ## 22.1 Message Events
 - `message.received`
@@ -1283,7 +1283,7 @@ version: "1.0.0"
 category: "connector"
 subcategory: "telegram"
 description: "Receives and sends Telegram messages, media, and replies."
-owner: "SARAS Core"
+owner: "RAVEN Core"
 stability: "beta"
 maturity: "development"
 enabled_by_default: true
@@ -1291,7 +1291,7 @@ enabled_by_default: true
 capabilities:
   - name: "receive_message"
     kind: "ingest"
-    description: "Receive Telegram updates and normalize them into SARAS events."
+    description: "Receive Telegram updates and normalize them into RAVEN events."
     inputs: ["telegram_update"]
     outputs: ["message.received"]
     cost_class: "small"
@@ -1774,7 +1774,7 @@ For policy-heavy modules:
 
 # 40. Validation Checklist for Every New Module
 
-Before a module is accepted into SARAS, verify:
+Before a module is accepted into RAVEN, verify:
 
 - [ ] `module_id` is unique
 - [ ] manifest validates against spec
@@ -1813,7 +1813,7 @@ Before a new event type is accepted:
 
 ---
 
-# 42. Implementation Guidance for SARAS
+# 42. Implementation Guidance for RAVEN
 
 This document is specification, but it also implies implementation priorities.
 
@@ -1860,9 +1860,9 @@ After this document, the next planning documents should be:
 
 # 44. Final Summary
 
-This specification makes SARAS buildable as a real modular platform.
+This specification makes RAVEN buildable as a real modular platform.
 
-With this manifest and event schema in place, SARAS can support:
+With this manifest and event schema in place, RAVEN can support:
 
 - low-compute routing
 - safer module loading
@@ -1878,10 +1878,10 @@ In short:
 
 > The module manifest defines **what a module is**.  
 > The event schema defines **how modules talk**.  
-> Together, they define **how SARAS becomes a real operating intelligence system**.
+> Together, they define **how RAVEN becomes a real operating intelligence system**.
 
 ---
 
 # 45. One-Sentence Doctrine
 
-**Every SARAS capability must declare what it is, what it needs, what it costs, what it can emit, what it can consume, and how safely it can operate.**
+**Every RAVEN capability must declare what it is, what it needs, what it costs, what it can emit, what it can consume, and how safely it can operate.**

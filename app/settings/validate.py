@@ -49,9 +49,32 @@ def validate_config() -> list[PlatformStatus]:
         level = "ready" if key else "missing (optional)"
         statuses.append(PlatformStatus(name=name, enabled=bool(key), reason=level))
 
+    # v33 voice stack — whisper.cpp + Piper-TTS autherRaven
+    import os as _os
+    piper_model = getattr(Config, "PIPER_VOICE_MODEL", "")
+    whisper_model = getattr(Config, "WHISPER_CPP_MODEL", "")
+    statuses.append(PlatformStatus(
+        name="Piper-TTS",
+        enabled=bool(piper_model and _os.path.exists(piper_model)),
+        reason=(
+            f"ready (voice={getattr(Config, 'PIPER_VOICE_NAME', 'autherRaven')})"
+            if piper_model and _os.path.exists(piper_model)
+            else f"missing model: {piper_model!r}"
+        ),
+    ))
+    statuses.append(PlatformStatus(
+        name="whisper.cpp",
+        enabled=bool(whisper_model and _os.path.exists(whisper_model)),
+        reason=(
+            f"ready (lang={getattr(Config, 'WHISPER_CPP_LANGUAGE', 'en')})"
+            if whisper_model and _os.path.exists(whisper_model)
+            else f"missing model: {whisper_model!r}"
+        ),
+    ))
+
     # Print table
     logger.info("=" * 52)
-    logger.info("SARAS Startup Configuration")
+    logger.info("RAVEN Startup Configuration")
     logger.info("=" * 52)
     for s in statuses:
         icon = "[OK]" if s.enabled else "[--]"

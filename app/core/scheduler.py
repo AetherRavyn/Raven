@@ -1,5 +1,5 @@
 # app/core/scheduler.py
-"""SARAS task scheduler — wraps APScheduler with SQLite persistence.
+"""RAVEN task scheduler — wraps APScheduler with SQLite persistence.
 
 Usage:
     scheduler = get_scheduler()
@@ -24,10 +24,10 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 
 logger = logging.getLogger(__name__)
 
-_INSTANCE: SarasScheduler | None = None
+_INSTANCE: RavenScheduler | None = None
 
 
-class SarasScheduler:
+class RavenScheduler:
     def __init__(self, db_url: str = "sqlite:///workspace/scheduler.db") -> None:
         jobstores = {"default": SQLAlchemyJobStore(url=db_url)}
         self._scheduler = AsyncIOScheduler(jobstores=jobstores)
@@ -39,7 +39,7 @@ class SarasScheduler:
     async def start(self) -> None:
         self._scheduler.start()
         logger.info(
-            "SarasScheduler started. Pending jobs: %d", len(self._scheduler.get_jobs())
+            "RavenScheduler started. Pending jobs: %d", len(self._scheduler.get_jobs())
         )
 
     async def shutdown(self) -> None:
@@ -65,7 +65,7 @@ class SarasScheduler:
                 await self._botsignal.send(target, payload)
             else:
                 logger.warning(
-                    "SarasScheduler: botsignal not set, cannot send reminder"
+                    "RavenScheduler: botsignal not set, cannot send reminder"
                 )
 
         if repeat_cron:
@@ -109,8 +109,8 @@ class SarasScheduler:
         return [{"id": j.id, "next_run": str(j.next_run_time)} for j in jobs]
 
 
-def get_scheduler() -> SarasScheduler:
+def get_scheduler() -> RavenScheduler:
     global _INSTANCE
     if _INSTANCE is None:
-        _INSTANCE = SarasScheduler()
+        _INSTANCE = RavenScheduler()
     return _INSTANCE

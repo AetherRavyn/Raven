@@ -26,13 +26,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class BudgetConfig:
-    """Budget knobs.  All limits are USD; ``None`` means unlimited."""
+    """Budget knobs.  Sensible defaults to prevent cost explosion."""
 
-    per_request_usd: float | None = None
-    per_plan_usd: float | None = None
-    per_user_per_day_usd: float | None = None
-    # Soft warning threshold in % of the daily cap.  The router logs a
-    # warning but does not block when this is hit.
+    per_request_usd: float | None = 0.50  # Max $0.50 per single LLM call
+    per_plan_usd: float | None = 5.00  # Max $5.00 per plan execution
+    per_user_per_day_usd: float | None = 10.00  # Max $10.00 per user per day
     daily_warn_pct: float = 0.8
 
 

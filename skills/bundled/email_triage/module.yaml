@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.email_triage
+display_name: Email Triage
+version: "1.0.0"
+category: skill
+description: "Scan inbox, prioritize emails, draft replies, and flag urgent items."
+tags: [email, inbox, triage, priority, draft, reply]
+capabilities: [mail_tool, memory_tool]
+trust_level: system
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.87
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "check.*email|triage.*inbox|urgent.*emails|draft.*reply"
+    confidence: 0.85

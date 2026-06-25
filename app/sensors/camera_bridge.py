@@ -1,5 +1,5 @@
 # app/sensors/camera_bridge.py
-"""Bridge between monitoring/ anomaly detection and SARAS BotSignal.
+"""Bridge between monitoring/ anomaly detection and RAVEN BotSignal.
 
 The monitoring/ system runs as a separate process. This module provides
 a simple HTTP webhook receiver that monitoring/ POSTs alerts to.

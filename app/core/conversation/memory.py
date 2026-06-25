@@ -7,7 +7,7 @@ keeps in addition to the raw event log.  It has four parts:
     by :mod:`app.core.conversation.compression`)
   * ``recent_turns`` — the last N turns, verbatim
   * ``facts`` — small structured key/value pairs extracted
-    from the conversation ("project=saras", "user=alice",
+    from the conversation ("project=raven", "user=alice",
     "deadline=2026-01-15", ...)
   * ``entities`` — named entities the user has mentioned
   * ``current_topic`` — what we're talking about right now

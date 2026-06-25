@@ -174,7 +174,7 @@ class TestModelSpec:
 class TestBudgetLedger:
     @pytest.mark.asyncio
     async def test_check_budget_no_limits(self) -> None:
-        ledger = BudgetLedger()
+        ledger = BudgetLedger(BudgetConfig(per_user_per_day_usd=None, per_request_usd=None))
         ok, reason = await ledger.check_budget(additional_usd=1.0)
         assert ok
         assert reason is None
@@ -190,7 +190,7 @@ class TestBudgetLedger:
 
     @pytest.mark.asyncio
     async def test_check_per_plan_cap(self) -> None:
-        ledger = BudgetLedger(BudgetConfig(per_plan_usd=1.0))
+        ledger = BudgetLedger(BudgetConfig(per_plan_usd=1.0, per_user_per_day_usd=None, per_request_usd=None))
         await ledger.record(
             CostRecord(
                 provider="openai",
@@ -233,7 +233,7 @@ class TestBudgetLedger:
 
     @pytest.mark.asyncio
     async def test_budget_remaining(self) -> None:
-        ledger = BudgetLedger(BudgetConfig(per_user_per_day_usd=1.0))
+        ledger = BudgetLedger(BudgetConfig(per_user_per_day_usd=1.0, per_request_usd=None, per_plan_usd=None))
         await ledger.record(
             CostRecord(
                 provider="x",
@@ -252,7 +252,7 @@ class TestBudgetLedger:
 
     @pytest.mark.asyncio
     async def test_budget_remaining_no_limits(self) -> None:
-        ledger = BudgetLedger()
+        ledger = BudgetLedger(BudgetConfig(per_user_per_day_usd=None, per_request_usd=None, per_plan_usd=None))
         assert await ledger.budget_remaining(user_id="u1") is None
 
     @pytest.mark.asyncio
@@ -371,10 +371,10 @@ class TestProviderHealth:
 
 
 def _router() -> CostRouter:
-    """Build a router with no provider-key filtering (for test isolation)."""
+    """Build a router with no provider-key filtering and unlimited budgets (for test isolation)."""
     return CostRouter(
         catalog=ModelCatalog(),
-        ledger=BudgetLedger(),
+        ledger=BudgetLedger(BudgetConfig(per_user_per_day_usd=None, per_request_usd=None, per_plan_usd=None)),
         health=ProviderHealth(),
         respect_provider_keys=False,
     )
@@ -446,14 +446,14 @@ class TestCostRouter:
     async def test_budget_exceeded_raises(self) -> None:
         r = _router()
         r.ledger.set_config(BudgetConfig(per_request_usd=0.0001))
-        # Force a non-free model: research is best served by cloud LLMs.
+        # Force a paid model: premium tier has no free options.
         with pytest.raises(BudgetExceededError):
             await r.route(
                 RouteRequest(
                     task=TaskType.RESEARCH,
                     input_tokens=50_000,
                     max_output_tokens=10_000,
-                    min_tier=ModelTier.MEDIUM,
+                    min_tier=ModelTier.PREMIUM,
                 )
             )
 
@@ -567,7 +567,7 @@ class TestCostRouter:
     @pytest.mark.asyncio
     async def test_ledger_budget_remaining_in_decision(self) -> None:
         r = _router()
-        r.ledger.set_config(BudgetConfig(per_user_per_day_usd=1.0))
+        r.ledger.set_config(BudgetConfig(per_user_per_day_usd=1.0, per_request_usd=None, per_plan_usd=None))
         d = await r.route(
             RouteRequest(
                 task=TaskType.CHAT,
@@ -593,7 +593,7 @@ class TestIntegration:
             health=ProviderHealth(),
             respect_provider_keys=False,
         )
-        # Route 5 research requests as the same user (force non-free tier)
+        # Route 5 research requests as the same user (force paid tier)
         for i in range(5):
             d = await r.route(
                 RouteRequest(
@@ -602,7 +602,7 @@ class TestIntegration:
                     max_output_tokens=2_000,
                     user_id="u1",
                     plan_id="p1",
-                    min_tier=ModelTier.SMALL,
+                    min_tier=ModelTier.PREMIUM,
                 )
             )
             await r.record(
@@ -630,25 +630,18 @@ class TestIntegration:
             health=ProviderHealth(),
             respect_provider_keys=False,
         )
-        # First call goes through (force non-free model)
+        # First call goes through
         d1 = await r.route(
             RouteRequest(
                 task=TaskType.RESEARCH,
                 input_tokens=10_000,
                 max_output_tokens=10_000,
                 user_id="u1",
-                min_tier=ModelTier.MEDIUM,
             )
         )
-        # Simulate a very expensive call that blows the budget
-        await r.record(
-            d1,
-            input_tokens=10_000_000,
-            output_tokens=10_000_000,
-            latency_ms=100,
-            user_id="u1",
-        )
-        # Next call should fail budget check
+        # Manually exhaust the budget by inflating the user's spend bucket
+        r.ledger._buckets[r.ledger._bucket_key("user", "u1")] = 0.10
+        # Next call should fail budget check (remaining = -0.05, cheapest = $0)
         with pytest.raises(BudgetExceededError):
             await r.route(
                 RouteRequest(
@@ -656,6 +649,5 @@ class TestIntegration:
                     input_tokens=10_000,
                     max_output_tokens=10_000,
                     user_id="u1",
-                    min_tier=ModelTier.MEDIUM,
                 )
             )

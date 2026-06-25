@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Production-grade Frigate Anomaly Handler for Raspberry Pi 5
-Integrates with existing SARAS infrastructure:
-- Uses src/db (PostgreSQL + Neo4j managers)
+Integrates with existing RAVEN infrastructure:
+- Uses src/db (SQLite managers)
 - Uses src/anomaly (AnomalyDetector, AnomalyEvent)
 - Uses src/storage (ClipStorage)
 - Provides MQTT listener + Flask web dashboard
@@ -28,7 +28,7 @@ from werkzeug.serving import make_server
 # Set up path for imports
 sys.path.insert(0, os.path.dirname(__file__))
 
-# Import existing SARAS infrastructure
+# Import existing RAVEN infrastructure
 from config.settings import CONFIG
 from src.anomaly import AnomalyDetector, AnomalyEvent
 from src.db.initdb import initDB
@@ -87,7 +87,7 @@ class AnomalyHandlerService:
         self.config = config
         self.running = False
 
-        # Initialize database (PostgreSQL + Neo4j)
+        # Initialize database (SQLite + graph)
         self.db = initDB()
 
         # Initialize anomaly detector (uses existing src/anomaly.py)

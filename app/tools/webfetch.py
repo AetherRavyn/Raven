@@ -60,11 +60,10 @@ class WebFetchOperationTool(BaseTool):
         self.model = None
         self._client = None
         self._model_name = "gemini-2.5-flash"
+        self._sdk_mode = None
         if model is not None:
             self.model = model
-        else:
-            if not api_key:
-                raise ValueError("GEMINI_API_KEY is not configured for AI synthesis.")
+        elif api_key:
             try:
                 from google import genai  # type: ignore
 
@@ -78,10 +77,13 @@ class WebFetchOperationTool(BaseTool):
                     genai.configure(api_key=api_key)
                     self.model = genai.GenerativeModel("gemini-1.5-flash")
                     self._sdk_mode = "legacy"
-                except ImportError as e:
-                    raise ImportError(
-                        "Install `google-genai` (preferred) or `google-generativeai` for AI synthesis."
-                    ) from e
+                except ImportError:
+                    if api_key:
+                        raise ImportError(
+                            "Install `google-genai` (preferred) or `google-generativeai` for AI synthesis."
+                        ) from None
+                    # No API key and no SDK — AI synthesis will be skipped
+                    self._sdk_mode = None
 
         # Configurable limits (exactly as you wrote)
         self.MAX_CHARS: int = int(cfg.get("max_chars", 50_000))

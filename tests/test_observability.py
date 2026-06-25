@@ -60,7 +60,7 @@ class TestTracingConfig:
         from app.observability.tracing import TracingConfig
 
         cfg = TracingConfig()
-        assert cfg.service_name == "saras"
+        assert cfg.service_name == "raven"
         assert cfg.service_version == "0.1.0"
         assert cfg.deployment_env == "dev"
         assert cfg.otlp_endpoint == ""
@@ -69,18 +69,18 @@ class TestTracingConfig:
         assert cfg.in_memory is False
 
     def test_from_env_overrides(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("SARAS_OTEL_SERVICE_NAME", "saras-prod")
-        monkeypatch.setenv("SARAS_OTEL_VERSION", "9.9.9")
-        monkeypatch.setenv("SARAS_OTEL_ENV", "prod")
-        monkeypatch.setenv("SARAS_OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel:4318")
-        monkeypatch.setenv("SARAS_OTEL_SAMPLE_RATIO", "0.25")
-        monkeypatch.setenv("SARAS_OTEL_INSTRUMENT_HTTPX", "false")
-        monkeypatch.setenv("SARAS_OTEL_IN_MEMORY", "true")
+        monkeypatch.setenv("RAVEN_OTEL_SERVICE_NAME", "raven-prod")
+        monkeypatch.setenv("RAVEN_OTEL_VERSION", "9.9.9")
+        monkeypatch.setenv("RAVEN_OTEL_ENV", "prod")
+        monkeypatch.setenv("RAVEN_OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel:4318")
+        monkeypatch.setenv("RAVEN_OTEL_SAMPLE_RATIO", "0.25")
+        monkeypatch.setenv("RAVEN_OTEL_INSTRUMENT_HTTPX", "false")
+        monkeypatch.setenv("RAVEN_OTEL_IN_MEMORY", "true")
 
         from app.observability.tracing import TracingConfig
 
         cfg = TracingConfig.from_env()
-        assert cfg.service_name == "saras-prod"
+        assert cfg.service_name == "raven-prod"
         assert cfg.service_version == "9.9.9"
         assert cfg.deployment_env == "prod"
         assert cfg.otlp_endpoint == "http://otel:4318"
@@ -90,25 +90,25 @@ class TestTracingConfig:
 
     def test_from_env_uses_defaults_on_missing(self) -> None:
         for v in (
-            "SARAS_OTEL_SERVICE_NAME",
-            "SARAS_OTEL_VERSION",
-            "SARAS_OTEL_ENV",
-            "SARAS_OTEL_EXPORTER_OTLP_ENDPOINT",
-            "SARAS_OTEL_SAMPLE_RATIO",
-            "SARAS_OTEL_INSTRUMENT_HTTPX",
-            "SARAS_OTEL_IN_MEMORY",
+            "RAVEN_OTEL_SERVICE_NAME",
+            "RAVEN_OTEL_VERSION",
+            "RAVEN_OTEL_ENV",
+            "RAVEN_OTEL_EXPORTER_OTLP_ENDPOINT",
+            "RAVEN_OTEL_SAMPLE_RATIO",
+            "RAVEN_OTEL_INSTRUMENT_HTTPX",
+            "RAVEN_OTEL_IN_MEMORY",
         ):
             os.environ.pop(v, None)
 
         from app.observability.tracing import TracingConfig
 
         cfg = TracingConfig.from_env()
-        assert cfg.service_name == "saras"
+        assert cfg.service_name == "raven"
         assert cfg.sample_ratio == 1.0
         assert cfg.instrument_httpx is True
 
     def test_from_env_invalid_float_falls_back(self, monkeypatch) -> None:
-        monkeypatch.setenv("SARAS_OTEL_SAMPLE_RATIO", "not-a-float")
+        monkeypatch.setenv("RAVEN_OTEL_SAMPLE_RATIO", "not-a-float")
 
         from app.observability.tracing import TracingConfig
 

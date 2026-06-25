@@ -1,0 +1,384 @@
+---
+import SiteShell from '../layouts/SiteShell.astro';
+
+const navLinks = [
+  { label: 'Capabilities', href: '#capabilities' },
+  { label: 'Architecture', href: '#architecture' },
+  { label: 'Interface', href: '#interface' },
+  { label: 'Status', href: '#status' },
+];
+---
+
+<SiteShell title="RAVEN — Personal Intelligence System">
+  <main>
+    <section class="hero" aria-label="RAVEN Hero">
+      <div class="scan-grid" aria-hidden="true"></div>
+      <div class="vignette" aria-hidden="true"></div>
+
+      <header class="fixed-nav" role="navigation">
+        <div class="nav-left">
+          <svg class="nav-logo" width="28" height="28" viewBox="0 0 512 512" aria-hidden="true">
+            <path
+              d="M 64 420 L 64 92 L 192 92 Q 300 92 300 188 Q 300 258 220 278 L 320 420 L 260 420 L 190 300 Q 160 285 150 260 Q 138 232 155 208 Q 178 175 232 175 L 232 138 Q 150 140 150 220 L 150 420 Z"
+              fill="none"
+              stroke="var(--red-bright)"
+              stroke-width="18"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              opacity="0.95"
+            />
+          </svg>
+          <span class="nav-brand">RAVEN</span>
+        </div>
+
+        <nav class="nav-center" aria-label="Primary">
+          {navLinks.map((l) => (
+            <a class="nav-link" href={l.href}>{l.label}</a>
+          ))}
+        </nav>
+
+        <div class="nav-right">
+          <a class="cta-angled" href="#status">Initialize</a>
+        </div>
+      </header>
+
+      <div class="hero-inner">
+        <div class="hero-visual">
+          <div class="raven-wrap" aria-hidden="true">
+            <svg class="raven" width="340" height="340" viewBox="0 0 340 340">
+              <defs>
+                <radialGradient id="eye" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#ff2d2d" />
+                  <stop offset="100%" stop-color="#7b1212" />
+                </radialGradient>
+                <linearGradient id="bodyLine" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#e74c3c" stop-opacity="0.9" />
+                  <stop offset="100%" stop-color="#c0392b" stop-opacity="0.2" />
+                </linearGradient>
+              </defs>
+
+              <g class="raven-float">
+                <g class="wingLeft">
+                  <path
+                    d="M88 190 C60 132 55 78 112 60 C140 52 170 74 190 110 C155 118 132 134 120 152 C108 170 100 184 88 190 Z"
+                    fill="#050000"
+                    stroke="var(--red-glow)"
+                    stroke-opacity="0.45"
+                    stroke-width="2"
+                  />
+                  <path d="M120 152 C110 130 114 104 132 86" fill="none" stroke="#e74c3c" stroke-opacity="0.5" stroke-width="2" />
+                  <path d="M135 160 C124 134 130 110 150 96" fill="none" stroke="#c0392b" stroke-opacity="0.45" stroke-width="2" />
+                  <path d="M150 168 C140 145 148 118 170 104" fill="none" stroke="#e74c3c" stroke-opacity="0.35" stroke-width="2" />
+                </g>
+
+                <g class="wingRight">
+                  <path
+                    d="M252 190 C280 132 285 78 228 60 C200 52 170 74 150 110 C185 118 208 134 220 152 C232 170 240 184 252 190 Z"
+                    fill="#050000"
+                    stroke="var(--red-glow)"
+                    stroke-opacity="0.45"
+                    stroke-width="2"
+                  />
+                  <path d="M220 152 C230 130 226 104 208 86" fill="none" stroke="#e74c3c" stroke-opacity="0.5" stroke-width="2" />
+                  <path d="M205 160 C216 134 210 110 190 96" fill="none" stroke="#c0392b" stroke-opacity="0.45" stroke-width="2" />
+                  <path d="M190 168 C200 145 192 118 170 104" fill="none" stroke="#e74c3c" stroke-opacity="0.35" stroke-width="2" />
+                </g>
+
+                <ellipse cx="170" cy="196" rx="72" ry="86" fill="#070000" stroke="#e74c3c" stroke-opacity="0.35" stroke-width="2" />
+
+                <path d="M126 224 C150 235 190 235 214 224" fill="none" stroke="url(#bodyLine)" stroke-width="3" stroke-opacity="0.45" />
+
+                <path
+                  d="M200 120 C214 138 212 162 190 174 C168 186 140 178 132 156 C124 132 140 112 164 108 C176 106 188 110 200 120 Z"
+                  fill="#050000"
+                  stroke="#e74c3c"
+                  stroke-opacity="0.35"
+                  stroke-width="2"
+                />
+
+                <g class="eyePulse">
+                  <circle cx="188" cy="140" r="5" fill="url(#eye)" opacity="1" />
+                </g>
+
+                <path d="M176 142 C170 148 166 156 162 164" fill="none" stroke="#e74c3c" stroke-opacity="0.35" stroke-width="2" />
+                <path d="M188 170 L 205 160 L 200 178" fill="#0a0000" stroke="#e74c3c" stroke-opacity="0.55" stroke-width="2" />
+
+                <g class="crest">
+                  <path d="M170 96 C166 86 152 78 140 72" fill="none" stroke="#e74c3c" stroke-width="2" stroke-opacity="0.6" />
+                  <path d="M182 96 C180 84 190 74 205 68" fill="none" stroke="#e74c3c" stroke-width="2" stroke-opacity="0.55" />
+                  <path d="M176 100 C174 86 176 78 184 68" fill="none" stroke="#e74c3c" stroke-width="2" stroke-opacity="0.5" />
+                </g>
+
+                <g class="tail">
+                  <path d="M120 290 C140 265 200 265 220 290 C204 300 180 310 170 318 C160 310 136 300 120 290 Z" fill="#050000" stroke="#e74c3c" stroke-opacity="0.35" stroke-width="2" />
+                  <path d="M140 287 C150 275 160 275 170 287" fill="none" stroke="#e74c3c" stroke-opacity="0.45" stroke-width="2" />
+                  <path d="M160 290 C165 278 175 278 182 290" fill="none" stroke="#c0392b" stroke-opacity="0.45" stroke-width="2" />
+                  <path d="M180 292 C185 280 196 280 200 292" fill="none" stroke="#e74c3c" stroke-opacity="0.35" stroke-width="2" />
+                </g>
+
+                <g class="circuit">
+                  <path d="M144 205 L 186 205" stroke="#e74c3c" stroke-opacity="0.35" stroke-width="2" fill="none" />
+                  <path d="M186 205 L 210 220" stroke="#c0392b" stroke-opacity="0.35" stroke-width="2" fill="none" />
+                  <path d="M144 205 L 124 220" stroke="#e74c3c" stroke-opacity="0.25" stroke-width="2" fill="none" />
+                  <circle cx="144" cy="205" r="3" fill="#ff2d2d" opacity="0.6" />
+                  <circle cx="186" cy="205" r="3" fill="#e74c3c" opacity="0.45" />
+                  <circle cx="210" cy="220" r="3" fill="#c0392b" opacity="0.35" />
+                </g>
+              </g>
+            </svg>
+          </div>
+
+          <div class="particles" aria-hidden="true"></div>
+        </div>
+
+        <div class="hero-copy">
+          <div class="eyebrow" data-animate>Personal Intelligence System — v2.0</div>
+
+          <h1 class="title" data-animate>
+            <span class="title-r">R</span>AVEN
+          </h1>
+
+          <p class="subtitle" data-animate>
+            Your autonomous intelligence — always watching, always thinking. Darker than Friday.
+            Sharper than the void.
+          </p>
+
+          <div class="typewrap" data-animate>
+            <span id="typewriter" class="typewriter" aria-live="polite"></span>
+            <span id="cursor" class="cursor" aria-hidden="true"></span>
+          </div>
+
+          <div class="hero-ctas" data-animate>
+            <a class="cta-primary" href="#capabilities">Activate Raven</a>
+            <a class="cta-secondary" href="#architecture">View Architecture</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="scroll-indicator" aria-hidden="true">
+        <span class="scroll-label">DESCEND</span>
+        <span class="scroll-line"></span>
+      </div>
+    </section>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <svg class="divider-star" width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          fill="#e74c3c"
+          fill-opacity="0.6"
+          d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7z"
+        />
+      </svg>
+    </div>
+
+    <section id="capabilities" class="capabilities">
+      <div class="section-head" data-animate>
+        <div class="section-label">Neural Capabilities</div>
+        <div class="section-title">What RAVEN Commands</div>
+      </div>
+
+      <div class="cards-real">
+        <article class="cap-card" data-animate>
+          <div class="cap-number">01</div>
+          <h3>Predictive Awareness</h3>
+          <p>Anticipating needs before asked — RAVEN reads the shape of your day before it arrives.</p>
+          <svg class="cap-svg" width="54" height="40" viewBox="0 0 54 40" aria-hidden="true">
+            <path d="M5 26 C 13 14, 19 14, 27 26 S 41 38, 49 26" fill="none" stroke="#e74c3c" stroke-opacity="0.65" stroke-width="3" />
+            <path d="M5 14 C 13 2, 19 2, 27 14 S 41 26, 49 14" fill="none" stroke="#c0392b" stroke-opacity="0.45" stroke-width="2" />
+          </svg>
+        </article>
+        <article class="cap-card" data-animate>
+          <div class="cap-number">02</div>
+          <h3>System Integration</h3>
+          <p>Orchestrating calendar, files, and APIs into one continuous intelligence loop.</p>
+          <svg class="cap-svg" width="54" height="40" viewBox="0 0 54 40" aria-hidden="true">
+            <circle cx="12" cy="10" r="4" fill="#e74c3c" fill-opacity="0.65" />
+            <circle cx="42" cy="10" r="4" fill="#c0392b" fill-opacity="0.5" />
+            <circle cx="27" cy="28" r="4" fill="#e74c3c" fill-opacity="0.55" />
+            <path d="M12 14 L 27 24 L 42 14" fill="none" stroke="#e74c3c" stroke-opacity="0.45" stroke-width="2" />
+            <path d="M27 28 L 27 36" fill="none" stroke="#c0392b" stroke-opacity="0.45" stroke-width="2" />
+          </svg>
+        </article>
+        <article class="cap-card" data-animate>
+          <div class="cap-number">03</div>
+          <h3>Deep Analysis</h3>
+          <p>Revealing hidden patterns across data streams that a human eye would never catch.</p>
+          <svg class="cap-svg" width="54" height="40" viewBox="0 0 54 40" aria-hidden="true">
+            <path d="M10 30 C 20 10, 34 10, 44 30" fill="none" stroke="#e74c3c" stroke-opacity="0.6" stroke-width="3" />
+            <path d="M15 26 C 22 16, 32 16, 39 26" fill="none" stroke="#c0392b" stroke-opacity="0.45" stroke-width="2" />
+            <path d="M27 22 L 27 36" stroke="#e74c3c" stroke-opacity="0.35" stroke-width="2" />
+          </svg>
+        </article>
+        <article class="cap-card" data-animate>
+          <div class="cap-number">04</div>
+          <h3>Ambient Monitoring</h3>
+          <p>Silent perimeter watching — sensors and signals feed a constant awareness of your world.</p>
+          <svg class="cap-svg" width="54" height="40" viewBox="0 0 54 40" aria-hidden="true">
+            <circle cx="27" cy="20" r="14" fill="none" stroke="#e74c3c" stroke-opacity="0.45" stroke-width="2" />
+            <path d="M27 6 L 27 34" stroke="#e74c3c" stroke-opacity="0.55" stroke-width="2" />
+            <path d="M13 20 L 41 20" stroke="#c0392b" stroke-opacity="0.55" stroke-width="2" />
+          </svg>
+        </article>
+        <article class="cap-card" data-animate>
+          <div class="cap-number">05</div>
+          <h3>Voice Command</h3>
+          <p>Natural language execution — speak intent, RAVEN resolves it into action.</p>
+          <svg class="cap-svg" width="54" height="40" viewBox="0 0 54 40" aria-hidden="true">
+            <polygon points="27,4 46,16 46,28 27,36 8,28 8,16" fill="none" stroke="#e74c3c" stroke-opacity="0.55" stroke-width="2" />
+            <path d="M20 18 C 20 14 34 14 34 18" fill="none" stroke="#c0392b" stroke-opacity="0.45" stroke-width="2" />
+            <path d="M27 18 L 27 28" stroke="#e74c3c" stroke-opacity="0.35" stroke-width="2" />
+          </svg>
+        </article>
+        <article class="cap-card" data-animate>
+          <div class="cap-number">06</div>
+          <h3>Task Execution</h3>
+          <p>Autonomous task chains that plan, act, verify, and report back — without hand-holding.</p>
+          <svg class="cap-svg" width="54" height="40" viewBox="0 0 54 40" aria-hidden="true">
+            <rect x="14" y="10" width="26" height="20" rx="3" fill="none" stroke="#e74c3c" stroke-opacity="0.55" stroke-width="2" />
+            <path d="M22 22 L 27 27 L 36 16" fill="none" stroke="#e74c3c" stroke-opacity="0.65" stroke-width="3" />
+            <circle cx="42" cy="10" r="6" fill="#e74c3c" fill-opacity="0.55" />
+            <path d="M40 9 L 44 9" stroke="#040000" stroke-opacity="0.8" stroke-width="2" />
+          </svg>
+        </article>
+      </div>
+    </section>
+
+    <section id="architecture" class="status-panel" data-animate>
+      <div class="panel-inner">
+        <div class="terminal" id="interface">
+          <div class="terminal-title">
+            <span class="terminal-title-text">raven — neural.core</span>
+            <span class="dots" aria-hidden="true">
+              <span class="dot dot-bright"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            </span>
+          </div>
+          <div class="terminal-body" aria-label="Boot log">
+            <div class="log-line"><span class="prompt">◈</span> boot sequence initializing… <span class="dim">core online</span></div>
+            <div class="log-line"><span class="prompt">◈</span> memory helix mounted <span class="ok">[OK]</span></div>
+            <div class="log-line"><span class="prompt">◈</span> perception lattice armed <span class="ok">[OK]</span></div>
+            <div class="log-line"><span class="prompt">◈</span> autonomy engine engaged <span class="ok">[OK]</span></div>
+            <div class="log-line"><span class="prompt">◈</span> RAVEN IS AWAKE. <span class="red">[ACTIVE]</span></div>
+          </div>
+        </div>
+
+        <div class="panel-right">
+          <h3>Not an assistant. A dark intelligence.</h3>
+          <p class="panel-copy">
+            Friday watches from the sidelines, waiting to be asked. Raven is active — always
+            receiving signals, compressing reality, and executing the next safe move before you
+            finish the thought.
+          </p>
+
+          <div class="stats">
+            <div class="stat"><div class="stat-num">0.3s</div><div class="stat-lbl">Avg Response</div></div>
+            <div class="stat"><div class="stat-num">∞</div><div class="stat-lbl">Always On</div></div>
+            <div class="stat"><div class="stat-num">1</div><div class="stat-lbl">Commander</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="status" class="quote" data-animate>
+      <svg class="quote-sil" viewBox="0 0 800 280" aria-hidden="true">
+        <polygon points="100,240 140,70 215,240 250,160 310,240 360,120 420,240 500,160 530,240 580,70 660,240 710,240 710,260 100,260" fill="#e74c3c" />
+      </svg>
+      <div class="quote-mark">&ldquo;</div>
+      <blockquote>
+        Once upon a midnight dreary — but Raven never sleeps. It watches, learns, and executes
+        with the precision of shadow.
+      </blockquote>
+      <div class="quote-attr">— Raven System Core, Boot Sequence v2.0</div>
+    </section>
+
+    <footer class="footer" role="contentinfo">
+      <div class="footer-left">RAVEN</div>
+      <div class="footer-center">Personal Intelligence — Always Watching</div>
+      <div class="footer-right">© 2026</div>
+    </footer>
+  </main>
+
+  <script>
+    // ── Typewriter ──
+    const typePhrases = [
+      'AWAITING YOUR COMMAND, DIRECTOR.',
+      'ALL SYSTEMS OPERATIONAL.',
+      'PERCEPTION LAYER: ACTIVE.',
+      'NEURAL CORE: SYNCHRONIZED.',
+      'RAVEN SEES EVERYTHING.',
+    ];
+
+    const typeEl = document.getElementById('typewriter');
+    let phraseIndex = 0;
+    let charIndex = 0;
+    let deleting = false;
+
+    const typeMs = 65;
+    const deleteMs = 30;
+    const pauseMs = 2200;
+
+    function tick() {
+      const current = typePhrases[phraseIndex];
+      if (!deleting) {
+        charIndex++;
+        typeEl.textContent = current.slice(0, charIndex);
+        if (charIndex >= current.length) {
+          deleting = true;
+          setTimeout(tick, pauseMs);
+          return;
+        }
+        setTimeout(tick, typeMs);
+      } else {
+        charIndex--;
+        typeEl.textContent = current.slice(0, charIndex);
+        if (charIndex <= 0) {
+          deleting = false;
+          phraseIndex = (phraseIndex + 1) % typePhrases.length;
+          setTimeout(tick, typeMs);
+          return;
+        }
+        setTimeout(tick, deleteMs);
+      }
+    }
+    if (typeEl) tick();
+
+    // ── Floating particles ──
+    const particles = document.querySelector('.particles');
+    if (particles) {
+      const count = 28;
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        const size = Math.random() * 3 + 1;
+        p.style.width = `${size}px`;
+        p.style.height = `${size}px`;
+        p.style.left = `${Math.random() * 100}%`;
+        p.style.animationDelay = `${Math.random() * 8}s`;
+        p.style.animationDuration = `${Math.random() * 14 + 8}s`;
+        particles.appendChild(p);
+      }
+    }
+
+    // ── IntersectionObserver reveal ──
+    const animateEls = document.querySelectorAll('[data-animate]');
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add('in');
+            io.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.15 }
+    );
+    for (const el of animateEls) io.observe(el);
+
+    // ── Global scanline ──
+    const scanBar = document.createElement('div');
+    scanBar.className = 'scanbar';
+    document.body.appendChild(scanBar);
+  </script>
+</SiteShell>

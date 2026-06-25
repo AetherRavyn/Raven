@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.data_analysis
+display_name: Data Analysis
+version: "1.0.0"
+category: skill
+description: "Analyze CSV/JSON datasets: statistics, visualizations, insights, and reports."
+tags: [data, analysis, csv, statistics, visualization, report]
+capabilities: [file_tool, exec_tool]
+trust_level: system
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.89
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "analyze.*data|csv.*analysis|statistics|data.*insights"
+    confidence: 0.86

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/test.sh — run the SARAS test suite with sensible defaults.
+# scripts/test.sh — run the RAVEN test suite with sensible defaults.
 #
 # Usage:
 #   scripts/test.sh                # full suite
@@ -50,10 +50,10 @@ else
 fi
 echo "HelixDB: $HELIX_STATUS"
 
-export SARAS_HELIX_URL="$HELIX_URL"
-export SARAS_LOG_JSON=true
-export SARAS_LOG_LEVEL=INFO
-export SARAS_OTEL_IN_MEMORY=true
+export RAVEN_HELIX_URL="$HELIX_URL"
+export RAVEN_LOG_JSON=true
+export RAVEN_LOG_LEVEL=INFO
+export RAVEN_OTEL_IN_MEMORY=true
 
 echo "Running: $PYT ${EXTRA_ARGS[@]:-}"
 exec "$PYT" "${EXTRA_ARGS[@]:-}"

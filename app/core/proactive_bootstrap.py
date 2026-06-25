@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from app.core.scheduler import SarasScheduler
+from app.core.scheduler import RavenScheduler
 from app.routines.anomaly_digest import register_anomaly_digest
 from app.routines.evening_review import register_evening_review
 from app.routines.forecast_routine import register_forecast_routine
@@ -18,7 +18,7 @@ from app.settings.config import Config
 logger = logging.getLogger(__name__)
 
 
-def register_proactive_routines(scheduler: SarasScheduler) -> None:
+def register_proactive_routines(scheduler: RavenScheduler) -> None:
     if not Config.MORNING_BRIEFING_USERS:
         logger.debug("No MORNING_BRIEFING_USERS configured; proactive routines skipped")
         return
@@ -54,7 +54,7 @@ def register_proactive_routines(scheduler: SarasScheduler) -> None:
 
     # Day 21: build a v2 :class:`Scheduler` (one per process) and
     # use it for the new flexible trigger model.  The legacy
-    # ``SarasScheduler`` is kept running so the original cron
+    # ``RavenScheduler`` is kept running so the original cron
     # jobs continue to fire even before every routine has been
     # migrated to the v2 path.  When a routine detects the v2
     # scheduler, it takes the v2 path; otherwise it falls back.
@@ -98,7 +98,7 @@ def register_proactive_routines(scheduler: SarasScheduler) -> None:
             # are now v2-only; the legacy ``register_*``
             # functions fall through to the v2 path automatically
             # when given a v2 Scheduler, but here the legacy
-            # ``SarasScheduler`` is passed so the APScheduler
+            # ``RavenScheduler`` is passed so the APScheduler
             # jobs continue to run as a safety net until the
             # watchers are validated in production.
             register_morning_briefing(
@@ -142,11 +142,11 @@ def register_proactive_routines(scheduler: SarasScheduler) -> None:
             except Exception as exc:  # noqa: BLE001
                 logger.info("anomaly_digest skipped: %s", exc)
 
-    # ── Start Sentinel Bridge (HomeSentinel → SARAS) ───────────────
+    # ── Start Sentinel Bridge (HomeSentinel → RAVEN) ───────────────
     _start_sentinel_bridge(scheduler)
 
 
-def _ensure_v2_scheduler(legacy: SarasScheduler) -> Any:
+def _ensure_v2_scheduler(legacy: RavenScheduler) -> Any:
     """Return the v2 :class:`Scheduler` singleton, wiring in the
     legacy ``botsignal`` if available.
 
@@ -155,7 +155,7 @@ def _ensure_v2_scheduler(legacy: SarasScheduler) -> Any:
     direct-send get a path.  A no-op callback is used when no
     signal is available.
     """
-    from app.core.scheduling import Scheduler, get_default_scheduler
+    from app.core.scheduling import get_default_scheduler
 
     sched = get_default_scheduler()
     if sched.fire_callback is None:
@@ -237,7 +237,7 @@ def _ensure_proactive_signal_bridges() -> None:
         )
 
 
-def _ensure_signal_delivery_adapter(legacy: SarasScheduler | None) -> None:
+def _ensure_signal_delivery_adapter(legacy: RavenScheduler | None) -> None:
     """Wire the :class:`SignalDeliveryAdapter` singleton.
 
     Connects the process-wide :class:`SignalRouter` to the
@@ -280,8 +280,8 @@ def _ensure_signal_delivery_adapter(legacy: SarasScheduler | None) -> None:
         logger.warning("SignalDeliveryAdapter wiring failed: %s", exc)
 
 
-def _start_sentinel_bridge(scheduler: SarasScheduler) -> None:
-    """Initialize the HomeSentinel event bridge if Redis is available."""
+def _start_sentinel_bridge(scheduler: RavenScheduler) -> None:
+    """Initialize the HomeSentinel event bridge."""
     try:
         from app.core.sentinel_bridge import get_sentinel_bridge
 
@@ -296,8 +296,8 @@ def _start_sentinel_bridge(scheduler: SarasScheduler) -> None:
                     platform, uid, cid = parts
                     bridge.add_notify_target(platform, cid)
 
-        # Try to connect to Redis for live event streaming
-        bridge.start(redis_url=Config.REDIS_URL)
+        # Start the sentinel bridge
+        bridge.start()
 
         # Register periodic digest flush
         from apscheduler.triggers.interval import IntervalTrigger

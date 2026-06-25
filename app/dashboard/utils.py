@@ -5,7 +5,7 @@ from typing import Dict, Any
 
 
 def get_system_mode() -> str:
-    """Returns the current operating mode of the SARAS AI OS."""
+    """Returns the current operating mode of the RAVEN AI OS."""
     return "Autonomous" if os.getenv("AUTONOMY_MODE", "0") == "1" else "Interactive"
 
 

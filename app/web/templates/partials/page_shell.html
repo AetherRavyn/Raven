@@ -1,0 +1,14 @@
+{# Reusable page shell — wraps body content with a uniform header strip
+   and a slim info panel.  Pages {% include "partials/page_shell.html" %}
+   and supply ``title`` + ``body`` blocks, or just pass a context dict. #}
+<section class="space-y-3">
+  {% if page_title %}
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">{{ page_title }}</h1>
+  {% endif %}
+  {% if page_subtitle %}
+  <p class="text-zinc-500 text-[11px]">{{ page_subtitle }}</p>
+  {% endif %}
+  <div class="border border-ink-600 bg-ink-800 rounded">
+    {{ caller() }}
+  </div>
+</section>

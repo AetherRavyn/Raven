@@ -37,11 +37,11 @@ class SessionManager:
         return messages
 
     def append_message(self, session_id: str, message: Dict[str, Any]) -> None:
-        """Appends a single message to the session's JSONL file."""
+        """Appends a single message to the session's JSONL file (atomically)."""
+        from app.core.atomic_io import atomic_append
         file_path = self._get_session_file(session_id)
         try:
-            with open(file_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(message) + "\n")
+            atomic_append(file_path, json.dumps(message) + "\n")
         except Exception as e:
             logger.error(f"Failed to append to session {session_id}: {e}")
 
@@ -95,3 +95,60 @@ class SessionManager:
             return None
 
         return summary
+
+    def search_sessions(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
+        """Search across all sessions using SQLite FTS.
+
+        Returns matching messages with session context.
+        """
+        import sqlite3
+        import tempfile
+
+        # Build a temporary FTS index from all session files
+        db_path = str(Path(tempfile.mktemp(suffix=".sqlite")))
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS sessions_fts
+                USING fts5(session_id, role, content)
+            """)
+
+            # Index all session files
+            for session_file in self.sessions_dir.glob("*.jsonl"):
+                session_id = session_file.stem
+                try:
+                    with open(session_file, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if not line.strip():
+                                continue
+                            try:
+                                msg = json.loads(line)
+                                content = msg.get("content", "")
+                                if content:
+                                    conn.execute(
+                                        "INSERT INTO sessions_fts VALUES (?, ?, ?)",
+                                        (session_id, msg.get("role", ""), content[:500]),
+                                    )
+                            except Exception:
+                                continue
+                except Exception:
+                    continue
+
+            conn.commit()
+
+            # Search
+            rows = conn.execute(
+                "SELECT session_id, content FROM sessions_fts WHERE sessions_fts MATCH ? LIMIT ?",
+                (query, limit),
+            ).fetchall()
+
+            results = [
+                {"session_id": r[0], "content": r[1][:200]}
+                for r in rows
+            ]
+            conn.close()
+            return results
+
+        except Exception as exc:
+            logger.debug("Session search failed: %s", exc)
+            return []

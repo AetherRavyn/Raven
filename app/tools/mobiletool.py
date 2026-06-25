@@ -1,7 +1,7 @@
 # app/tools/mobiletool.py
 """Mobile Device Automation Tool — ADB (Android Debug Bridge).
 
-Enables SARAS to control Android phones/tablets like a real user:
+Enables RAVEN to control Android phones/tablets like a real user:
   - Tap, swipe, long press on screen
   - Type text into focused fields
   - Press hardware buttons (home, back, volume, power)
@@ -314,8 +314,12 @@ class MobileDeviceTool(BaseTool):
             return {"success": False, "error": str(e)[:500]}
 
     async def _run(self, cmd: str) -> str:
+        from app.core.command_sanitizer import sanitize_command
+        safe_cmd = sanitize_command(cmd, allow_all=True)
+        if safe_cmd is None:
+            return "Error: Command blocked by security filter"
         proc = await asyncio.create_subprocess_shell(
-            cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            safe_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
         out = stdout.decode("utf-8", errors="replace")

@@ -303,14 +303,33 @@ class TestFindPath:
 @pytest.mark.asyncio
 class TestKnowledgeGraphToolHelixDispatch:
     async def test_dispatch_to_helix_backend(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # This test exercises the live HelixDB dispatch path.  It
+        # requires a reachable HelixDB endpoint (the ``helix`` CLI
+        # on :6969 or the raw Docker image on :8080).  When neither
+        # is up, skip rather than fail so the unit suite stays green
+        # on machines without a running gateway.
+        import socket
+
+        def _port_open(host: str, port: int, timeout: float = 0.2) -> bool:
+            try:
+                with socket.create_connection((host, port), timeout=timeout):
+                    return True
+            except OSError:
+                return False
+
+        if not (_port_open("localhost", 6969) or _port_open("localhost", 8080)):
+            pytest.skip(
+                "HelixDB gateway not reachable on localhost:6969 or :8080"
+            )
+
         monkeypatch.setenv("KG_BACKEND", "helix")
-        monkeypatch.setenv("SARAS_HELIX_URL", "http://localhost:8080")
+        monkeypatch.setenv("RAVEN_HELIX_URL", "http://localhost:8080")
 
         from app.tools.kgtool import KnowledgeGraphTool
 
         tool = KnowledgeGraphTool()
         try:
-            assert tool.is_helix is True
+            # is_helix was removed — tool is always HelixDB now
             prefix = f"tool-{uuid.uuid4().hex[:8]}-"
             r1 = await tool.execute(
                 operation="add_relationship",

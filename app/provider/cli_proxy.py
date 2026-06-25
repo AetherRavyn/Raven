@@ -5,7 +5,7 @@ Supports: claude, gemini, kilocode, opencode, gh copilot, qwen, jules.
 Each CLI tool is invoked in non-interactive mode with the prompt piped via stdin
 or passed as an argument, and ANSI escape codes are stripped from the output.
 
-The provider uses the CLI tool's OWN API routes internally — SARAS just sends
+The provider uses the CLI tool's OWN API routes internally — RAVEN just sends
 the prompt as if the user typed it in the CLI, and captures the clean response.
 """
 
@@ -42,9 +42,9 @@ def _strip_ansi(text: str) -> str:
 
 def _extract_clean_response(raw: str) -> str:
     """Extract the actual model response from CLI tool output.
-    
+
     CLI tools wrap their response in various TUI chrome (boxes, spinners,
-    status bars, thinking indicators). This function strips all that and 
+    status bars, thinking indicators). This function strips all that and
     returns only the meaningful content.
     """
     cleaned = _strip_ansi(raw)
@@ -60,7 +60,7 @@ def _extract_clean_response(raw: str) -> str:
         "API Request",
         "Reasoning",
         "> Type a message or /command",
-        "SARAS",
+        "RAVEN",
         "! for shell mode",
         "Kilo Code",
         "Auto/frontier",
@@ -224,10 +224,10 @@ def _is_garbage_response(text: str) -> bool:
 
 class CLIProxyProvider(BaseLLMProvider):
     """Routes LLM requests through locally installed CLI coding tools.
-    
-    Each CLI tool uses its own API routes internally. SARAS just sends
+
+    Each CLI tool uses its own API routes internally. RAVEN just sends
     the prompt as a regular user would type it, making it look like
-    the CLI itself is making the request (not SARAS/OpenClaw).
+    the CLI itself is making the request (not RAVEN/OpenClaw).
     """
 
     def __init__(
@@ -333,7 +333,7 @@ class CLIProxyProvider(BaseLLMProvider):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Route the request through a CLI tool.
-        
+
         The model should be like "cli/claude", "cli/gemini", "cli/kilocode", etc.
         We extract the tool name and invoke it non-interactively.
         """
@@ -348,7 +348,7 @@ class CLIProxyProvider(BaseLLMProvider):
             if msg.get("role") == "user":
                 last_user_msg = msg.get("content", "")
                 break
-        
+
         if not last_user_msg:
             # Fallback: combine all messages
             last_user_msg = "\n".join(
@@ -469,7 +469,7 @@ If you need to use a tool, you MUST output ONLY the following raw JSON format an
                 tool,
                 len(clean_output),
             )
-            
+
             # --- CLI Proxy Tool Overload parser ---
             parsed_tool_calls = None
             if "tool_calls" in clean_output:

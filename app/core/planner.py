@@ -5,7 +5,7 @@ code should import from :mod:`app.core.planning` directly. This shim
 keeps the old ``TaskPlanner`` / ``ResultVerifier`` interface intact so
 the existing runtime doesn't break.
 
-The new planner is selected when the env var ``SARAS_PLANNER_V2=true`` is
+The new planner is selected when the env var ``RAVEN_PLANNER_V2=true`` is
 set; otherwise we use the legacy rule-based path so nothing regresses
 during the migration.
 """
@@ -55,17 +55,23 @@ class TaskPlan:
 
 
 class TaskPlanner:
-    """Legacy rule-based planner.
+    """Rule-based planner with optional LLM-augmented v2 path.
 
-    When ``SARAS_PLANNER_V2=true``, this delegates to the new async
-    :class:`app.core.planning.Planner` (run synchronously via
-    :func:`asyncio.run`). Otherwise it falls back to the original
-    keyword-based decomposition.
+    When ``RAVEN_PLANNER_V2=true``, this delegates to the new async
+    :class:`app.core.planning.Planner`. If an ``llm_planner`` callable
+    is provided, complex / low-confidence goals will consult the LLM
+    for richer task decomposition.
     """
 
+    def __init__(self, llm_planner=None):
+        self._llm_planner = llm_planner
+
     def plan(self, goal: str) -> TaskPlan:
-        if os.environ.get("SARAS_PLANNER_V2", "").lower() in {"1", "true", "yes"}:
-            return _plan_via_new_planner(goal)
+        return _legacy_plan(goal)
+
+    async def plan_async(self, goal: str) -> TaskPlan:
+        if os.environ.get("RAVEN_PLANNER_V2", "").lower() in {"1", "true", "yes"}:
+            return await _plan_via_new_planner(goal, self._llm_planner)
         return _legacy_plan(goal)
 
 
@@ -151,22 +157,9 @@ def _legacy_plan(goal: str) -> TaskPlan:
     )
 
 
-def _plan_via_new_planner(goal: str) -> TaskPlan:
-    """Call the new async planner synchronously and adapt the result."""
-    import asyncio
-
-    async def _go() -> _NewTaskPlan:
-        return await Planner().plan(goal)
-
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-    if loop is not None and loop.is_running():
-        # Caller is async — they should not be using this sync shim. We
-        # fall back to the legacy plan to avoid nested-loop errors.
-        return _legacy_plan(goal)
-    new_plan = asyncio.run(_go())
+async def _plan_via_new_planner(goal: str, llm_planner=None) -> TaskPlan:
+    """Build a plan using the v2 Planner, optionally LLM-augmented."""
+    new_plan = await Planner(llm_planner=llm_planner).plan(goal)
     return _adapt_to_legacy(new_plan)
 
 
@@ -183,9 +176,7 @@ def _adapt_to_legacy(new_plan: _NewTaskPlan) -> TaskPlan:
                 action=_action_to_legacy(s),
                 description=s.description,
                 success_criteria=s.success_criteria or "",
-                depends_on=[
-                    step_index_by_id[d] for d in s.deps if d in step_index_by_id
-                ],
+                depends_on=[step_index_by_id[d] for d in s.deps if d in step_index_by_id],
             )
         )
     return TaskPlan(

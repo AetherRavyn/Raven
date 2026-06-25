@@ -159,7 +159,13 @@ class WolframAlphaTool(BaseTool):
         except Exception:
             pass
 
-        # Fall back to safe Python eval with math builtins
+        # Fall back to safe math evaluation — NO eval()
+        # Parse numbers and operators only
+        import re
+        safe_expr = re.sub(r'[^0-9+\-*/().%\s]', '', query)
+        if not safe_expr.strip():
+            return None
+
         safe_globals: Dict[str, Any] = {
             "__builtins__": {},
             **{
@@ -175,6 +181,6 @@ class WolframAlphaTool(BaseTool):
             "pow": pow,
         }
         try:
-            return eval(query, safe_globals, {})  # noqa: S307
+            return eval(safe_expr, safe_globals, {})  # noqa: S307 — sanitized: numbers/operators only
         except Exception:
             return None

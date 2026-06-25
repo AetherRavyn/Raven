@@ -150,7 +150,7 @@ jobs:
 
       - name: Build docker image
         run: |
-          docker build -t ghcr.io/saras/saras:${{ steps.version.outputs.next }} -t ghcr.io/saras/saras:latest .
+          docker build -t ghcr.io/raven/raven:${{ steps.version.outputs.next }} -t ghcr.io/raven/raven:latest .
 
       - name: Login to ghcr.io
         if: success()
@@ -163,5 +163,5 @@ jobs:
       - name: Push docker image
         if: success()
         run: |
-          docker push ghcr.io/saras/saras:${{ steps.version.outputs.next }}
-          docker push ghcr.io/saras/saras:latest
+          docker push ghcr.io/raven/raven:${{ steps.version.outputs.next }}
+          docker push ghcr.io/raven/raven:latest

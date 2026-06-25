@@ -110,7 +110,7 @@ def bind_runtime(
         # If there's an actual file to send or the message is insanely huge (> 20000 chars), fallback to file
         if len(message_text) > 20000 and not payload.file_path:
             fd, temp_file_path = tempfile.mkstemp(
-                prefix="saras_output_", suffix=".txt", text=True
+                prefix="raven_output_", suffix=".txt", text=True
             )
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 fh.write(message_text)
@@ -246,6 +246,6 @@ def run_bot() -> None:
     # Reduce noise from httpx
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
-    logger.info("Starting SARAS Telegram bot...")
+    logger.info("Starting RAVEN Telegram bot...")
     app = create_bot()
     app.run_polling(drop_pending_updates=True)

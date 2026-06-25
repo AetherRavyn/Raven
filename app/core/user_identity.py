@@ -1,7 +1,7 @@
 # app/core/user_identity.py
 """Unified User Identity Resolution for cross-platform session continuity.
 
-Maps platform-specific user IDs to a single canonical SARAS user, enabling:
+Maps platform-specific user IDs to a single canonical RAVEN user, enabling:
   - Start a conversation on Telegram, continue on Discord
   - Voice user automatically linked to Telegram profile
   - Single memory/profile store per real person
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class UserIdentityStore:
-    """Maps platform-specific IDs to canonical SARAS user IDs."""
+    """Maps platform-specific IDs to canonical RAVEN user IDs."""
 
     def __init__(self, workspace_dir: str | None = None) -> None:
         from app.settings.config import Config
@@ -61,7 +61,7 @@ class UserIdentityStore:
 
     def resolve(self, platform: str, platform_user_id: str) -> str:
         """
-        Resolve a platform-specific ID to a canonical SARAS user ID.
+        Resolve a platform-specific ID to a canonical RAVEN user ID.
         Auto-creates a new canonical user if none exists.
         """
         with sqlite3.connect(self._db_path) as conn:

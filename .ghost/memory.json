@@ -1,0 +1,6 @@
+{
+  "build_próxima ação": "vou comparar `index.astro` (classes usadas) vs `SiteShell.astro` (classes definidas) e completar/alinhar todo o CSS faltante (cards 3x2, terminal, quote, footer, animações fadeUp), depois rodar `npm run build` de novo.",
+  "build_próximo passo concluído": "adicionei `docs-site/README.md` com comandos de build e preview.",
+  "general_svg raven usado no hero": "o desenho inline (340x340) com animações (flap, eye pulse, float), sem assets externos.",
+  "structure_structure": "CSS do site"
+}

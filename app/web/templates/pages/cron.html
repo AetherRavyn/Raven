@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}CRON — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">CRON</h1>
+  <p class="text-zinc-500 text-[11px]">Scheduled jobs · toggle / add / remove · v32</p>
+  <div class="border border-ink-600 bg-ink-800 rounded">
+    <table class="w-full text-[12px]">
+      <thead class="text-zinc-500 border-b border-ink-600">
+        <tr>
+          <th class="text-left px-3 py-1.5">job_id</th>
+          <th class="text-left px-3 py-1.5">name</th>
+          <th class="text-left px-3 py-1.5">schedule</th>
+          <th class="text-left px-3 py-1.5">enabled</th>
+          <th class="text-left px-3 py-1.5">action</th>
+        </tr>
+      </thead>
+      <tbody id="cron-tbody">
+        {% if jobs %}
+          {% for j in jobs %}
+            <tr class="border-b border-ink-700 hover:bg-ink-700" data-cron-id="{{ j.get('job_id', '') }}">
+              <td class="px-3 py-1.5 font-mono text-accent-500">{{ j.get("job_id", "?") }}</td>
+              <td class="px-3 py-1.5">{{ j.get("name", "?") }}</td>
+              <td class="px-3 py-1.5 text-zinc-400">
+                {% if j.get("schedule_type") == "daily_at" %}
+                  daily@{{ j.get("time", "?") }}
+                {% elif j.get("schedule_type") == "interval_minutes" %}
+                  every {{ j.get("interval", "?") }}m
+                {% else %}
+                  {{ j.get("schedule_type", "?") }}
+                {% endif %}
+              </td>
+              <td class="px-3 py-1.5">
+                {% if j.get("enabled") %}
+                  <span class="text-accent-500">●</span> on
+                {% else %}
+                  <span class="text-zinc-600">○</span> off
+                {% endif %}
+              </td>
+              <td class="px-3 py-1.5">
+                <button class="text-[11px] text-zinc-300 hover:text-accent-500 underline"
+                        hx-post="/api/cron/toggle?job_id={{ j.get('job_id','') }}"
+                        hx-target="#main" hx-swap="outerHTML">toggle</button>
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="5" class="px-3 py-3 text-zinc-600 text-center">[no cron jobs]</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -275,7 +275,7 @@ class YOLODetector:
 
 
 class YOLODetectionService:
-    """Microservice wrapper for YOLODetector using Redis MessageBus."""
+    """Microservice wrapper for YOLODetector using MessageBus."""
 
     def __init__(self, bus, config: Dict = None):
         self.bus = bus

@@ -1,5 +1,5 @@
 # app/db/models.py
-"""SQLAlchemy ORM models for SARAS persistent storage."""
+"""SQLAlchemy ORM models for RAVEN persistent storage."""
 
 from __future__ import annotations
 
@@ -35,8 +35,8 @@ class Memory(Base):
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     category: Mapped[str] = mapped_column(String(32))  # FACT | RULE | TOOL_GUIDE
     content: Mapped[str] = mapped_column(Text)
-    # Vector column: populated only when pgvector backend is active.
-    # Stored as JSON array in SQLite fallback, real Vector(384) in PostgreSQL.
+    # Vector column: populated when memory backend is active.
+    # Stored as JSON array in SQLite.
     embedding_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     importance: Mapped[float] = mapped_column(Float, default=1.0)

@@ -18,7 +18,7 @@ COPY index.js ./
 VOLUME ["/app/wa_session"]
 
 ENV NODE_ENV=production
-ENV SARAS_URL=http://saras:8001
+ENV RAVEN_URL=http://raven:8001
 ENV BRIDGE_PORT=3001
 ENV SESSION_DIR=/app/wa_session
 

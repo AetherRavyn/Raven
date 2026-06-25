@@ -1,0 +1,23 @@
+schema_version: "1.0"
+module_id: skill.weekly_review
+display_name: Weekly Review
+name: Weekly Review
+version: 1.0.0
+category: skill
+description: >
+  End-of-week retrospective covering goals progress, tasks completed,
+  insights learned, and next week's plan.
+tags: [review, weekly, retrospective, productivity, planning]
+capabilities: [task-review, progress-tracking, goal-assessment, planning]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+maturity: production
+origin: bundled
+
+triggers:
+  - pattern: "weekly.*review"
+    confidence: 0.90
+  - pattern: "week.*(?:summary|recap|retrospective)"
+    confidence: 0.85
+  - context: "scheduled Friday afternoon cron"

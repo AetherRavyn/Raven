@@ -2,7 +2,7 @@
 
 ## Design Principle: One Brain, Many Mouths
 
-SARAS has a single intelligent core (the "brain") that receives messages from many
+RAVEN has a single intelligent core (the "brain") that receives messages from many
 platforms and responds through the same platform the user spoke from. The architecture
 is a **hub-and-spoke model**:
 
@@ -10,7 +10,7 @@ is a **hub-and-spoke model**:
                     Telegram ──────┐
                     Discord ───────┤
                     WhatsApp ──────┤
-                    Microphone ────┼──▶  Unified Message Bus  ──▶  SARAS Brain  ──▶  Reply
+                    Microphone ────┼──▶  Unified Message Bus  ──▶  RAVEN Brain  ──▶  Reply
                     Web UI ────────┤                                   │
                     HTTP API ──────┤                                   │
                     Sensor alert ──┘                                   │
@@ -32,7 +32,7 @@ devices, the brain thinks, and responses go back out through the same channel.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│                              SARAS BOT SERVER                                    │
+│                              RAVEN BOT SERVER                                    │
 │                         (single machine or VPS)                                  │
 │                                                                                  │
 │  ═══════════════════════════════════════════════════════════════════════════════  │
@@ -89,7 +89,7 @@ devices, the brain thinks, and responses go back out through the same channel.
 │  │  │    MEMORY         │  │   PERSONALITY     │  │   CONTEXT BUILDER    │   │   │
 │  │  │                   │  │                   │  │                      │   │   │
 │  │  │ - Conversation    │  │ - System prompt   │  │ - Current message    │   │   │
-│  │  │   history (last   │  │   (who SARAS is)  │  │ - Relevant memories  │   │   │
+│  │  │   history (last   │  │   (who RAVEN is)  │  │ - Relevant memories  │   │   │
 │  │  │   100 messages)   │  │ - Tone, humor,    │  │ - Sensor state       │   │   │
 │  │  │ - Long-term facts │  │   speaking style  │  │ - Time of day        │   │   │
 │  │  │   about user      │  │ - User-specific   │  │ - User's recent      │   │   │
@@ -106,7 +106,7 @@ devices, the brain thinks, and responses go back out through the same channel.
 │  │  │                     LLM ENGINE                                   │     │   │
 │  │  │                                                                  │     │   │
 │  │  │  Model: Mistral 7B Instruct (AWQ 4-bit) via vLLM               │     │   │
-│  │  │  + LoRA adapter for SARAS personality                           │     │   │
+│  │  │  + LoRA adapter for RAVEN personality                           │     │   │
 │  │  │  + Tool-calling format (function calling)                       │     │   │
 │  │  │  + Streaming token output                                       │     │   │
 │  │  │                                                                  │     │   │
@@ -224,25 +224,25 @@ devices, the brain thinks, and responses go back out through the same channel.
 
 ## Process Lifecycle
 
-The SARAS bot server runs as a **single Python process** with async coroutines
+The RAVEN bot server runs as a **single Python process** with async coroutines
 for each connector. This is simpler and more reliable than microservices for a
 1-2 person team.
 
 ```python
 # main.py -- conceptual entry point
 import asyncio
-from saras.brain import SarasBrain
-from saras.connectors.telegram import TelegramConnector
-from saras.connectors.discord import DiscordConnector
-from saras.connectors.whatsapp import WhatsAppConnector
-from saras.connectors.voice_io import VoiceIOConnector
-from saras.connectors.web_api import WebAPIConnector
-from saras.sensors.mqtt_listener import MQTTSensorListener
-from saras.scheduler import SarasScheduler
+from raven.brain import RavenBrain
+from raven.connectors.telegram import TelegramConnector
+from raven.connectors.discord import DiscordConnector
+from raven.connectors.whatsapp import WhatsAppConnector
+from raven.connectors.voice_io import VoiceIOConnector
+from raven.connectors.web_api import WebAPIConnector
+from raven.sensors.mqtt_listener import MQTTSensorListener
+from raven.scheduler import RavenScheduler
 
 async def main():
     # Initialize the brain (loads LLM, memory, tools)
-    brain = SarasBrain()
+    brain = RavenBrain()
     await brain.initialize()
 
     # Start all connectors concurrently
@@ -259,7 +259,7 @@ async def main():
     sensors = MQTTSensorListener(brain, broker=config.MQTT_BROKER)
 
     # Start scheduler (reminders, alarms, routines)
-    scheduler = SarasScheduler(brain)
+    scheduler = RavenScheduler(brain)
 
     # Run everything
     await asyncio.gather(
@@ -481,8 +481,8 @@ CREATE TABLE audit_log (
 
 # Bot identity
 bot:
-  name: "SARAS"
-  wake_word: "saras"            # For microphone wake-word detection
+  name: "RAVEN"
+  wake_word: "raven"            # For microphone wake-word detection
   personality: "friendly"        # Loads personality prompt from prompts/friendly.txt
   language: "en"
   timezone: "Asia/Kolkata"
@@ -524,7 +524,7 @@ llm:
   max_context_tokens: 8192
   temperature: 0.7
   gpu_memory_fraction: 0.7
-  lora_adapter: "models/saras-personality-lora"
+  lora_adapter: "models/raven-personality-lora"
 
 voice:
   stt_model: "medium"                    # Whisper model size
@@ -543,7 +543,7 @@ mqtt:
   enabled: true
   broker: "localhost"
   port: 1883
-  topic_prefix: "saras/sensors"
+  topic_prefix: "raven/sensors"
 
 smart_home:
   enabled: true
@@ -581,7 +581,7 @@ safety:
 
 # Database
 database:
-  url: "postgresql://saras:pass@localhost:5432/saras"
+  url: "postgresql://raven:pass@localhost:5432/raven"
   redis_url: "redis://localhost:6379/0"
 ```
 
@@ -590,7 +590,7 @@ database:
 ## Error Handling & Resilience
 
 ```python
-class SarasBrain:
+class RavenBrain:
     async def handle_message(self, message: IncomingMessage) -> OutgoingMessage:
         try:
             # Normal flow

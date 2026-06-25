@@ -184,10 +184,10 @@ FRIGATE_API_URL=http://localhost:5000
 FRIGATE_RTSP_URL=rtsp://localhost:8554
 
 # Database
-POSTGRES_URL=postgresql://saras:PASSWORD@localhost:5432/saras
+POSTGRES_URL=postgresql://raven:PASSWORD@localhost:5432/raven
 
 # Storage
-CLIPS_DIR=/var/lib/saras/anomalies
+CLIPS_DIR=/var/lib/raven/anomalies
 
 # Thresholds
 LOITER_THRESHOLD=30          # seconds
@@ -216,7 +216,7 @@ LOG_LEVEL=INFO
 sudo apt-get update && sudo apt-get install -y python3-venv postgresql postgresql-contrib
 
 # 2. Setup environment
-cd /home/saras/monitoring
+cd /home/raven/monitoring
 python3 -m venv venv
 source venv/bin/activate
 
@@ -224,8 +224,8 @@ source venv/bin/activate
 pip install paho-mqtt flask psycopg2-binary requests opencv-python-headless numpy pillow
 
 # 4. Setup database
-sudo -u postgres psql -c "CREATE USER saras WITH PASSWORD 'securepass';"
-sudo -u postgres psql -c "CREATE DATABASE saras OWNER saras;"
+sudo -u postgres psql -c "CREATE USER raven WITH PASSWORD 'securepass';"
+sudo -u postgres psql -c "CREATE DATABASE raven OWNER raven;"
 
 # 5. Install service
 sudo cp anomaly-handler.service /etc/systemd/system/
@@ -264,7 +264,7 @@ mosquitto_pub -h localhost -t "frigate/events" -m '{
 
 # Test 5: Check results
 curl http://localhost:8080/api/events | jq '.[0]'
-psql -h localhost -U saras -d saras -c "SELECT * FROM anomalies LIMIT 5;"
+psql -h localhost -U raven -d raven -c "SELECT * FROM anomalies LIMIT 5;"
 
 # Test 6: Web dashboard
 open http://localhost:8080/events  # or use curl
@@ -355,7 +355,7 @@ driver = GraphDatabase.driver("neo4j://localhost", auth=("neo4j", "password"))
 ### Log Locations
 
 - **Service logs**: `journalctl -u anomaly-handler.service`
-- **Application logs**: `/var/log/saras/logs/anomaly_handler.log`
+- **Application logs**: `/var/log/raven/logs/anomaly_handler.log`
 - **Database logs**: `/var/log/postgresql/`
 
 ---

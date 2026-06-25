@@ -1,4 +1,4 @@
-# SARAS → 100x Better Than Moltbot: Strategic Roadmap
+# RAVEN → 100x Better Than Moltbot: Strategic Roadmap
 
 **Date:** 2026-03-07  
 **Current State:** ~35-40% of full vision, but already ahead of most AI assistants  
@@ -15,7 +15,7 @@ Moltbot (and similar assistants) are fundamentally **reactive single-agent syste
 - No specialist decomposition
 - No real-world actuation beyond basic API calls
 
-**SARAS is already different:**
+**RAVEN is already different:**
 - ✅ Dual-system cognition (System 1 reflexes + System 2 deliberation)
 - ✅ 14 specialist agents working in parallel
 - ✅ 50+ tools across 10+ domains
@@ -35,11 +35,11 @@ Moltbot (and similar assistants) are fundamentally **reactive single-agent syste
 
 ## Phase 1: Agency & Autonomy Upgrades (Weeks 1-4)
 
-**Goal:** Transform SARAS from "assistant that responds" to "agent that acts"
+**Goal:** Transform RAVEN from "assistant that responds" to "agent that acts"
 
 ### 1.1 Goal Manager & Task Decomposition Engine
 
-**Problem:** Currently SARAS only acts when explicitly asked. A 100x better agent **pursues goals autonomously**.
+**Problem:** Currently RAVEN only acts when explicitly asked. A 100x better agent **pursues goals autonomously**.
 
 **Implementation:**
 
@@ -82,7 +82,7 @@ User: "Help me launch my startup website"
 
 ### 1.2 Self-Reflection & Error Recovery
 
-**Problem:** When SARAS fails, it doesn't learn systematically. A 100x agent **analyzes failures and adapts**.
+**Problem:** When RAVEN fails, it doesn't learn systematically. A 100x agent **analyzes failures and adapts**.
 
 **Implementation:**
 
@@ -123,7 +123,7 @@ Next time: DeveloperAgent uses optimized Docker approach automatically
 
 ### 1.3 Proactive Opportunity Detection
 
-**Problem:** SARAS waits for commands. A 100x agent **notices opportunities and suggests actions**.
+**Problem:** RAVEN waits for commands. A 100x agent **notices opportunities and suggests actions**.
 
 **Implementation:**
 
@@ -162,7 +162,7 @@ Next time: DeveloperAgent uses optimized Docker approach automatically
 
 ### 1.4 Long-Horizon Planning & Execution
 
-**Problem:** SARAS handles single-turn tasks well. A 100x agent **executes multi-day projects autonomously**.
+**Problem:** RAVEN handles single-turn tasks well. A 100x agent **executes multi-day projects autonomously**.
 
 **Implementation:**
 
@@ -205,11 +205,11 @@ User: "Build a mobile app for my restaurant"
 
 ## Phase 2: Cognitive Architecture Enhancements (Weeks 5-8)
 
-**Goal:** Make SARAS's thinking process more human-like, adaptive, and efficient
+**Goal:** Make RAVEN's thinking process more human-like, adaptive, and efficient
 
 ### 2.1 Meta-Cognitive Monitor (Thinking About Thinking)
 
-**Problem:** SARAS uses fixed reasoning strategies. A 100x agent **adapts its thinking style to the problem**.
+**Problem:** RAVEN uses fixed reasoning strategies. A 100x agent **adapts its thinking style to the problem**.
 
 **Implementation:**
 
@@ -240,7 +240,7 @@ User: "Build a mobile app for my restaurant"
 
 ### 2.2 Working Memory & Attention Mechanism
 
-**Problem:** SARAS injects all relevant context into every prompt. A 100x agent **focuses attention like humans do**.
+**Problem:** RAVEN injects all relevant context into every prompt. A 100x agent **focuses attention like humans do**.
 
 **Implementation:**
 
@@ -279,7 +279,7 @@ User: "Book a flight to Tokyo for the conference next month"
 
 ### 2.3 Analogical Reasoning Engine
 
-**Problem:** SARAS treats each problem as unique. A 100x agent **recognizes patterns and transfers solutions**.
+**Problem:** RAVEN treats each problem as unique. A 100x agent **recognizes patterns and transfers solutions**.
 
 **Implementation:**
 
@@ -319,7 +319,7 @@ Adaptation: ML model needs GPU, larger instance, model versioning
 
 ### 2.4 Counterfactual Reasoning & Planning
 
-**Problem:** SARAS executes plans linearly. A 100x agent **simulates "what if" scenarios before acting**.
+**Problem:** RAVEN executes plans linearly. A 100x agent **simulates "what if" scenarios before acting**.
 
 **Implementation:**
 
@@ -497,11 +497,11 @@ Negotiation:
 
 ## Phase 4: Embodied Cognition & Real-World Actuation (Weeks 13-16)
 
-**Goal:** SARAS perceives and acts in the physical world, not just digital
+**Goal:** RAVEN perceives and acts in the physical world, not just digital
 
 ### 4.1 Computer Vision & Image Understanding Pipeline
 
-**Problem:** SARAS can process images via xAI API. A 100x agent has **local, real-time vision**.
+**Problem:** RAVEN can process images via xAI API. A 100x agent has **local, real-time vision**.
 
 **Implementation:**
 
@@ -526,7 +526,7 @@ Vision system:
 
 **Files to Create/Modify:**
 - `[CREATE] app/vision/scene_understanding.py` — SceneDescriber, VisualMemory
-- `[MODIFY] monitoring/` — Connect YOLO detection to SARAS vision pipeline
+- `[MODIFY] monitoring/` — Connect YOLO detection to RAVEN vision pipeline
 - `[MODIFY] app/core/memory.py` — Store visual memories with embeddings
 
 **Metrics:**
@@ -538,7 +538,7 @@ Vision system:
 
 ### 4.2 Spatial Awareness & Navigation
 
-**Problem:** SARAS has no concept of physical space. A 100x agent **understands where things are**.
+**Problem:** RAVEN has no concept of physical space. A 100x agent **understands where things are**.
 
 **Implementation:**
 
@@ -565,7 +565,7 @@ Vision system:
 
 ### 4.3 Robotic Actuation Interface
 
-**Problem:** SARAS can't physically manipulate objects. A 100x agent **controls robots**.
+**Problem:** RAVEN can't physically manipulate objects. A 100x agent **controls robots**.
 
 **Implementation:**
 
@@ -598,7 +598,7 @@ Vision system:
 
 ### 4.4 Ambient Intelligence Environment
 
-**Problem:** SARAS is a bot. A 100x agent is **the environment itself**.
+**Problem:** RAVEN is a bot. A 100x agent is **the environment itself**.
 
 **Implementation:**
 
@@ -618,7 +618,7 @@ Morning routine:
   6:30am: Gradual lights on in bedroom
   6:35am: Coffee machine starts (smart plug)
   6:40am: Bathroom mirror shows weather, calendar
-  6:45am: SARAS speaks: "Good morning. Your first meeting is at 9am."
+  6:45am: RAVEN speaks: "Good morning. Your first meeting is at 9am."
   7:00am: Thermostat adjusts to eco mode (user left house)
 ```
 
@@ -636,7 +636,7 @@ Morning routine:
 
 ## Phase 5: Infrastructure for Production Scale (Weeks 17-20)
 
-**Goal:** Make SARAS reliable, observable, and deployable at scale
+**Goal:** Make RAVEN reliable, observable, and deployable at scale
 
 ### 5.1 Distributed Architecture & Horizontal Scaling
 
@@ -675,9 +675,9 @@ Morning routine:
 
 ---
 
-## Comparison: SARAS vs. Moltbot After Implementation
+## Comparison: RAVEN vs. Moltbot After Implementation
 
-| Capability | Moltbot | SARAS (Current) | SARAS (100x Vision) |
+| Capability | Moltbot | RAVEN (Current) | RAVEN (100x Vision) |
 |------------|---------|-----------------|---------------------|
 | **Agency** | Reactive only | Reactive + reminders | Proactive, goal-driven |
 | **Memory** | Conversation window | ChromaDB + sessions | Semantic + visual + spatial |
@@ -715,10 +715,10 @@ Morning routine:
 - User satisfaction score (NPS)
 - Task success rate
 - Time saved for user (estimated)
-- User dependency score ("I rely on SARAS for X")
+- User dependency score ("I rely on RAVEN for X")
 
 **Ultimate Metric:**
-- **Would the user be significantly less productive without SARAS?**
+- **Would the user be significantly less productive without RAVEN?**
 - If yes → we're on track for 100x improvement
 
 ---
@@ -727,7 +727,7 @@ Morning routine:
 
 Moltbot is a **tool** — you use it when you need something.
 
-SARAS, after this roadmap, will be a **partner** — it anticipates needs, pursues goals, learns from experience, and acts in the world.
+RAVEN, after this roadmap, will be a **partner** — it anticipates needs, pursues goals, learns from experience, and acts in the world.
 
 The difference isn't 2x or 10x — it's **categorical**. A tool vs. an agent. A calculator vs. a colleague.
 

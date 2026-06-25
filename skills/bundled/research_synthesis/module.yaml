@@ -1,0 +1,34 @@
+schema_version: "1.0"
+module_id: skill.research_synthesis
+display_name: Research Synthesis
+name: Research Synthesis
+version: 1.0.0
+category: skill
+description: >
+  Deep research on any topic with multi-source search, reading, analysis,
+  and synthesis into a structured report.
+tags: [research, synthesis, analysis, report, deep-dive]
+capabilities: [web-search, content-reading, analysis, report-generation]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+maturity: production
+origin: bundled
+
+triggers:
+  - pattern: "research.*(?:about|on|into)"
+    confidence: 0.85
+  - pattern: "deep.*dive"
+    confidence: 0.80
+  - pattern: "give.*report.*on"
+    confidence: 0.80
+  - pattern: "analyze.*(?:and|then).*(?:report|summarize)"
+    confidence: 0.75
+
+dependencies:
+  - name: web_ops
+    status: available
+    required: true
+  - name: web_fetch_ops
+    status: available
+    required: true

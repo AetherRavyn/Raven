@@ -108,7 +108,7 @@ class AlertManager:
 
 
 class AlertService:
-    """Microservice wrapper for AlertManager using Redis MessageBus."""
+    """Microservice wrapper for AlertManager using MessageBus."""
 
     def __init__(self, bus, config: Dict = None):
         self.bus = bus

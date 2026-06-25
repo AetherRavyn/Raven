@@ -2,15 +2,15 @@
 
 ## Overview
 
-SARAS extends its intelligence into the physical world through a sensor network. Rather
-than being a passive chatbot that only responds when spoken to, SARAS continuously
+RAVEN extends its intelligence into the physical world through a sensor network. Rather
+than being a passive chatbot that only responds when spoken to, RAVEN continuously
 monitors its environment -- temperature, humidity, motion, door states, air quality,
 light levels, and camera feeds -- and uses this information to proactively assist its
-user. If the temperature in your server room spikes at 3am, SARAS does not wait for you
+user. If the temperature in your server room spikes at 3am, RAVEN does not wait for you
 to ask about it. It wakes you up.
 
-The sensor layer is **Layer 5** in the SARAS architecture. It sits below the brain and
-above the physical hardware, acting as the nervous system that gives SARAS spatial and
+The sensor layer is **Layer 5** in the RAVEN architecture. It sits below the brain and
+above the physical hardware, acting as the nervous system that gives RAVEN spatial and
 environmental awareness.
 
 **Design principles:**
@@ -40,8 +40,8 @@ environmental awareness.
 │       ▼            ▼            ▼            ▼                ▼            │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │                 MOSQUITTO MQTT BROKER (localhost:1883)               │   │
-│  │  saras/sensors/{device_id}/temperature | humidity | motion | door   │   │
-│  │  saras/sensors/{device_id}/gas | light | camera/snapshot | status   │   │
+│  │  raven/sensors/{device_id}/temperature | humidity | motion | door   │   │
+│  │  raven/sensors/{device_id}/gas | light | camera/snapshot | status   │   │
 │  └──────────────────────────────┬───────────────────────────────────────┘   │
 │                                 │                                           │
 │                                 ▼                                           │
@@ -59,7 +59,7 @@ environmental awareness.
 │                                                      │ alerts              │
 │                                                      ▼                     │
 │                                             ┌──────────────────┐           │
-│                                             │   SARAS BRAIN    │           │
+│                                             │   RAVEN BRAIN    │           │
 │                                             │  context inject  │           │
 │                                             │  + proactive     │           │
 │                                             │  notifications   │           │
@@ -71,7 +71,7 @@ environmental awareness.
 
 ## Supported Sensor Types
 
-SARAS supports any sensor that publishes MQTT. These types have first-class support
+RAVEN supports any sensor that publishes MQTT. These types have first-class support
 with dedicated parsing, anomaly rules, and context injection.
 
 | Sensor              | Hardware                | Topic suffix        | Payload example                             | Interval     | Anomaly rule                    |
@@ -92,18 +92,18 @@ just motion), which is valuable for occupancy awareness.
 ## MQTT Listener Implementation
 
 ```python
-# saras/sensors/mqtt_listener.py
+# raven/sensors/mqtt_listener.py
 
 import asyncio, json, logging
 from datetime import datetime, timezone
 import aiomqtt
-from saras.sensors.processor import SensorProcessor
+from raven.sensors.processor import SensorProcessor
 
 logger = logging.getLogger(__name__)
 
 
 class MQTTListener:
-    """Subscribes to saras/sensors/# and routes readings to the processing pipeline.
+    """Subscribes to raven/sensors/# and routes readings to the processing pipeline.
     Reconnects with exponential backoff on broker disconnect."""
 
     def __init__(self, config: dict, processor: SensorProcessor):
@@ -111,7 +111,7 @@ class MQTTListener:
         mqtt_config = config.get("mqtt", {})
         self.broker = mqtt_config.get("broker", "localhost")
         self.port = mqtt_config.get("port", 1883)
-        self.topic_prefix = mqtt_config.get("topic_prefix", "saras/sensors")
+        self.topic_prefix = mqtt_config.get("topic_prefix", "raven/sensors")
 
     async def start(self):
         backoff = 1
@@ -120,12 +120,12 @@ class MQTTListener:
                 async with aiomqtt.Client(
                     hostname=self.broker, port=self.port, keepalive=60,
                     will=aiomqtt.Will(
-                        topic=f"{self.topic_prefix}/_saras/status",
+                        topic=f"{self.topic_prefix}/_raven/status",
                         payload=b"offline", retain=True),
                 ) as client:
                     backoff = 1
                     await client.publish(
-                        f"{self.topic_prefix}/_saras/status", payload=b"online", retain=True)
+                        f"{self.topic_prefix}/_raven/status", payload=b"online", retain=True)
                     await client.subscribe(f"{self.topic_prefix}/#")
 
                     async for message in client.messages:
@@ -139,7 +139,7 @@ class MQTTListener:
                 backoff = min(backoff * 2, 60)
 
     async def _handle(self, msg: aiomqtt.Message):
-        """Topic format: saras/sensors/{device_id}/{sensor_type}"""
+        """Topic format: raven/sensors/{device_id}/{sensor_type}"""
         parts = str(msg.topic).split("/")
         if len(parts) < 4 or parts[2].startswith("_"):
             return
@@ -156,7 +156,7 @@ class MQTTListener:
         except (json.JSONDecodeError, UnicodeDecodeError):
             return
 
-        from saras.sensors.models import SensorReading
+        from raven.sensors.models import SensorReading
         await self.processor.process_reading(SensorReading(
             device_id=device_id, sensor_type=sensor_type,
             value=payload.get("value"), unit=payload.get("unit", ""),
@@ -168,7 +168,7 @@ class MQTTListener:
 ### Data Models
 
 ```python
-# saras/sensors/models.py
+# raven/sensors/models.py
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -211,7 +211,7 @@ from umqtt.simple import MQTTClient
 
 MQTT_BROKER  = "192.168.1.100"
 DEVICE_ID    = "esp32-bedroom-01"
-TOPIC_PREFIX = "saras/sensors"
+TOPIC_PREFIX = "raven/sensors"
 LOCATION     = "bedroom"
 
 def connect_wifi():
@@ -267,7 +267,7 @@ main()
 
 const char* MQTT_BROKER = "192.168.1.100";
 const char* DEVICE_ID   = "esp32-hallway-pir";
-const char* PREFIX      = "saras/sensors";
+const char* PREFIX      = "raven/sensors";
 const int PIR_PIN = 27;
 const unsigned long DEBOUNCE_MS = 5000;
 
@@ -341,12 +341,12 @@ void loop() {
 ### Sensor Processor
 
 ```python
-# saras/sensors/processor.py
+# raven/sensors/processor.py
 
 import json, logging
 import asyncpg, redis.asyncio as aioredis
-from saras.sensors.models import SensorReading, SensorAlert
-from saras.sensors.anomaly import AnomalyDetector
+from raven.sensors.models import SensorReading, SensorAlert
+from raven.sensors.anomaly import AnomalyDetector
 
 SANE_BOUNDS = {"temperature": (-50, 80), "humidity": (0, 100),
                "light": (0, 200000), "gas": (0, 50000)}
@@ -390,7 +390,7 @@ class SensorProcessor:
 ## Device Registry
 
 Devices self-register by publishing a retained message to
-`saras/sensors/{device_id}/register`. SARAS upserts this into PostgreSQL.
+`raven/sensors/{device_id}/register`. RAVEN upserts this into PostgreSQL.
 
 ### Database Schema
 
@@ -445,10 +445,10 @@ CREATE TABLE sensor_alerts (
 ### Registration and Watchdog
 
 ```python
-# saras/sensors/registry.py
+# raven/sensors/registry.py
 
 import asyncio, logging, asyncpg
-from saras.sensors.models import SensorAlert
+from raven.sensors.models import SensorAlert
 
 class DeviceRegistry:
     def __init__(self, db: asyncpg.Pool):
@@ -487,7 +487,7 @@ async def device_watchdog(registry, alert_cb, interval=120, stale_min=10):
 When an ESP32 connects, it registers an MQTT Last Will and Testament:
 
 ```
-Topic:   saras/sensors/esp32-bedroom-01/status
+Topic:   raven/sensors/esp32-bedroom-01/status
 Payload: "offline"
 Retain:  true
 ```
@@ -503,13 +503,13 @@ for devices with `last_seen` older than 10 minutes.
 ### Anomaly Detector
 
 ```python
-# saras/sensors/anomaly.py
+# raven/sensors/anomaly.py
 
 import math
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import timedelta
-from saras.sensors.models import SensorReading, SensorAlert
+from raven.sensors.models import SensorReading, SensorAlert
 
 @dataclass
 class ThresholdRule:
@@ -630,7 +630,7 @@ class AlertRouter:
 
 ## Proactive Notifications
 
-Instead of sending raw sensor data, SARAS feeds alerts through the brain to produce
+Instead of sending raw sensor data, RAVEN feeds alerts through the brain to produce
 natural-language notifications.
 
 ```
@@ -642,7 +642,7 @@ natural-language notifications.
 ```
 
 ```python
-# saras/sensors/proactive.py
+# raven/sensors/proactive.py
 
 class ProactiveNotifier:
     def __init__(self, brain, router):
@@ -670,11 +670,11 @@ class ProactiveNotifier:
 
 ## Sensor Context Injection
 
-Latest sensor values from Redis are injected into every LLM context window so SARAS
+Latest sensor values from Redis are injected into every LLM context window so RAVEN
 can answer questions like "What's the temperature?" without a tool call.
 
 ```python
-# saras/sensors/context.py
+# raven/sensors/context.py
 
 import json
 import redis.asyncio as aioredis
@@ -723,12 +723,12 @@ class SensorContextBuilder:
         return "\n".join(lines)
 ```
 
-This is called in `SarasBrain.build_full_context()` -- sensor data appears after the
+This is called in `RavenBrain.build_full_context()` -- sensor data appears after the
 system prompt and before conversation history:
 
 ```python
-# saras/brain/core.py (excerpt)
-class SarasBrain:
+# raven/brain/core.py (excerpt)
+class RavenBrain:
     async def build_full_context(self, user_message, user_id):
         parts = [self.personality.get_system_prompt()]
         sensor_ctx = await self.sensor_ctx.build_context()
@@ -747,13 +747,13 @@ class SarasBrain:
 ### RTSP Snapshot Capture
 
 ```python
-# saras/sensors/camera.py
+# raven/sensors/camera.py
 
 import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 
-SNAPSHOT_DIR = Path("/var/saras/snapshots")
+SNAPSHOT_DIR = Path("/var/raven/snapshots")
 
 async def capture_rtsp_snapshot(rtsp_url: str, device_id: str, timeout=10) -> str|None:
     """Capture one JPEG frame from RTSP stream via ffmpeg."""
@@ -845,7 +845,7 @@ mqtt:
   enabled: true
   broker: "localhost"
   port: 1883
-  topic_prefix: "saras/sensors"
+  topic_prefix: "raven/sensors"
 
 sensors:
   cache_ttl_seconds: 300
@@ -861,7 +861,7 @@ sensors:
     warning_platforms: [telegram, web]
     info_platforms: [web]
   cameras:
-    snapshot_dir: /var/saras/snapshots
+    snapshot_dir: /var/raven/snapshots
     snapshot_retention_days: 7
   watchdog:
     check_interval_seconds: 120

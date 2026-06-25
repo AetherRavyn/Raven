@@ -1,12 +1,12 @@
 # app/core/sentinel_bridge.py
-"""Bridge between HomeSentinel monitoring system and SARAS core.
+"""Bridge between HomeSentinel monitoring system and RAVEN core.
 
 Subscribes to HomeSentinel's Redis-backed MessageBus and translates
-security/monitoring events into SARAS IncomingRequests or direct
+security/monitoring events into RAVEN IncomingRequests or direct
 user notifications.
 
 Architecture:
-    HomeSentinel (camera/sensors) → Redis pub/sub → SentinelBridge → SARAS Orchestrator
+    HomeSentinel (camera/sensors) → Redis pub/sub → SentinelBridge → RAVEN Orchestrator
 """
 
 from __future__ import annotations
@@ -14,10 +14,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import threading
 from collections import deque
 from datetime import datetime, timezone
-from typing import Any, Callable, Deque, Dict, Optional
+from typing import Any, Deque, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +82,7 @@ class SentinelEvent:
 
 class SentinelBridge:
     """
-    Bridges HomeSentinel events to SARAS.
+    Bridges HomeSentinel events to RAVEN.
 
     - Critical/High events → immediate notification to all registered platforms
     - Low/Medium events → batched into periodic digest
@@ -109,7 +108,7 @@ class SentinelBridge:
         # Event log file
         self._event_log_path = f"{workspace_dir}/sentinel_events.jsonl"
 
-        # Redis connection
+        # Event bus (in-process)
         self._message_bus = None
         self._running = False
 
@@ -118,25 +117,14 @@ class SentinelBridge:
         self._notify_targets.append((platform, chat_id))
 
     def start(self, redis_url: str | None = None) -> None:
-        """Start listening to HomeSentinel events via Redis pub/sub."""
-        try:
-            from monitoring.src.message_bus import MessageBus
-        except ImportError:
-            logger.warning(
-                "SentinelBridge: monitoring.src.message_bus not available. "
-                "Bridge will operate in passive mode."
-            )
-            return
+        """Start listening to HomeSentinel events.
 
-        try:
-            self._message_bus = MessageBus(redis_url=redis_url)
-            self._message_bus.subscribe("events", self._on_sentinel_event)
-            self._message_bus.subscribe("alerts", self._on_sentinel_event)
-            self._message_bus.subscribe("detections", self._on_detection_event)
-            self._running = True
-            logger.info("SentinelBridge: subscribed to HomeSentinel Redis channels")
-        except Exception as exc:
-            logger.warning("SentinelBridge: failed to connect to Redis — %s", exc)
+        Operates in passive mode — accepts direct event injection
+        via inject_event() and inject_detection(). Redis pub/sub
+        integration is handled by the monitoring subsystem if available.
+        """
+        self._running = True
+        logger.info("SentinelBridge started in passive mode")
 
     def stop(self) -> None:
         """Stop listening."""

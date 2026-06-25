@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}SESSIONS — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">SESSIONS</h1>
+  <p class="text-zinc-500 text-[11px]">Per-user conversation history (read-only · v31)</p>
+  <div class="border border-ink-600 bg-ink-800 rounded">
+    <table class="w-full text-[12px]">
+      <thead class="text-zinc-500 border-b border-ink-600">
+        <tr>
+          <th class="text-left px-3 py-1.5">user_id</th>
+          <th class="text-left px-3 py-1.5">turns</th>
+          <th class="text-left px-3 py-1.5">last_active</th>
+        </tr>
+      </thead>
+      <tbody id="sessions-tbody">
+        {% if sessions %}
+          {% for s in sessions %}
+            <tr class="border-b border-ink-700 hover:bg-ink-700">
+              <td class="px-3 py-1.5">{{ s.user_id or s.get("user_id", "?") }}</td>
+              <td class="px-3 py-1.5 text-zinc-400">{{ s.turns or s.get("turns", "?") }}</td>
+              <td class="px-3 py-1.5 text-zinc-500">{{ s.last_active or s.get("last_active", "—") }}</td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="3" class="px-3 py-3 text-zinc-600 text-center">[no sessions]</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

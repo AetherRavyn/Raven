@@ -1,0 +1,33 @@
+{
+  "author": "RAVEN team",
+  "description": "Transcribe and summarize meeting recordings or notes into action items.",
+  "eval_records": [],
+  "inputs": [
+    {
+      "default": null,
+      "description": "",
+      "name": "query",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "meeting_summarizer",
+  "outputs": [],
+  "permissions": [
+    "filesystem.read"
+  ],
+  "promotion_threshold": 20,
+  "risk_level": "low",
+  "schema_version": "1.0",
+  "source": "bundled",
+  "tags": [
+    "meeting",
+    "summary",
+    "transcription",
+    "notes",
+    "action-items",
+    "voice"
+  ],
+  "trust": "workspace",
+  "version": "1.0.0"
+}

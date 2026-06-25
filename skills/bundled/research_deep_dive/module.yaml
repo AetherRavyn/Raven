@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.research_deep_dive
+display_name: Research Deep Dive
+version: "1.0.0"
+category: skill
+description: "Conduct multi-source research on a topic: web search, papers, summarize findings."
+tags: [research, web-search, analysis, papers, summary]
+capabilities: [web_search, url_tool, web_fetch, file_tool]
+trust_level: system
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.91
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "research.*about|deep dive.*into|investigate|find.*papers"
+    confidence: 0.88

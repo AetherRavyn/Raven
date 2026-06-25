@@ -14,7 +14,7 @@ HTML_CONTENT = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SARAS Presence UI</title>
+    <title>RAVEN Presence UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: monospace; }
@@ -24,7 +24,7 @@ HTML_CONTENT = """
 </head>
 <body class="p-6">
     <header class="mb-8">
-        <h1 class="text-3xl font-bold text-sky-400">SARAS Presence UI</h1>
+        <h1 class="text-3xl font-bold text-sky-400">RAVEN Presence UI</h1>
         <p class="text-slate-400 text-sm">Real-time system state & telemetry</p>
     </header>
 

@@ -13,6 +13,7 @@ from pathlib import Path
 from app.provider.factory import create_provider
 from app.settings.config import Config
 
+
 class System1Router:
     def __init__(self, cache_ttl_seconds: int = 45):
         self.user_memory = defaultdict(dict)
@@ -56,13 +57,19 @@ class System1Router:
     async def _get_provider(self):
         if not self._provider_health_checked:
             try:
-                # Use the factory to create the Ollama provider
-                self._provider = create_provider("ollama", model=Config.LOCAL_LIGHT_MODEL)
-                # Check health
-                if hasattr(self._provider, "health"):
-                    self._provider_is_healthy = await self._provider.health()
-                else:
+                from app.provider.manager import ProviderManager
+
+                pm = ProviderManager()
+                pm_provider, pm_model = pm.select_model()
+                if pm_provider != "opencode_zen" or pm_model != "big-pickle":
+                    self._provider = create_provider(pm_provider)
                     self._provider_is_healthy = True
+                else:
+                    self._provider = create_provider("ollama", model=Config.LOCAL_LIGHT_MODEL)
+                    if hasattr(self._provider, "health"):
+                        self._provider_is_healthy = await self._provider.health()
+                    else:
+                        self._provider_is_healthy = True
             except Exception:
                 self._provider = None
                 self._provider_is_healthy = False
@@ -119,7 +126,7 @@ class System1Router:
             )
             messages = [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": original_text}
+                {"role": "user", "content": original_text},
             ]
             try:
                 resp = await provider.chat_completion(messages=messages)
@@ -139,7 +146,7 @@ class System1Router:
             except Exception:
                 pass
 
-        return f"SARAS is analyzing your problem: {original_text}", True
+        return f"RAVEN is analyzing your problem: {original_text}", True
 
     def _cache_get(self, key: str) -> tuple[str, bool] | None:
         cached = self.cache.get(key)
@@ -167,11 +174,7 @@ class System1Router:
             return self._tool_time()
         if text.startswith("/os") or "os status" in text or "system info" in text:
             return self._tool_os_status()
-        if (
-            text.startswith("/server")
-            or "server status" in text
-            or "server health" in text
-        ):
+        if text.startswith("/server") or "server status" in text or "server health" in text:
             return self._tool_server_status()
         if (
             text.startswith("/internet")
@@ -255,9 +258,7 @@ class System1Router:
         download_speed_mbps = "unavailable"
         try:
             start = time.perf_counter()
-            with urllib.request.urlopen(
-                "https://www.google.com/generate_204", timeout=4
-            ) as resp:
+            with urllib.request.urlopen("https://www.google.com/generate_204", timeout=4) as resp:
                 data = resp.read()
             elapsed = max(time.perf_counter() - start, 1e-6)
             download_speed_mbps = f"{(len(data) * 8) / elapsed / 1_000_000:.3f}"

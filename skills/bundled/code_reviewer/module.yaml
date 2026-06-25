@@ -1,0 +1,33 @@
+schema_version: "1.0"
+module_id: skill.code_reviewer
+display_name: Code Reviewer
+name: Code Reviewer
+version: 1.0.0
+category: skill
+description: >
+  Analyzes code changes for bugs, style violations, performance issues, and security
+  vulnerabilities. Provides structured feedback with severity levels and actionable fixes.
+tags: [code-review, quality, bugs, security, style]
+capabilities: [code-analysis, bug-detection, style-check, security-review]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+maturity: production
+origin: bundled
+
+triggers:
+  - pattern: "review.*code"
+    confidence: 0.90
+  - pattern: "check.*my.*(?:PR|pull request|merge request)"
+    confidence: 0.85
+  - pattern: "code.*review"
+    confidence: 0.85
+  - context: "code file attached for review"
+
+dependencies:
+  - name: file_operations
+    status: available
+    required: true
+  - name: git_ops
+    status: available
+    required: false

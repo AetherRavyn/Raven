@@ -13,11 +13,7 @@ logger = logging.getLogger(__name__)
 class initDB:
     """
     Central database handle.  Holds one SQLiteDB (events / tracks / clips)
-    and one Neo4jGraph (person identities + sighting relationships).
-
-    Both connections are created eagerly; if Neo4j is unreachable the
-    driver is set to None inside Neo4jGraph and every write becomes a no-op,
-    so the rest of the system can keep running on SQLite alone.
+    and one Neo4jGraph (person identities + sighting relationships, backed by SQLite).
 
     Usage
     -----
@@ -36,33 +32,19 @@ class initDB:
 
         self.neo4j = Neo4jGraph(cfg)
         if self.neo4j.driver is not None:
-            logger.info(
-                "Neo4j ready: %s",
-                cfg.get("database", {}).get("neo4j", {}).get("uri", "?"),
-            )
+            logger.info("Graph storage ready (SQLite-backed)")
         else:
-            logger.warning("Neo4j unavailable – running without graph storage")
-
-    # ------------------------------------------------------------------
-    # HEALTH
-    # ------------------------------------------------------------------
+            logger.warning("Graph storage unavailable – running without graph")
 
     @property
     def neo4j_ok(self) -> bool:
-        """True when the Neo4j driver is connected."""
         return self.neo4j.driver is not None
 
     @property
     def sqlite_ok(self) -> bool:
-        """True when the SQLite engine is initialised."""
         return self.sqlite.engine is not None
 
-    # ------------------------------------------------------------------
-    # LIFECYCLE
-    # ------------------------------------------------------------------
-
     def close(self):
-        """Gracefully close both database connections."""
         try:
             self.sqlite.close()
         except Exception as e:
@@ -70,7 +52,7 @@ class initDB:
         try:
             self.neo4j.close()
         except Exception as e:
-            logger.warning("Error closing Neo4j: %s", e)
+            logger.warning("Error closing graph: %s", e)
         logger.info("initDB closed")
 
     def __enter__(self):
@@ -82,5 +64,5 @@ class initDB:
     def __repr__(self) -> str:
         return (
             f"<initDB sqlite={'ok' if self.sqlite_ok else 'err'} "
-            f"neo4j={'ok' if self.neo4j_ok else 'unavailable'}>"
+            f"graph={'ok' if self.neo4j_ok else 'unavailable'}>"
         )

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}HOME — Raven{% endblock %}
+{% block main %}
+<section class="space-y-4" x-data="homeDashboard()">
+  <div class="flex items-center justify-between">
+    <h1 class="text-sm tracking-wider uppercase" style="color: var(--text-primary);">Dashboard</h1>
+    <span class="text-[10px]" style="color: var(--text-muted);" x-text="lastUpdated"></span>
+  </div>
+
+  <!-- System status cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="card p-3">
+      <div class="text-[10px] uppercase tracking-wider" style="color: var(--text-muted);">Status</div>
+      <div class="mt-1 flex items-center gap-2">
+        <span class="status-dot" :class="system.online ? 'green' : 'red'"></span>
+        <span class="text-[13px]" style="color: var(--text-primary);" x-text="system.online ? 'Online' : 'Offline'"></span>
+      </div>
+      <div class="mt-1 text-[10px]" style="color: var(--text-muted);" x-text="'Uptime: ' + system.uptime"></div>
+    </div>
+
+    <div class="card p-3">
+      <div class="text-[10px] uppercase tracking-wider" style="color: var(--text-muted);">Model</div>
+      <div class="mt-1 text-[13px] font-semibold truncate" style="color: var(--accent);" x-text="modelName"></div>
+      <div class="mt-1 text-[10px] truncate" style="color: var(--text-muted);" x-text="'via ' + providerName"></div>
+    </div>
+
+    <div class="card p-3">
+      <div class="text-[10px] uppercase tracking-wider" style="color: var(--text-muted);">Memory</div>
+      <div class="mt-1 text-[13px]" style="color: var(--text-primary);">HelixDB + SQLite</div>
+      <div class="mt-1 flex gap-2 text-[10px]" style="color: var(--text-muted);">
+        <span x-text="memoryCount + ' memories'"></span>
+      </div>
+    </div>
+
+    <div class="card p-3">
+      <div class="text-[10px] uppercase tracking-wider" style="color: var(--text-muted);">Modules</div>
+      <div class="mt-1 text-[13px]" style="color: var(--text-primary);" x-text="moduleCount + ' A2A'"></div>
+      <div class="mt-1 text-[10px]" style="color: var(--text-muted);" x-text="providerCount + ' providers'"></div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="card p-4">
+    <div class="text-[10px] uppercase tracking-wider mb-3" style="color: var(--text-muted);">Quick Actions</div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <a href="/page/chat" class="btn btn-primary text-center">💬 Chat</a>
+      <a href="/page/providers" class="btn btn-secondary text-center">🔑 Providers</a>
+      <a href="/page/knowledge-graph" class="btn btn-secondary text-center">🧠 Knowledge</a>
+      <a href="/page/cron" class="btn btn-secondary text-center">⏰ Schedule</a>
+    </div>
+  </div>
+
+  <!-- Active Modules -->
+  <div class="card p-4">
+    <div class="text-[10px] uppercase tracking-wider mb-3" style="color: var(--text-muted);">Active A2A Modules</div>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+      <template x-for="mod in modules" :key="mod.name">
+        <div class="p-2 rounded text-[12px]" style="background: var(--bg-tertiary); border: 1px solid var(--border-color);">
+          <span class="font-medium" style="color: var(--accent);" x-text="mod.name"></span>
+          <span class="text-[10px] ml-1" style="color: var(--text-muted);" x-text="mod.skills.length + ' skills'"></span>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="card p-4">
+    <div class="text-[10px] uppercase tracking-wider mb-3" style="color: var(--text-muted);">Recent Activity</div>
+    <div class="space-y-2">
+      <template x-for="insight in insights" :key="insight.timestamp">
+        <div class="flex items-start gap-2 text-[12px]" style="color: var(--text-secondary);">
+          <span style="color: var(--accent);">•</span>
+          <span x-text="insight.title + ': ' + insight.description"></span>
+        </div>
+      </template>
+      <div x-show="insights.length === 0" class="text-[12px]" style="color: var(--text-muted);">No recent activity</div>
+    </div>
+  </div>
+</section>
+
+<script>
+function homeDashboard() {
+  return {
+    system: { online: false, uptime: '...' },
+    modelName: '...',
+    providerName: '...',
+    memoryCount: 0,
+    moduleCount: 0,
+    providerCount: 0,
+    modules: [],
+    insights: [],
+    lastUpdated: '',
+
+    async init() {
+      try {
+        const status = await fetch('/api/system/status').then(r => r.json());
+        this.system = { online: true, uptime: status.uptime || '...' };
+        this.modelName = status.model || '...';
+        this.providerName = status.provider || '...';
+        this.memoryCount = status.memory_count || 0;
+      } catch(e) {}
+
+      try {
+        const mods = await fetch('/modules').then(r => r.json());
+        this.moduleCount = mods.total_modules || 0;
+        this.modules = mods.modules || [];
+      } catch(e) {}
+
+      try {
+        const providers = await fetch('/api/providers/list').then(r => r.json());
+        this.providerCount = (providers.providers || []).length;
+      } catch(e) {}
+
+      this.lastUpdated = new Date().toLocaleTimeString();
+    }
+  };
+}
+</script>
+{% endblock %}

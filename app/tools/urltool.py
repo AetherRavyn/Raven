@@ -21,7 +21,7 @@ class URLMetadataTool(BaseTool):
 
     def __init__(self, **cfg: Any):
         self._timeout = int(cfg.get("timeout_seconds", 10))
-        self._user_agent = cfg.get("user_agent", "SARAS/1.0 (URL Metadata Fetcher)")
+        self._user_agent = cfg.get("user_agent", "RAVEN/1.0 (URL Metadata Fetcher)")
 
     def get_name(self) -> str:
         return "url_metadata"

@@ -1,12 +1,12 @@
 # 04 - Tools Ecosystem
 
-## How SARAS Uses Tools
+## How RAVEN Uses Tools
 
-SARAS is not just a chatbot -- it can act on the world. When you ask it to search the
+RAVEN is not just a chatbot -- it can act on the world. When you ask it to search the
 web, check the weather, run some code, or turn on a light, the LLM decides which tool
 to call, executes it, reads the result, and crafts a natural response.
 
-This document covers every tool SARAS has, how tool calling works internally, and how
+This document covers every tool RAVEN has, how tool calling works internally, and how
 to add your own tools through the plugin system.
 
 ---
@@ -24,7 +24,7 @@ User: "What's the weather in Bangalore?"
           │
           ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                        SARAS BRAIN                               │
+│                        RAVEN BRAIN                               │
 │                                                                  │
 │  1. Build context:                                               │
 │     [system prompt + memories + tool descriptions + user msg]    │
@@ -52,7 +52,7 @@ Response sent back to user on Telegram / Discord / wherever
 ### The Tool Calling Loop
 
 ```python
-class SarasBrain:
+class RavenBrain:
     async def _think_and_respond(self, message: IncomingMessage) -> OutgoingMessage:
         """Core thinking loop with tool calling support."""
 
@@ -157,7 +157,7 @@ TOOL_SCHEMAS = [
 
 ## Base Tool Interface and Registry
 
-Every tool in SARAS implements a common abstract interface. Tools are discovered and
+Every tool in RAVEN implements a common abstract interface. Tools are discovered and
 registered at startup through a registry pattern.
 
 ```python
@@ -194,7 +194,7 @@ class ToolResult:
 
 
 class BaseTool(ABC):
-    """Abstract base class for all SARAS tools.
+    """Abstract base class for all RAVEN tools.
 
     Every tool must define its name, description, parameters, and an
     execute method. The registry auto-discovers tools by scanning for
@@ -273,7 +273,7 @@ from pathlib import Path
 class ToolRegistry:
     """Discovers, registers, and manages all available tools.
 
-    Built-in tools are loaded from saras/tools/.
+    Built-in tools are loaded from raven/tools/.
     Plugin tools are loaded from the plugins/ directory.
     """
 
@@ -293,13 +293,13 @@ class ToolRegistry:
         logger.info(f"Registered {len(enabled)} tools: {enabled}")
 
     def _discover_builtin_tools(self):
-        """Import all tool classes from saras/tools/ package."""
-        import saras.tools as tools_package
+        """Import all tool classes from raven/tools/ package."""
+        import raven.tools as tools_package
 
         for importer, modname, ispkg in pkgutil.iter_modules(
             tools_package.__path__
         ):
-            module = importlib.import_module(f"saras.tools.{modname}")
+            module = importlib.import_module(f"raven.tools.{modname}")
 
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
@@ -432,7 +432,7 @@ class ToolExecutor:
 ### web_search -- Internet Search via SearXNG
 
 SearXNG is a self-hosted metasearch engine that aggregates results from Google, Bing,
-DuckDuckGo, and others without tracking. SARAS queries it over a local HTTP API.
+DuckDuckGo, and others without tracking. RAVEN queries it over a local HTTP API.
 
 ```python
 import httpx
@@ -641,7 +641,7 @@ class ReadUrlTool(BaseTool):
                 timeout=20.0,
                 follow_redirects=True,
                 headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; SARAS/1.0)"
+                    "User-Agent": "Mozilla/5.0 (compatible; RAVEN/1.0)"
                 },
             ) as client:
                 resp = await client.get(url)
@@ -691,7 +691,7 @@ class ReadUrlTool(BaseTool):
 
 ### get_weather -- Open-Meteo API
 
-Open-Meteo is a free weather API that requires no API key. SARAS uses geocoding to
+Open-Meteo is a free weather API that requires no API key. RAVEN uses geocoding to
 resolve location names to coordinates, then fetches the forecast.
 
 ```python
@@ -803,7 +803,7 @@ class GetWeatherTool(BaseTool):
 ### set_reminder / set_alarm -- APScheduler Integration
 
 Reminders and alarms use APScheduler to schedule future callbacks. When a reminder
-fires, SARAS sends a message to the user on whichever platform the reminder was set
+fires, RAVEN sends a message to the user on whichever platform the reminder was set
 from.
 
 ```python
@@ -833,10 +833,10 @@ class SetReminderTool(BaseTool):
     def __init__(self, config: dict):
         self.scheduler: AsyncIOScheduler | None = None
         self.db: Database | None = None
-        self.brain: SarasBrain | None = None  # Set after init
+        self.brain: RavenBrain | None = None  # Set after init
 
     def bind(self, scheduler: AsyncIOScheduler, db: Database,
-             brain: 'SarasBrain'):
+             brain: 'RavenBrain'):
         """Bind runtime dependencies after initialization."""
         self.scheduler = scheduler
         self.db = db
@@ -957,7 +957,7 @@ class SetAlarmTool(BaseTool):
     def __init__(self, config: dict):
         self.scheduler: AsyncIOScheduler | None = None
         self.db: Database | None = None
-        self.brain: SarasBrain | None = None
+        self.brain: RavenBrain | None = None
 
     def bind(self, scheduler, db, brain):
         self.scheduler = scheduler
@@ -1291,7 +1291,7 @@ class TakePhotoTool(BaseTool):
             )
 
         rtsp_url = camera_config["url"]
-        output_path = f"/tmp/saras_camera_{camera_key}_{int(time.time())}.jpg"
+        output_path = f"/tmp/raven_camera_{camera_key}_{int(time.time())}.jpg"
 
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -1703,7 +1703,7 @@ class WikipediaTool(BaseTool):
                 resp = await client.get(
                     f"https://en.wikipedia.org/api/rest_v1/page/summary/"
                     f"{query.replace(' ', '_')}",
-                    headers={"User-Agent": "SARAS/1.0"},
+                    headers={"User-Agent": "RAVEN/1.0"},
                 )
 
                 if resp.status_code == 404:
@@ -1739,7 +1739,7 @@ class WikipediaTool(BaseTool):
                 "srlimit": 1,
                 "format": "json",
             },
-            headers={"User-Agent": "SARAS/1.0"},
+            headers={"User-Agent": "RAVEN/1.0"},
         )
         data = resp.json()
         results = data.get("query", {}).get("search", [])
@@ -1755,7 +1755,7 @@ class WikipediaTool(BaseTool):
         summary_resp = await client.get(
             f"https://en.wikipedia.org/api/rest_v1/page/summary/"
             f"{title.replace(' ', '_')}",
-            headers={"User-Agent": "SARAS/1.0"},
+            headers={"User-Agent": "RAVEN/1.0"},
         )
         summary_data = summary_resp.json()
 
@@ -2065,7 +2065,7 @@ always call `read_url` or re-query with narrower parameters if it needs more det
 
 ## Plugin System
 
-Users can extend SARAS with custom tools by dropping a Python file in the `plugins/`
+Users can extend RAVEN with custom tools by dropping a Python file in the `plugins/`
 directory. The tool registry auto-discovers these at startup.
 
 ### Writing a Plugin
@@ -2076,9 +2076,9 @@ A plugin is a single Python file that defines a class inheriting from `BaseTool`
 # plugins/stock_price.py
 #
 # Custom tool: get stock prices from Yahoo Finance.
-# Drop this file in the plugins/ directory and restart SARAS.
+# Drop this file in the plugins/ directory and restart RAVEN.
 
-from saras.tools.base import BaseTool, ToolParameter, ToolResult
+from raven.tools.base import BaseTool, ToolParameter, ToolResult
 import httpx
 
 
@@ -2102,7 +2102,7 @@ class StockPriceTool(BaseTool):
                 resp = await client.get(
                     f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}",
                     params={"interval": "1d", "range": "1d"},
-                    headers={"User-Agent": "SARAS/1.0"},
+                    headers={"User-Agent": "RAVEN/1.0"},
                 )
                 resp.raise_for_status()
                 data = resp.json()
@@ -2188,7 +2188,7 @@ error information and can communicate the failure naturally to the user.
 │     - Logs to audit_log table                                          │
 │     - Returns ToolResult(success=False, error=...)                     │
 │                                                                        │
-│  Layer 3: SarasBrain                                                   │
+│  Layer 3: RavenBrain                                                   │
 │     - Receives the error as a tool result                              │
 │     - LLM generates a natural error message for the user               │
 │     - e.g. "I tried to search but the search engine is down.          │
@@ -2234,7 +2234,7 @@ tools:
 
 ### Graceful Degradation
 
-When a tool fails, SARAS does not crash or give a raw error dump. The LLM receives
+When a tool fails, RAVEN does not crash or give a raw error dump. The LLM receives
 the error and crafts a helpful response:
 
 ```
@@ -2285,5 +2285,5 @@ Design decisions:
   - Home Assistant requires a long-lived access token, but HA itself
     is self-hosted.
   - The plugin system lets you add paid APIs (OpenAI, Stripe, Twilio)
-    if you want them -- SARAS just doesn't depend on them.
+    if you want them -- RAVEN just doesn't depend on them.
 ```

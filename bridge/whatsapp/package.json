@@ -1,7 +1,7 @@
 {
-  "name": "saras-whatsapp-bridge",
+  "name": "raven-whatsapp-bridge",
   "version": "1.0.0",
-  "description": "Baileys WhatsApp bridge for SARAS",
+  "description": "Baileys WhatsApp bridge for RAVEN",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"

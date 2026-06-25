@@ -1,0 +1,43 @@
+schema_version: "1.0"
+module_id: skill.home.protection
+display_name: Home Protection
+version: "1.2.0"
+category: tool
+description: "Camera-based home surveillance: watches the front door, detects strangers, and snapshots intruders."
+tags: [home, security, camera]
+trust_level: community
+enabled_by_default: false   # community + least-privilege: operator must opt in before a camera starts
+stability: experimental
+origin: community
+triggers:
+  - pattern: "check.*home|who.*at.*door"
+    confidence: 0.9
+provides:
+  - type: event_source
+    name: front_door_camera
+    entrypoint: sources.py:FrontDoorCamera
+    config: { camera_id: front_door, fps: 5 }
+  - type: anomaly_detector
+    name: stranger_detector
+    entrypoint: detectors.py:StrangerDetector
+    listens_to: front_door_camera
+    priority: CRITICAL
+  - type: tool
+    name: snapshot_tool
+    entrypoint: tools.py:SnapshotTool
+  - type: proactive_reaction
+    name: intruder_response
+    condition: "event.type == 'stranger' and event.confidence > 0.7"
+    response: { invoke_tools: [snapshot_tool], notify: true, priority: CRITICAL }
+  - type: ui_surface
+    name: camera_panel
+    entrypoint: panel.py:render_panel
+required_permissions: [camera.read, notify.operator]
+required_secrets: [CAMERA_RTSP_URL]
+compatibility:
+  # The design lists 2.0.0, but the running platform reports ~0.1.0
+  # (loader._running_version / pyproject "raven" version). Pinning to 0.1.0 keeps
+  # the worked example loadable: validate_manifest requires
+  # min_ravyn_version <= running_version, so this passes today.
+  min_ravyn_version: "0.1.0"
+  schema_version: "1.0"

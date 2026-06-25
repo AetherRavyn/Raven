@@ -1,11 +1,11 @@
 # app/whatsapp/whatsappapp.py
-"""SARAS WhatsApp connector via the Baileys HTTP bridge.
+"""RAVEN WhatsApp connector via the Baileys HTTP bridge.
 
 Architecture:
   WhatsApp ←→ Baileys (Node.js bridge) ←→ POST /whatsapp/incoming → this module → BotSignal
                                         ←→ POST <bridge>/send ← send_to_target()
 
-The bridge forwards incoming messages to SARAS via POST /whatsapp/incoming.
+The bridge forwards incoming messages to RAVEN via POST /whatsapp/incoming.
 Outbound messages are sent by POSTing to the bridge's /send endpoint.
 
 Config:
@@ -32,7 +32,7 @@ class WhatsAppBot:
     def __init__(self, bridge_url: str, orchestrator) -> None:
         self._bridge_url = bridge_url.rstrip("/")
         self._orchestrator = orchestrator
-        self._app = FastAPI(title="SARAS WhatsApp Receiver")
+        self._app = FastAPI(title="RAVEN WhatsApp Receiver")
         self._setup_routes()
 
     # ── FastAPI routes ────────────────────────────────────────────────────────

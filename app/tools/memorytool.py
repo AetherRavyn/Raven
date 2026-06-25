@@ -66,7 +66,7 @@ class MemoryTool(BaseTool):
         filepath = self.workspace_dir / filename
 
         try:
-            # Write to ChromaDB vector store
+            # Write to HelixDB vector store
             from app.core.memory import get_memory_store
 
             store = get_memory_store()

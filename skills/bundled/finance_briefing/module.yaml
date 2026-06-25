@@ -1,0 +1,20 @@
+schema_version: "1.0"
+module_id: skill.bundled.finance_briefing
+display_name: Finance Briefing
+version: "1.0.0"
+category: skill
+description: "Stock quotes, crypto prices, portfolio alerts, and financial market summaries."
+tags: [finance, stocks, crypto, portfolio, market, briefing]
+capabilities: [stock_quote, crypto_price, crypto_alert, web_search]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.90
+triggers:
+  - pattern: "stock.*price|how.*doing.*stock|market.*summary"
+    confidence: 0.85
+  - pattern: "crypto.*price|bitcoin|ethereum.*price"
+    confidence: 0.85
+  - pattern: "portfolio|investments|financial.*summary"
+    confidence: 0.80

@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import asyncio
 import base64
 import json
-import os
-import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict
+from typing import Any, Dict
 
 import numpy as np
 from loguru import logger
@@ -198,7 +195,7 @@ class VoiceTool(BaseTool):
                     required=False,
                     description=(
                         f"Path to the Vosk model directory "
-                        f"(default: '{VOSK_MODEL_PATH}')."
+                        f"(default: '{self.VOSK_MODEL_PATH}')."
                     ),
                 ),
                 # ── Speak (TTS) ───────────────────────────────────────────
@@ -213,7 +210,7 @@ class VoiceTool(BaseTool):
                     type="string",
                     required=False,
                     description=(
-                        f"Edge TTS voice name (default: '{DEFAULT_VOICE}'). "
+                        f"Edge TTS voice name (default: '{self.DEFAULT_VOICE}'). "
                         "See https://learn.microsoft.com/en-us/azure/cognitive-services/"
                         "speech-service/language-support for all options."
                     ),

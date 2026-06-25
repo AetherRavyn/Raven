@@ -356,15 +356,15 @@ Output exactly valid JSON array, and nothing else:
                 result = await resilient(
                     messages=[{"role": "user", "content": prompt}],
                     preferred_models=[
-                        "qwen/qwen3-coder:free",
-                        "google/gemini-2.5-flash:free",
+                        "big-pickle",
+                        "deepseek-v4-flash-free",
                     ],
                     free_only_guard=True,
                 )
             else:
                 result = await self.provider.chat_completion(
                     messages=[{"role": "user", "content": prompt}],
-                    model=self.model_name or "qwen/qwen3-coder:free",
+                    model=self.model_name or "big-pickle",
                 )
 
             if not result.get("success"):

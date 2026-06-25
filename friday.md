@@ -1,8 +1,8 @@
-# Friday Audit for SARAS
+# Friday Audit for RAVEN
 
-This is a codebase audit based on the current workspace. SARAS is already a multi-platform assistant platform with agents, tools, memory, voice, and a separate surveillance stack. It is not yet a full Friday or Jarvis-style assistant because the missing pieces are mostly memory policy, proactive planning, safe autonomy, and unified orchestration.
+This is a codebase audit based on the current workspace. RAVEN is already a multi-platform assistant platform with agents, tools, memory, voice, and a separate surveillance stack. It is not yet a full Friday or Jarvis-style assistant because the missing pieces are mostly memory policy, proactive planning, safe autonomy, and unified orchestration.
 
-## What SARAS Already Has
+## What RAVEN Already Has
 - Multi-platform connectors: Telegram, Discord, Slack, WhatsApp, web, voice, MQTT, webhook receiver, and Streamlit admin UI.
 - Unified output layer with `BotSignal` and platform-specific rendering for Telegram, Discord, and Slack.
 - Fast reflex router (`MiniEngine`) for greetings, identity, time, OS status, server health, and internet checks.
@@ -288,7 +288,7 @@ Use the cheapest reliable compute path for each job.
 - Use it as the design source for command center, onboarding, presence, safety, and audit UX.
 
 ## Bottom Line
-SARAS already has strong breadth. The next step is not adding random features, but tightening the architecture so every action is cheaper, safer, and more intentional.
+RAVEN already has strong breadth. The next step is not adding random features, but tightening the architecture so every action is cheaper, safer, and more intentional.
 
 ## Bottom Line
-SARAS already has the skeleton of a serious assistant platform. To feel like Friday or Jarvis, it needs less "more tools" and more "better orchestration, memory, safety, and proactive behavior."
+RAVEN already has the skeleton of a serious assistant platform. To feel like Friday or Jarvis, it needs less "more tools" and more "better orchestration, memory, safety, and proactive behavior."

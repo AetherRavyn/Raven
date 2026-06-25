@@ -3,7 +3,6 @@
 
 import mimetypes
 import os
-import re
 import struct
 
 from google import genai
@@ -18,9 +17,11 @@ def save_binary_file(file_name, data):
 
 
 def generate():
-    client = genai.Client(
-        api_key="AIzaSyCmtoKhKHIlu0z8aJGkoSLOdFSW0oJVCyo",
-    )
+    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        print("Error: GOOGLE_API_KEY or GEMINI_API_KEY env var not set")
+        return
+    client = genai.Client(api_key=api_key)
 
     model = "gemini-2.5-pro-preview-tts"
     contents = [

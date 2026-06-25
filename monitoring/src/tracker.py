@@ -359,7 +359,7 @@ class ByteTrackTracker:
 
 
 class TrackingService:
-    """Microservice wrapper for ByteTrackTracker using Redis MessageBus."""
+    """Microservice wrapper for ByteTrackTracker using MessageBus."""
 
     def __init__(self, bus, config: Dict = None):
         self.bus = bus

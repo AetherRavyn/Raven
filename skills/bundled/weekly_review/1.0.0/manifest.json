@@ -1,0 +1,33 @@
+{
+  "author": "RAVEN team",
+  "description": "End-of-week retrospective covering goals progress, tasks completed, insights learned, and next week's plan.",
+  "eval_records": [],
+  "inputs": [
+    {
+      "default": null,
+      "description": "",
+      "name": "query",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "weekly_review",
+  "outputs": [],
+  "permissions": [],
+  "promotion_threshold": 20,
+  "risk_level": "low",
+  "schema_version": "1.0",
+  "source": "bundled",
+  "tags": [
+    "review",
+    "weekly",
+    "retrospective",
+    "productivity",
+    "planning",
+    "task-review",
+    "progress-tracking",
+    "goal-assessment"
+  ],
+  "trust": "workspace",
+  "version": "1.0.0"
+}

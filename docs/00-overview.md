@@ -1,8 +1,8 @@
-# SARAS - Your Personal AI Companion
+# RAVEN - Your Personal AI Companion
 
-## What SARAS Actually Is
+## What RAVEN Actually Is
 
-SARAS is an **intelligent personal AI companion** -- a bot that acts as your friend,
+RAVEN is an **intelligent personal AI companion** -- a bot that acts as your friend,
 assistant, and brainstorming partner. It is NOT a video calling platform. It is a
 single AI entity that you can talk to from **anywhere**:
 
@@ -21,7 +21,7 @@ over time.
 ## Core Identity
 
 ```
-SARAS is:
+RAVEN is:
   ✓ A friend you can text or talk to anytime
   ✓ A brainstorming partner that thinks with you
   ✓ A tool-wielding assistant (web search, code, APIs, math, files)
@@ -30,7 +30,7 @@ SARAS is:
   ✓ Present on every platform you already use
   ✓ Self-hostable on your own server
 
-SARAS is NOT:
+RAVEN is NOT:
   ✗ A video calling app
   ✗ A web-only chatbot
   ✗ A smart home dashboard
@@ -39,16 +39,16 @@ SARAS is NOT:
 
 ---
 
-## How You Interact With SARAS
+## How You Interact With RAVEN
 
 ```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                     YOU (the human)                                         ║
 ║                                                                             ║
-║   "Hey SARAS, help me brainstorm startup ideas"     (Telegram text)         ║
-║   "SARAS, what's the temperature in my room?"       (Discord voice)         ║
+║   "Hey RAVEN, help me brainstorm startup ideas"     (Telegram text)         ║
+║   "RAVEN, what's the temperature in my room?"       (Discord voice)         ║
 ║   "Remind me to buy groceries at 5pm"               (WhatsApp message)      ║
-║   "SARAS, someone's at the door"                    (Motion sensor alert)   ║
+║   "RAVEN, someone's at the door"                    (Motion sensor alert)   ║
 ║   "Search for the best Python async frameworks"     (Telegram command)      ║
 ║   "Read me the latest Hacker News headlines"        (Microphone on Pi)      ║
 ║                                                                             ║
@@ -59,7 +59,7 @@ SARAS is NOT:
                                         ▼
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                                                                             ║
-║                          SARAS BOT SERVER                                   ║
+║                          RAVEN BOT SERVER                                   ║
 ║                     (runs on your machine / VPS)                            ║
 ║                                                                             ║
 ║   ┌──────────────────────────────────────────────────────────────────────┐  ║
@@ -88,11 +88,11 @@ SARAS is NOT:
 ║                                  │                                         ║
 ║                                  ▼                                         ║
 ║   ┌──────────────────────────────────────────────────────────────────────┐  ║
-║   │                       SARAS BRAIN                                    │  ║
+║   │                       RAVEN BRAIN                                    │  ║
 ║   │                                                                      │  ║
 ║   │  ┌─────────────┐  ┌─────────────┐  ┌──────────────┐                │  ║
 ║   │  │  Memory      │  │  Personality │  │  Tool Router  │                │  ║
-║   │  │  (who you    │  │  (how SARAS  │  │  (what SARAS  │                │  ║
+║   │  │  (who you    │  │  (how RAVEN  │  │  (what RAVEN  │                │  ║
 ║   │  │   are, past  │  │   talks,     │  │   can do)     │                │  ║
 ║   │  │   convos,    │  │   jokes,     │  │               │                │  ║
 ║   │  │   prefs)     │  │   style)     │  │  web_search   │                │  ║
@@ -124,7 +124,7 @@ SARAS is NOT:
 ║   │                                                                      │  ║
 ║   │  Temperature ──┐                                                     │  ║
 ║   │  Motion ───────┤                                                     │  ║
-║   │  Door sensor ──┼──▶ SARAS decides what's important ──▶ Alerts you   │  ║
+║   │  Door sensor ──┼──▶ RAVEN decides what's important ──▶ Alerts you   │  ║
 ║   │  Camera ───────┤       on Telegram/Discord/Speaker                   │  ║
 ║   │  Smoke ────────┤                                                     │  ║
 ║   │  Humidity ─────┘                                                     │  ║
@@ -136,10 +136,10 @@ SARAS is NOT:
 
 ---
 
-## Example Day With SARAS
+## Example Day With RAVEN
 
 ```
-07:00  [SARAS → Telegram]
+07:00  [RAVEN → Telegram]
        "Good morning! It's 22°C outside, partly cloudy.
         You have 2 meetings today: standup at 10am, design review at 3pm.
         Want me to read you the news while you get ready?"
@@ -147,22 +147,22 @@ SARAS is NOT:
 07:05  [You → Microphone (kitchen speaker)]
        "Yeah, what's on Hacker News?"
 
-07:05  [SARAS → Kitchen speaker]
+07:05  [RAVEN → Kitchen speaker]
        "Top stories: First one -- 'Rust in the Linux kernel reaches 1.0'...
         Second -- 'Show HN: I built a self-hosted Notion alternative'...
         Want me to save any of these for later?"
 
 09:30  [You → Telegram]
-       "SARAS, help me brainstorm features for the new dashboard"
+       "RAVEN, help me brainstorm features for the new dashboard"
 
-09:30  [SARAS → Telegram]
+09:30  [RAVEN → Telegram]
        "Sure! Let's think about this. Who's the primary user?
         Are we talking internal team or customers?
         And what's the one thing the current dashboard is missing?"
 
        ... (back-and-forth brainstorming) ...
 
-09:45  [SARAS → Telegram]
+09:45  [RAVEN → Telegram]
        "Here's what we've landed on:
         1. Real-time activity feed (top request from users)
         2. Customizable widget grid
@@ -170,16 +170,16 @@ SARAS is NOT:
         4. Dark mode (finally 😄)
         Want me to draft a PRD from this?"
 
-14:00  [SARAS → Telegram alert]
+14:00  [RAVEN → Telegram alert]
        "🚨 Motion detected at front door. No one's home.
         Camera snapshot: looks like a delivery person.
         Want me to keep watching?"
 
 17:00  [You → Discord voice channel]
-       "SARAS, I'm stuck on this Python async bug.
+       "RAVEN, I'm stuck on this Python async bug.
         The task keeps getting cancelled."
 
-17:00  [SARAS → Discord voice]
+17:00  [RAVEN → Discord voice]
        "Okay, can you paste the error or describe what's happening?
         Common causes are: the task isn't being awaited, or the event
         loop is closing before it finishes. Are you using asyncio.gather
@@ -188,7 +188,7 @@ SARAS is NOT:
 22:00  [You → WhatsApp]
        "set an alarm for 6:30 tomorrow"
 
-22:00  [SARAS → WhatsApp]
+22:00  [RAVEN → WhatsApp]
        "Done. Alarm set for 6:30 AM. Good night! 🌙"
 ```
 
@@ -220,11 +220,11 @@ SARAS is NOT:
 
 | # | Document | What It Covers |
 |---|---|---|
-| 00 | [This file](./00-overview.md) | What SARAS is, interaction examples, stack overview |
+| 00 | [This file](./00-overview.md) | What RAVEN is, interaction examples, stack overview |
 | 01 | [System Architecture](./01-system-architecture.md) | Bot server design, message bus, brain architecture |
 | 02 | [Platform Connectors](./02-platform-connectors.md) | Telegram, Discord, WhatsApp, mic/speaker, web |
 | 03 | [Voice & Personality](./03-voice-personality.md) | Natural speech, personality system, memory |
-| 04 | [Tools Ecosystem](./04-tools-ecosystem.md) | All tools SARAS can use, plugin system |
+| 04 | [Tools Ecosystem](./04-tools-ecosystem.md) | All tools RAVEN can use, plugin system |
 | 05 | [Sensor Awareness](./05-sensor-awareness.md) | IoT sensors, environment scanning, alerts |
 | 06 | [Safety & Moderation](./06-safety-moderation.md) | Content safety, IoT safety, abuse prevention |
 | 07 | [ML Depth](./07-ml-depth.md) | Models trained, datasets, experiments |

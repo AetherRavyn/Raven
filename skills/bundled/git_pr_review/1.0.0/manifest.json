@@ -1,0 +1,35 @@
+{
+  "author": "RAVEN team",
+  "description": "Review pull requests: analyze diff, check for issues, suggest improvements.",
+  "eval_records": [],
+  "inputs": [
+    {
+      "default": null,
+      "description": "",
+      "name": "query",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "git_pr_review",
+  "outputs": [],
+  "permissions": [
+    "filesystem.read",
+    "process.spawn",
+    "network.egress"
+  ],
+  "promotion_threshold": 20,
+  "risk_level": "low",
+  "schema_version": "1.0",
+  "source": "bundled",
+  "tags": [
+    "git",
+    "github",
+    "code-review",
+    "pull-request",
+    "development",
+    "file_tool"
+  ],
+  "trust": "workspace",
+  "version": "1.0.0"
+}

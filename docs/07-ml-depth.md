@@ -17,7 +17,7 @@ with concrete metrics, and integration into the production system.
 
 | Component | Approach | ML Depth | Section |
 |---|---|---|---|
-| Wake word ("Hey SARAS") | Train from scratch | High | 1 |
+| Wake word ("Hey RAVEN") | Train from scratch | High | 1 |
 | Personality LoRA | Fine-tune Mistral 7B | High | 2 |
 | Tool-selection optimization | Fine-tune + constrained decoding | High | 3 |
 | Memory extraction evaluation | LLM-as-judge + evaluation harness | Medium-High | 4 |
@@ -32,8 +32,8 @@ with concrete metrics, and integration into the production system.
 
 ### Problem
 
-SARAS needs to listen continuously through a microphone and activate only when the
-user says "Hey SARAS". This must run at near-zero CPU cost, with a false accept rate
+RAVEN needs to listen continuously through a microphone and activate only when the
+user says "Hey RAVEN". This must run at near-zero CPU cost, with a false accept rate
 below 0.5 per hour and a false reject rate below 5%.
 
 ### Architecture
@@ -62,7 +62,7 @@ Audio Input (16kHz PCM)
     v
 +----------------------------------+     +------------------+
 |  Custom Classifier Head          |---->|  Output: 0..1    |
-|                                  |     |  P("Hey SARAS")  |
+|                                  |     |  P("Hey RAVEN")  |
 |  3x Conv1D(96, 48, kernel=3)    |     +------------------+
 |  BatchNorm + ReLU after each     |
 |  GlobalAveragePooling            |
@@ -77,7 +77,7 @@ Audio Input (16kHz PCM)
 
 | Category | Source | Count | Notes |
 |---|---|---|---|
-| Positive ("Hey SARAS") | Self-recorded, 5 speakers | 120 | Clean recordings |
+| Positive ("Hey RAVEN") | Self-recorded, 5 speakers | 120 | Clean recordings |
 | Positive (augmented) | Noise + RIR augmentation | 500 | From the 120 clean samples |
 | Positive (TTS-generated) | Piper + XTTS with variations | 200 | Different voice timbres |
 | Negative (speech) | LibriSpeech, CommonVoice | 8,000 | General English speech |
@@ -155,7 +155,7 @@ class WakeWordAugmenter:
 from openwakeword.train import train_model
 from openwakeword.data import WakeWordDataset
 
-# Positive clips: augmented "Hey SARAS" samples
+# Positive clips: augmented "Hey RAVEN" samples
 # Negative clips: general speech + home noise + adversarial similar phrases
 
 dataset = WakeWordDataset(
@@ -177,14 +177,14 @@ model = train_model(
     validation_split=0.15,
     early_stopping_patience=10,
     export_onnx=True,
-    output_dir="models/wakeword/hey_saras/",
+    output_dir="models/wakeword/hey_raven/",
 )
 ```
 
 ### Evaluation
 
 We evaluate on a held-out test set and a 4-hour ambient recording from a real home
-environment (TV on, conversations, cooking sounds, silence) with 20 injected "Hey SARAS"
+environment (TV on, conversations, cooking sounds, silence) with 20 injected "Hey RAVEN"
 utterances at random intervals.
 
 | Metric | Value | Target |
@@ -224,7 +224,7 @@ per hour of ambient audio.
 
 ### Motivation
 
-Base Mistral 7B Instruct produces competent but generic responses. We need SARAS to:
+Base Mistral 7B Instruct produces competent but generic responses. We need RAVEN to:
 - Sound like a friend, not a corporate assistant
 - Be concise (spoken output should be short)
 - Use natural language patterns (contractions, fragments, casual tone)
@@ -232,24 +232,24 @@ Base Mistral 7B Instruct produces competent but generic responses. We need SARAS
 
 ### Dataset Creation
 
-We manually curate ~2,000 conversation pairs demonstrating SARAS's target personality.
+We manually curate ~2,000 conversation pairs demonstrating RAVEN's target personality.
 Each example is a multi-turn conversation showing the ideal response style.
 
 **Training data format (JSONL):**
 
 ```json
 {"messages": [
-  {"role": "system", "content": "You are SARAS, a personal AI companion. You speak naturally, like a friend. Keep responses concise. You have access to smart home controls, web search, and memory of past conversations."},
+  {"role": "system", "content": "You are RAVEN, a personal AI companion. You speak naturally, like a friend. Keep responses concise. You have access to smart home controls, web search, and memory of past conversations."},
   {"role": "user", "content": "What's the weather looking like today?"},
   {"role": "assistant", "content": "Partly cloudy, 24 degrees. Nice enough to skip the jacket."}
 ]}
 {"messages": [
-  {"role": "system", "content": "You are SARAS, a personal AI companion..."},
+  {"role": "system", "content": "You are RAVEN, a personal AI companion..."},
   {"role": "user", "content": "Turn off the living room lights"},
   {"role": "assistant", "content": "Done.", "tool_calls": [{"name": "smart_home", "arguments": {"device": "living_room_lights", "action": "off"}}]}
 ]}
 {"messages": [
-  {"role": "system", "content": "You are SARAS, a personal AI companion..."},
+  {"role": "system", "content": "You are RAVEN, a personal AI companion..."},
   {"role": "user", "content": "I'm thinking about quitting my job"},
   {"role": "assistant", "content": "That's a big move. What's driving it -- is it the work itself, the people, or something else?"}
 ]}
@@ -317,7 +317,7 @@ model.print_trainable_parameters()
 dataset = load_dataset("json", data_files="data/personality_training.jsonl")
 
 training_args = TrainingArguments(
-    output_dir="models/lora/saras-personality-v1",
+    output_dir="models/lora/raven-personality-v1",
     num_train_epochs=3,
     per_device_train_batch_size=4,
     gradient_accumulation_steps=4,     # Effective batch size: 16
@@ -335,7 +335,7 @@ training_args = TrainingArguments(
     metric_for_best_model="eval_loss",
     max_grad_norm=1.0,
     report_to="wandb",
-    run_name="saras-personality-lora-r16",
+    run_name="raven-personality-lora-r16",
 )
 
 trainer = SFTTrainer(
@@ -351,7 +351,7 @@ trainer = SFTTrainer(
 trainer.train()
 
 # Save LoRA adapter (just ~70MB)
-model.save_pretrained("models/lora/saras-personality-v1/final")
+model.save_pretrained("models/lora/raven-personality-v1/final")
 ```
 
 ### Evaluation
@@ -764,7 +764,7 @@ Stock faster-whisper (medium, INT8) misrecognizes IoT-specific vocabulary:
 | "Set Hue to blue" | "Set you to blue" | Device name |
 | "Turn off the Tasmota plug" | "Turn off the task motor plug" | Device name |
 | "Set thermostat to 72" | "Set thermostat to seventy two" | Number format |
-| "Hey SARAS, lights on" | "Hey Sarah, lights on" | Wake word bleed |
+| "Hey RAVEN, lights on" | "Hey Sarah, lights on" | Wake word bleed |
 | "Check the Zigbee sensors" | "Check the ziggy sensors" | Protocol name |
 
 ### Dataset Creation
@@ -777,7 +777,7 @@ templates = [
     "Turn {action} the {device}",
     "Set the {device} to {value}",
     "What is the {device} reading",
-    "Hey SARAS {command}",
+    "Hey RAVEN {command}",
     "Check the {device} in the {room}",
     "{action} the {room} {device}",
     "Set {device} brightness to {percent} percent",
@@ -931,7 +931,7 @@ stt = WhisperModel(
 ### Piper Voice Training (VITS Architecture)
 
 Piper uses the VITS (Variational Inference with adversarial learning for end-to-end
-Text-to-Speech) architecture. We train a custom voice to give SARAS a consistent,
+Text-to-Speech) architecture. We train a custom voice to give RAVEN a consistent,
 natural-sounding identity.
 
 ```
@@ -1031,7 +1031,7 @@ TRAIN_CONFIG = {
 # piper-train --config config.json --dataset data/voice_aligned/
 
 # Step 4: Export to ONNX for production
-# piper-export-onnx --checkpoint epoch=999.ckpt --output saras_voice.onnx
+# piper-export-onnx --checkpoint epoch=999.ckpt --output raven_voice.onnx
 # Result: ~63MB ONNX file
 ```
 
@@ -1073,7 +1073,7 @@ class XTTSVoiceClone:
 | TTS Engine | MOS (1-5) | Speaker Consistency | Notes |
 |---|---|---|---|
 | Piper (pre-trained en_US-lessac) | 3.8 | 0.92 | Good but generic voice |
-| Piper (custom trained) | 4.1 | 0.95 | Consistent SARAS identity |
+| Piper (custom trained) | 4.1 | 0.95 | Consistent RAVEN identity |
 | XTTS v2 (10s clone) | 4.3 | 0.88 | Higher quality, less consistent |
 | XTTS v2 (30s clone) | 4.4 | 0.91 | Best quality overall |
 | Ground truth (human) | 4.7 | 1.00 | Reference ceiling |
@@ -1095,7 +1095,7 @@ and can tolerate the latency.
 
 ### Problem
 
-SARAS receives continuous sensor readings (temperature, humidity, motion, door
+RAVEN receives continuous sensor readings (temperature, humidity, motion, door
 open/close) via MQTT. It needs to distinguish genuine anomalies ("temperature spiking
 unexpectedly") from normal patterns ("temperature drops at night").
 
@@ -1352,12 +1352,12 @@ evaluation, and hyperparameter search is logged for reproducibility.
 Experiment Organization
 =======================
 
-Project: saras-ml
+Project: raven-ml
   |
   +-- wake-word/
-  |     +-- hey-saras-v1           (initial model)
-  |     +-- hey-saras-v2           (more augmentation)
-  |     +-- hey-saras-v3-final     (production)
+  |     +-- hey-raven-v1           (initial model)
+  |     +-- hey-raven-v2           (more augmentation)
+  |     +-- hey-raven-v3-final     (production)
   |
   +-- personality-lora/
   |     +-- r8-alpha16             (rank ablation)
@@ -1397,8 +1397,8 @@ from dataclasses import dataclass
 
 @dataclass
 class ExperimentConfig:
-    project: str = "saras-ml"
-    entity: str = "saras-team"
+    project: str = "raven-ml"
+    entity: str = "raven-team"
 
 def init_experiment(name: str, config: dict, group: str = None) -> wandb.Run:
     """Initialize a tracked experiment."""
@@ -1447,8 +1447,8 @@ run = init_experiment(
 # report_to="wandb" -- no additional code needed.
 
 # After training, log the model card:
-log_model_card(run, "models/lora/saras-personality-v1/final", {
-    "model_name": "saras-personality-lora-v1",
+log_model_card(run, "models/lora/raven-personality-v1/final", {
+    "model_name": "raven-personality-lora-v1",
     "architecture": "LoRA r=16 on Mistral-7B-Instruct-v0.3",
     "dataset_size": "2,000 curated conversation pairs",
     "training_hours": "~2 hours on RTX 4090",
@@ -1472,20 +1472,20 @@ log_model_card(run, "models/lora/saras-personality-v1/final", {
 Model Registry (W&B Artifacts)
 ================================
 
-saras-personality-lora-v1
+raven-personality-lora-v1
   version: 1.0.0
   status:  production
   alias:   latest, production
 
-saras-wakeword-hey-saras-v3
+raven-wakeword-hey-raven-v3
   version: 3.0.0
   status:  production
 
-saras-whisper-iot-v2
+raven-whisper-iot-v2
   version: 2.0.0
   status:  production
 
-saras-sensor-anomaly-ensemble-v1
+raven-sensor-anomaly-ensemble-v1
   version: 1.0.0
   status:  production
 ```
@@ -1503,7 +1503,7 @@ def deploy_model(artifact_name: str, version: str, deploy_dir: str):
     This is called by CI/CD when a model is promoted to 'production' in W&B.
     """
     api = wandb.Api()
-    artifact = api.artifact(f"saras-team/saras-ml/{artifact_name}:{version}")
+    artifact = api.artifact(f"raven-team/raven-ml/{artifact_name}:{version}")
     artifact_dir = artifact.download()
 
     # Copy to deployment directory
@@ -1518,7 +1518,7 @@ def deploy_model(artifact_name: str, version: str, deploy_dir: str):
     print(f"Deployed {artifact_name}:{version} to {deploy_dir}")
 
 # Example: deploy new personality LoRA
-# deploy_model("saras-personality-lora-v1", "v1.0.0", "/opt/saras/models")
+# deploy_model("raven-personality-lora-v1", "v1.0.0", "/opt/raven/models")
 # vLLM hot-reloads the LoRA adapter without server restart
 ```
 
@@ -1526,7 +1526,7 @@ def deploy_model(artifact_name: str, version: str, deploy_dir: str):
 
 ## Summary: ML Engineering Demonstrated
 
-| Skill Area | Evidence in SARAS |
+| Skill Area | Evidence in RAVEN |
 |---|---|
 | **Data collection** | Wake word recording, IoT command dataset, personality curation |
 | **Data augmentation** | Noise injection, RIR convolution, speed perturbation, TTS synthesis |

@@ -1,4 +1,4 @@
-"""SARAS observability package (A5 in PLAN_v3.md).
+"""RAVEN observability package (A5 in PLAN_v3.md).
 
 Submodules:
 

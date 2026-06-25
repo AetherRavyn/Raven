@@ -31,7 +31,7 @@ _REQUEST_TYPE_READ: Final = "read"
 _REQUEST_TYPE_WRITE: Final = "write"
 
 # Default ports: helix CLI uses 6969, raw docker image uses 8080.
-DEFAULT_HELIX_URL: Final = os.environ.get("SARAS_HELIX_URL", "http://localhost:6969")
+DEFAULT_HELIX_URL: Final = os.environ.get("RAVEN_HELIX_URL", "http://localhost:6969")
 _FALLBACK_HELIX_URL: Final = "http://localhost:8080"
 
 # Connection / retry defaults
@@ -267,6 +267,7 @@ class HelixClient:
     _client: httpx.AsyncClient | None = field(default=None, init=False, repr=False)
     _owns_client: bool = field(default=True, init=False, repr=False)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, init=False, repr=False)
+    _client_loop_id: int = field(default=0, init=False, repr=False)
 
     async def __aenter__(self) -> "HelixClient":
         await self._ensure_client()
@@ -276,6 +277,22 @@ class HelixClient:
         await self.close()
 
     async def _ensure_client(self) -> httpx.AsyncClient:
+        # Detect stale event-loop binding: httpx.AsyncClient is tied to
+        # the loop it was created on.  When asyncio.run() or a new thread
+        # creates a fresh loop the cached client raises RuntimeError.
+        try:
+            current_loop_id = id(asyncio.get_running_loop())
+        except RuntimeError:
+            current_loop_id = 0
+
+        if self._client is not None and current_loop_id and self._client_loop_id != current_loop_id:
+            # Loop changed — close the stale client and recreate.
+            try:
+                await self._client.aclose()
+            except Exception:  # noqa: BLE001
+                pass
+            self._client = None
+
         if self._client is None:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
@@ -283,6 +300,7 @@ class HelixClient:
                 headers={"content-type": "application/json"},
                 limits=httpx.Limits(max_connections=32, max_keepalive_connections=8),
             )
+            self._client_loop_id = current_loop_id
         return self._client
 
     async def close(self) -> None:

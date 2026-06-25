@@ -1,0 +1,542 @@
+{% extends "base.html" %}
+{% block title %}COWORK — RAVEN{% endblock %}
+{% block head_extra %}
+<style>
+.fade-in { animation: fadeIn 0.18s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+.pulse-dot { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.risk-low { background: rgb(34 197 94 / 0.15); color: rgb(134 239 172); }
+.risk-medium { background: rgb(234 179 8 / 0.15); color: rgb(253 224 71); }
+.risk-high { background: rgb(239 68 68 / 0.15); color: rgb(252 165 165); }
+.status-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+.diff-line { font-family: var(--font-mono, monospace); font-size: 10px; padding: 1px 4px; white-space: pre; }
+.diff-add { background: rgb(34 197 94 / 0.18); color: rgb(187 247 208); }
+.diff-del { background: rgb(239 68 68 / 0.18); color: rgb(254 202 202); }
+.diff-ctx { color: rgb(161 161 170); }
+</style>
+{% endblock %}
+{% block main %}
+<section class="space-y-3" x-data="coworkApp()" x-init="init()">
+  <!-- Header -->
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <h1 class="text-zinc-100 text-sm tracking-wider uppercase">Cowork</h1>
+      <p class="text-zinc-500 text-[11px] mt-0.5">
+        Kimi / Claude-style long-running work on a folder. Pick a workspace, propose a plan, approve steps, watch the diff.
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <button type="button" @click="reload()" class="text-[10px] text-zinc-400 hover:text-zinc-200 border border-ink-600 rounded px-2 py-1">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Status banner -->
+  <div x-show="status" x-cloak
+       :class="statusOk ? 'border-emerald-700 bg-emerald-900/30 text-emerald-300' : 'border-rose-700 bg-rose-900/30 text-rose-300'"
+       class="border rounded p-2 text-[11px] flex items-center gap-2 fade-in">
+    <span x-text="statusOk ? '✓' : '✗'" class="font-bold"></span>
+    <span x-text="status"></span>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+    <!-- Left column: workspaces + sessions -->
+    <div class="lg:col-span-4 space-y-3">
+      <!-- Add workspace -->
+      <div class="border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in">
+        <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">Add Workspace</div>
+        <form @submit.prevent="addWorkspace()" class="space-y-2">
+          <input type="text" x-model="newWs.name" placeholder="Name (e.g. Project Alpha)"
+                 class="w-full bg-ink-900 border border-ink-600 rounded px-2 py-1 text-zinc-200 text-[11px]" required />
+          <input type="text" x-model="newWs.path" placeholder="/absolute/path/to/folder"
+                 class="w-full bg-ink-900 border border-ink-600 rounded px-2 py-1 text-zinc-200 font-mono text-[10px]" required />
+          <div class="flex gap-2 items-center text-[10px]">
+            <label class="flex items-center gap-1 text-zinc-400">
+              <input type="radio" x-model="newWs.access" value="rw" class="accent-accent-500" />
+              <span>Read+Write</span>
+            </label>
+            <label class="flex items-center gap-1 text-zinc-400">
+              <input type="radio" x-model="newWs.access" value="ro" class="accent-accent-500" />
+              <span>Read-only</span>
+            </label>
+            <button type="submit" :disabled="busy"
+                    class="ml-auto px-3 py-1 text-[10px] rounded bg-accent-600 text-ink-900 font-semibold hover:bg-accent-500 disabled:opacity-50">
+              + Add
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Workspaces list -->
+      <div class="border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in">
+        <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">
+          Workspaces <span class="text-zinc-600" x-text="'(' + workspaces.length + ')'"></span>
+        </div>
+        <div class="space-y-1 max-h-48 overflow-y-auto">
+          <template x-for="w in workspaces" :key="w.id">
+            <div class="flex items-center gap-2 py-1 px-1 rounded hover:bg-ink-700/50 cursor-pointer"
+                 :class="w.id === selectedWorkspaceId ? 'bg-ink-700/40' : ''"
+                 @click="selectWorkspace(w.id)">
+              <span class="w-2 h-2 rounded-full"
+                    :class="w.access === 'rw' ? 'bg-emerald-500' : 'bg-zinc-500'"></span>
+              <span class="text-zinc-200 text-[11px] flex-1 min-w-0 truncate" x-text="w.name"></span>
+              <span class="text-zinc-600 text-[9px] font-mono" x-text="w.access"></span>
+              <button type="button" @click.stop="removeWorkspace(w.id)"
+                      class="text-zinc-600 hover:text-rose-400 text-[10px]">✕</button>
+            </div>
+          </template>
+          <div x-show="!workspaces.length" class="text-zinc-600 text-[10px] py-2 text-center">
+            No workspaces yet. Add one above.
+          </div>
+        </div>
+      </div>
+
+      <!-- Start session -->
+      <div class="border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in"
+           x-show="selectedWorkspaceId">
+        <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">Start Session</div>
+        <form @submit.prevent="startSession()" class="space-y-2">
+          <textarea x-model="newGoal" rows="2" placeholder="Goal (e.g. 'find all TODO comments', 'summarise the project', 'list contents')"
+                    class="w-full bg-ink-900 border border-ink-600 rounded px-2 py-1 text-zinc-200 text-[11px] resize-none"></textarea>
+          <label class="flex items-center gap-1 text-[10px] text-zinc-500">
+            <input type="checkbox" x-model="autoApprove" class="accent-accent-500" />
+            <span>Auto-approve low-risk steps</span>
+          </label>
+          <div class="flex items-center gap-2">
+            <label class="text-[10px] text-zinc-500 whitespace-nowrap">Planner:</label>
+            <select x-model="plannerStrategy"
+                    class="flex-1 bg-ink-900 border border-ink-600 rounded px-2 py-1 text-zinc-200 text-[11px]">
+              <option value="default">Default (rule-based)</option>
+              <option value="llm">LLM (uses configured provider)</option>
+            </select>
+          </div>
+          <button type="submit" :disabled="busy || !newGoal.trim()"
+                  class="w-full px-3 py-1.5 text-[11px] rounded bg-accent-600 text-ink-900 font-semibold hover:bg-accent-500 disabled:opacity-50">
+            <span x-show="!busy">▶ Start</span>
+            <span x-show="busy">Starting…</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Sessions list -->
+      <div class="border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in">
+        <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">
+          Sessions <span class="text-zinc-600" x-text="'(' + sessions.length + ')'"></span>
+        </div>
+        <div class="space-y-1 max-h-48 overflow-y-auto">
+          <template x-for="s in sessions" :key="s.id">
+            <div class="flex items-center gap-2 py-1 px-1 rounded hover:bg-ink-700/50 cursor-pointer"
+                 :class="activeSession && activeSession.id === s.id ? 'bg-ink-700/40' : ''"
+                 @click="loadSession(s.id)">
+              <span class="w-2 h-2 rounded-full"
+                    :class="stateColor(s.state)"></span>
+              <span class="text-zinc-200 text-[11px] flex-1 min-w-0 truncate" x-text="s.goal"></span>
+              <span class="text-zinc-600 text-[9px]" x-text="s.state"></span>
+            </div>
+          </template>
+          <div x-show="!sessions.length" class="text-zinc-600 text-[10px] py-2 text-center">
+            No sessions yet.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Middle: plan + diff -->
+    <div class="lg:col-span-5 space-y-3">
+      <!-- Active session card -->
+      <div class="border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in" x-show="activeSession">
+        <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full pulse-dot"
+                  :class="stateColor(activeSession?.state)"
+                  x-show="isLive(activeSession?.state)"></span>
+            <span class="text-accent-500 font-semibold text-[12px]" x-text="activeSession?.state || '—'"></span>
+            <span class="text-zinc-500 text-[10px]" x-text="activeSession?.goal"></span>
+          </div>
+          <div class="flex gap-1">
+            <button type="button" @click="pauseSession()" :disabled="!isLive(activeSession?.state)"
+                    class="text-[10px] px-2 py-1 rounded border border-ink-600 text-zinc-300 hover:bg-ink-700 disabled:opacity-30">⏸ Pause</button>
+            <button type="button" @click="resumeSession()" :disabled="activeSession?.state !== 'paused'"
+                    class="text-[10px] px-2 py-1 rounded border border-ink-600 text-zinc-300 hover:bg-ink-700 disabled:opacity-30">▶ Resume</button>
+            <button type="button" @click="stopSession()" :disabled="!isLive(activeSession?.state) && activeSession?.state !== 'paused'"
+                    class="text-[10px] px-2 py-1 rounded border border-rose-700 text-rose-300 hover:bg-rose-900/30 disabled:opacity-30">■ Stop</button>
+          </div>
+        </div>
+        <div class="text-[10px] text-zinc-500">
+          <span x-text="(activeSession?.plan?.progress?.[0] || 0) + ' / ' + (activeSession?.plan?.progress?.[1] || 0) + ' steps done'"></span>
+          <span class="ml-2" x-show="activeSession?.plan?.approved_all"
+                x-text="'· bulk-approved'"></span>
+        </div>
+      </div>
+
+      <!-- Plan steps -->
+      <div class="border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in" x-show="activeSession?.plan">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-zinc-400 text-[10px] uppercase tracking-wider">Plan</span>
+          <button type="button" @click="approveAll()"
+                  x-show="activeSession && (activeSession.state === 'awaiting_approval' || activeSession.state === 'executing')"
+                  class="text-[10px] px-2 py-1 rounded bg-emerald-700/30 text-emerald-300 hover:bg-emerald-700/50">
+            ✓ Approve all
+          </button>
+        </div>
+        <div class="space-y-1 max-h-96 overflow-y-auto">
+          <template x-for="step in (activeSession?.plan?.steps || [])" :key="step.id">
+            <div class="border border-ink-700 rounded p-2 transition-colors"
+                 :class="stepClass(step)">
+              <div class="flex items-start gap-2">
+                <span class="status-badge mt-0.5"
+                      :class="stepStatusClass(step.status)"
+                      x-text="step.status"></span>
+                <span class="status-badge risk-low" :class="'risk-' + step.risk" x-text="step.risk"></span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-zinc-200 text-[12px]" x-text="step.title"></div>
+                  <div class="text-zinc-500 text-[10px] mt-0.5" x-text="step.description"></div>
+                  <div class="text-zinc-600 text-[10px] font-mono mt-0.5" x-show="step.target_paths?.length">
+                    <template x-for="p in step.target_paths" :key="p">
+                      <span class="mr-1" x-text="p"></span>
+                    </template>
+                  </div>
+                </div>
+                <div class="flex gap-1">
+                  <button type="button" @click="approveStep(step.id)"
+                          x-show="step.status === 'awaiting_approval' || step.status === 'pending'"
+                          class="text-[10px] px-2 py-0.5 rounded bg-emerald-700/30 text-emerald-300 hover:bg-emerald-700/50">✓</button>
+                  <button type="button" @click="rejectStep(step.id)"
+                          x-show="step.status === 'awaiting_approval' || step.status === 'pending'"
+                          class="text-[10px] px-2 py-0.5 rounded border border-rose-700 text-rose-300 hover:bg-rose-900/30">✕</button>
+                </div>
+              </div>
+              <!-- Per-step diff preview -->
+              <div x-show="step.result?.diff" class="mt-2 border-t border-ink-700 pt-2">
+                <div class="text-[10px] text-zinc-500 mb-1">
+                  <span x-text="step.result.diff.path"></span>
+                  <span class="text-emerald-400" x-text="'+' + (step.result.diff.stats?.added || 0)"></span>
+                  <span class="text-rose-400" x-text="'-' + (step.result.diff.stats?.removed || 0)"></span>
+                </div>
+                <div class="max-h-48 overflow-y-auto bg-ink-900 rounded p-1">
+                  <template x-for="(hunk, hi) in (step.result.diff.hunks || [])" :key="hi">
+                    <div>
+                      <div class="diff-line diff-ctx" x-text="'@@ -' + hunk.old_start + ' +' + hunk.new_start + ' @@'"></div>
+                      <template x-for="(line, li) in hunk.lines" :key="li">
+                        <div class="diff-line"
+                             :class="line.startsWith('+') ? 'diff-add' : (line.startsWith('-') ? 'diff-del' : 'diff-ctx')"
+                             x-text="line"></div>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <!-- Per-step result summary -->
+              <div x-show="step.result && !step.result.diff && (step.status === 'done' || step.status === 'failed')"
+                   class="mt-2 text-[10px] text-zinc-500 font-mono">
+                <div x-show="step.result.matches">
+                  <span x-text="step.result.matches.length + ' matches'"></span>
+                </div>
+                <div x-show="step.result.entries">
+                  <span x-text="step.result.entries.length + ' entries'"></span>
+                </div>
+                <div x-show="step.result.text">
+                  <span x-text="(step.result.text || '').slice(0, 200) + ((step.result.text || '').length > 200 ? '…' : '')"></span>
+                </div>
+              </div>
+              <div x-show="step.error" class="mt-2 text-[10px] text-rose-300 font-mono" x-text="step.error"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: event stream -->
+    <div class="lg:col-span-3 space-y-3">
+      <div class="border border-ink-600 bg-ink-800 rounded p-3 text-[12px] fade-in">
+        <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2 flex items-center gap-2">
+          Events
+          <span class="w-1.5 h-1.5 rounded-full pulse-dot" :class="streamConnected ? 'bg-emerald-500' : 'bg-zinc-600'"></span>
+        </div>
+        <div class="space-y-1 max-h-[36rem] overflow-y-auto font-mono text-[10px]">
+          <template x-for="(ev, i) in events" :key="i">
+            <div class="flex items-start gap-1 py-0.5">
+              <span class="text-zinc-600" x-text="formatTime(ev.ts)"></span>
+              <span class="flex-1 min-w-0"
+                    :class="eventColor(ev.kind)"
+                    x-text="ev.kind + (ev.payload?.step_id ? ' ' + ev.payload.step_id.slice(0,6) : '') + (ev.payload?.title ? ' · ' + ev.payload.title : '')"></span>
+            </div>
+          </template>
+          <div x-show="!events.length" class="text-zinc-600 text-center py-2">
+            No events yet.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+function coworkApp() {
+  return {
+    workspaces: [],
+    sessions: [],
+    activeSession: null,
+    selectedWorkspaceId: '',
+    newWs: { name: '', path: '', access: 'rw' },
+    newGoal: '',
+    autoApprove: false,
+    plannerStrategy: 'default',
+    busy: false,
+    status: '',
+    statusOk: true,
+    events: [],
+    streamConnected: false,
+    eventSource: null,
+
+    async init() {
+      await this.reload();
+      this.connectStream();
+      // Auto-load the active session if one is in-flight.
+      const active = this.sessions.find(s => ['executing', 'awaiting_approval', 'planning', 'paused', 'approved'].includes(s.state));
+      if (active) {
+        await this.loadSession(active.id);
+      }
+      // Poll the active session every 2s so the UI updates as the worker progresses.
+      setInterval(() => this.pollActive(), 2000);
+    },
+
+    async reload() {
+      this.busy = true;
+      try {
+        const [wsRes, sessRes] = await Promise.all([
+          fetch('/api/cowork/workspaces'),
+          fetch('/api/cowork/sessions'),
+        ]);
+        this.workspaces = (await wsRes.json()).workspaces || [];
+        const sessData = await sessRes.json();
+        this.sessions = sessData.sessions || [];
+        if (sessData.active && !this.activeSession) {
+          this.activeSession = sessData.active;
+        }
+        this.status = `${this.workspaces.length} workspace(s), ${this.sessions.length} session(s)`;
+        this.statusOk = true;
+      } catch (e) {
+        this.status = 'Load failed: ' + e.message;
+        this.statusOk = false;
+      } finally {
+        this.busy = false;
+      }
+    },
+
+    async pollActive() {
+      if (!this.activeSession) return;
+      try {
+        const r = await fetch('/api/cowork/sessions');
+        const j = await r.json();
+        const found = (j.sessions || []).find(s => s.id === this.activeSession.id);
+        if (found) this.activeSession = found;
+      } catch {}
+    },
+
+    connectStream() {
+      try {
+        if (this.eventSource) this.eventSource.close();
+        this.eventSource = new EventSource('/api/cowork/stream');
+        this.eventSource.onopen = () => { this.streamConnected = true; };
+        this.eventSource.onerror = () => { this.streamConnected = false; };
+        this.eventSource.onmessage = (e) => {
+          try {
+            const ev = JSON.parse(e.data);
+            this.events.unshift(ev);
+            if (this.events.length > 200) this.events.pop();
+            // Refresh active session on any event.
+            if (this.activeSession && ev.session_id === this.activeSession.id) {
+              this.pollActive();
+            }
+          } catch {}
+        };
+      } catch (e) {
+        this.streamConnected = false;
+      }
+    },
+
+    selectWorkspace(id) {
+      this.selectedWorkspaceId = (this.selectedWorkspaceId === id) ? '' : id;
+    },
+
+    async addWorkspace() {
+      this.busy = true;
+      try {
+        const body = new URLSearchParams({
+          name: this.newWs.name, path: this.newWs.path, access: this.newWs.access,
+        });
+        const r = await fetch('/api/cowork/workspaces', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        });
+        const j = await r.json();
+        if (j.ok) {
+          this.newWs = { name: '', path: '', access: 'rw' };
+          await this.reload();
+          this.status = 'Workspace added.';
+          this.statusOk = true;
+        } else {
+          this.status = 'Failed: ' + (j.error || 'unknown');
+          this.statusOk = false;
+        }
+      } catch (e) {
+        this.status = 'Network error: ' + e.message;
+        this.statusOk = false;
+      } finally {
+        this.busy = false;
+      }
+    },
+
+    async removeWorkspace(id) {
+      if (!confirm('Remove this workspace?')) return;
+      try {
+        await fetch('/api/cowork/workspaces?workspace_id=' + encodeURIComponent(id), { method: 'DELETE' });
+        if (this.selectedWorkspaceId === id) this.selectedWorkspaceId = '';
+        await this.reload();
+      } catch (e) {
+        this.status = 'Remove failed: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    async startSession() {
+      if (!this.selectedWorkspaceId || !this.newGoal.trim()) return;
+      this.busy = true;
+      try {
+        const body = new URLSearchParams({
+          workspace_id: this.selectedWorkspaceId,
+          goal: this.newGoal,
+          auto_approve: this.autoApprove ? 'true' : 'false',
+          strategy: this.plannerStrategy || 'default',
+        });
+        const r = await fetch('/api/cowork/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        });
+        const j = await r.json();
+        if (j.ok) {
+          this.activeSession = j.session;
+          this.newGoal = '';
+          await this.reload();
+          this.status = 'Session started.';
+          this.statusOk = true;
+        } else {
+          this.status = 'Failed: ' + (j.error || 'unknown');
+          this.statusOk = false;
+        }
+      } catch (e) {
+        this.status = 'Network error: ' + e.message;
+        this.statusOk = false;
+      } finally {
+        this.busy = false;
+      }
+    },
+
+    async loadSession(id) {
+      try {
+        const r = await fetch('/api/cowork/sessions');
+        const j = await r.json();
+        this.activeSession = (j.sessions || []).find(s => s.id === id) || null;
+        if (this.activeSession) {
+          const evRes = await fetch('/api/cowork/sessions/' + id + '/events?limit=200');
+          const evJson = await evRes.json();
+          this.events = (evJson.events || []).reverse();
+        }
+      } catch (e) {
+        this.status = 'Load session failed: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    async pauseSession() {
+      if (!this.activeSession) return;
+      await fetch('/api/cowork/sessions/' + this.activeSession.id + '/pause', { method: 'POST' });
+      this.pollActive();
+    },
+    async resumeSession() {
+      if (!this.activeSession) return;
+      await fetch('/api/cowork/sessions/' + this.activeSession.id + '/resume', { method: 'POST' });
+      this.pollActive();
+    },
+    async stopSession() {
+      if (!this.activeSession) return;
+      if (!confirm('Stop the active session?')) return;
+      await fetch('/api/cowork/sessions/' + this.activeSession.id + '/stop', { method: 'POST' });
+      this.pollActive();
+    },
+    async approveAll() {
+      if (!this.activeSession) return;
+      await fetch('/api/cowork/sessions/' + this.activeSession.id + '/approve-all', { method: 'POST' });
+      this.pollActive();
+    },
+    async approveStep(stepId) {
+      if (!this.activeSession) return;
+      await fetch('/api/cowork/sessions/' + this.activeSession.id + '/steps/' + stepId + '/approve', { method: 'POST' });
+      this.pollActive();
+    },
+    async rejectStep(stepId) {
+      if (!this.activeSession) return;
+      if (!confirm('Reject this step?')) return;
+      const reason = prompt('Reason (optional):') || '';
+      const body = new URLSearchParams({ reason });
+      await fetch('/api/cowork/sessions/' + this.activeSession.id + '/steps/' + stepId + '/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+      });
+      this.pollActive();
+    },
+
+    // ── helpers ────────────────────────────────────────────────
+    stateColor(s) {
+      return ({
+        idle: 'bg-zinc-500',
+        planning: 'bg-blue-500',
+        awaiting_approval: 'bg-amber-500',
+        approved: 'bg-cyan-500',
+        executing: 'bg-emerald-500',
+        paused: 'bg-yellow-500',
+        done: 'bg-emerald-700',
+        failed: 'bg-rose-500',
+        stopped: 'bg-zinc-700',
+      })[s] || 'bg-zinc-500';
+    },
+    isLive(s) {
+      return ['executing', 'awaiting_approval', 'planning', 'paused', 'approved'].includes(s);
+    },
+    stepStatusClass(status) {
+      return ({
+        pending: 'bg-ink-700 text-zinc-400',
+        awaiting_approval: 'bg-amber-700/40 text-amber-200',
+        approved: 'bg-cyan-700/40 text-cyan-200',
+        running: 'bg-blue-700/40 text-blue-200',
+        done: 'bg-emerald-700/40 text-emerald-200',
+        failed: 'bg-rose-700/40 text-rose-200',
+        skipped: 'bg-zinc-700/40 text-zinc-400',
+        rejected: 'bg-zinc-700/40 text-zinc-400',
+      })[status] || 'bg-ink-700 text-zinc-400';
+    },
+    stepClass(step) {
+      if (step.status === 'done') return 'border-emerald-700/30 bg-emerald-900/10';
+      if (step.status === 'failed') return 'border-rose-700/30 bg-rose-900/10';
+      if (step.status === 'awaiting_approval') return 'border-amber-700/40 bg-amber-900/10';
+      if (step.status === 'running') return 'border-blue-700/40 bg-blue-900/10';
+      return 'border-ink-700';
+    },
+    eventColor(kind) {
+      if (kind.includes('failed') || kind.includes('rejected') || kind.includes('stopped')) return 'text-rose-300';
+      if (kind.includes('done') || kind.includes('approved') || kind.includes('resumed')) return 'text-emerald-300';
+      if (kind.includes('approval') || kind.includes('paused')) return 'text-amber-300';
+      return 'text-zinc-400';
+    },
+    formatTime(ts) {
+      const d = new Date(ts * 1000);
+      return d.toTimeString().slice(0, 8);
+    },
+  };
+}
+</script>
+{% endblock %}

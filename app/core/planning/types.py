@@ -68,6 +68,8 @@ class PlanStep:
     ask_question: str | None = None
     # wait payload (seconds, or ISO-8601 absolute)
     wait_seconds: float | None = None
+    # sub-plan payload (only meaningful when action == "subplan")
+    subplan_id: str | None = None
     # graph
     deps: list[str] = field(default_factory=list)
     parallel_group: int = 0
@@ -94,6 +96,7 @@ class PlanStep:
             "prompt": self.prompt,
             "ask_question": self.ask_question,
             "wait_seconds": self.wait_seconds,
+            "subplan_id": self.subplan_id,
             "deps": list(self.deps),
             "parallel_group": self.parallel_group,
             "cost_estimate": dict(self.cost_estimate),
@@ -120,6 +123,7 @@ class PlanStep:
             prompt=data.get("prompt"),
             ask_question=data.get("ask_question"),
             wait_seconds=data.get("wait_seconds"),
+            subplan_id=data.get("subplan_id"),
             deps=list(data.get("deps") or []),
             parallel_group=int(data.get("parallel_group", 0)),
             cost_estimate=data.get("cost_estimate") or {},

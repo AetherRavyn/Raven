@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +16,7 @@ class Bootstrapper:
         # Create default template files if they don't exist
         self._ensure_file_exists(
             "SOUL.md",
-            "You are SARAS, an advanced, highly capable AI assistant. Be helpful, concise, and professional.",
+            "You are RAVEN, an advanced, highly capable AI assistant. Be helpful, concise, and professional.",
         )
         self._ensure_file_exists(
             "AGENTS.md",
@@ -51,7 +50,7 @@ class Bootstrapper:
             if len(content) > max_chars:
                 content = (
                     content[:max_chars]
-                    + f"\n...[Content Truncated due to size limit]..."
+                    + "\n...[Content Truncated due to size limit]..."
                 )
             return f"\n--- [{filename}] ---\n{content}\n"
         except Exception as e:
@@ -61,7 +60,7 @@ class Bootstrapper:
     def build_dynamic_context(self, user_id: str | None = None) -> str:
         """Return a short string describing the current date/time context.
 
-        Injected into every system prompt so SARAS is always temporally aware.
+        Injected into every system prompt so RAVEN is always temporally aware.
         Zero compute cost — pure datetime math.
         """
         from datetime import datetime, timezone
@@ -87,31 +86,31 @@ class Bootstrapper:
     ) -> str:
         """Injects SOUL, AGENTS, TOOLS, live context, and relevant memories."""
         try:
-            from app.core.memory_manager import MemoryManager
+            from app.core.memory_facade import get_memory_facade
 
-            manager = MemoryManager()
-            soul_context = manager.retrieve_context(
-                "SARAS core persona instructions", user_id=user_id, top_k=1
+            facade = get_memory_facade()
+            soul_context = facade.recall(
+                "RAVEN core persona instructions", user_id=user_id, top_k=1
             )
-            agents_context = manager.retrieve_context(
+            agents_context = facade.recall(
                 "available agents and behavior", user_id=user_id, top_k=1
             )
-            tools_context = manager.retrieve_context(
+            tools_context = facade.recall(
                 "available tools and usage", user_id=user_id, top_k=1
             )
 
             soul = (
-                "\n".join(soul_context)
+                "\n".join(m.content for m in soul_context)
                 if soul_context
                 else self._read_and_truncate("SOUL.md", max_chars=1000)
             )
             agents = (
-                "\n".join(agents_context)
+                "\n".join(m.content for m in agents_context)
                 if agents_context
                 else self._read_and_truncate("AGENTS.md", max_chars=500)
             )
             tools = (
-                "\n".join(tools_context)
+                "\n".join(m.content for m in tools_context)
                 if tools_context
                 else self._read_and_truncate("TOOLS.md", max_chars=500)
             )
@@ -140,12 +139,12 @@ class Bootstrapper:
         memory_section = ""
         if query:
             try:
-                from app.core.memory_manager import MemoryManager
+                from app.core.memory_facade import get_memory_facade
 
-                manager = MemoryManager()
-                memories = manager.retrieve_context(query, user_id=user_id, top_k=8)
+                facade = get_memory_facade()
+                memories = facade.recall(query, user_id=user_id, top_k=8)
                 if memories:
-                    bullets = "\n".join(f"- {m}" for m in memories)
+                    bullets = "\n".join(f"- {m.content}" for m in memories)
                     memory_section = f"\n--- [Relevant Memories] ---\n{bullets}\n"
             except Exception as exc:
                 logger.warning("Memory retrieval failed: %s", exc)
@@ -153,10 +152,10 @@ class Bootstrapper:
         profile_summary_section = ""
         if user_id:
             try:
-                from app.core.memory_manager import MemoryManager
+                from app.core.memory_facade import get_memory_facade
 
-                manager = MemoryManager()
-                profile = manager.build_profile_summary(user_id)
+                facade = get_memory_facade()
+                profile = facade.profile(user_id)
                 profile_lines = []
                 if profile.get("preferences"):
                     profile_lines.append("preferences:")
@@ -219,7 +218,40 @@ class Bootstrapper:
         except Exception as exc:
             logger.warning("Skill text retrieval failed: %s", exc)
 
+        correction_section = ""
+        if user_id:
+            try:
+                from app.core.correction_learner import CorrectionLearner
+
+                learner = CorrectionLearner(str(self.workspace_dir))
+                corrections = learner.get_correction_context(user_id)
+                if corrections:
+                    correction_section = f"\n{corrections}\n"
+            except Exception as exc:
+                logger.debug("Correction context retrieval failed: %s", exc)
+
+        prompt_improvements_section = ""
+        try:
+            from app.core.prompt_improver import PromptImprover
+
+            improver = PromptImprover(str(self.workspace_dir))
+            improvements = improver.get_adjustments_prompt()
+            if improvements:
+                prompt_improvements_section = f"\n{improvements}\n"
+        except Exception as exc:
+            logger.debug("Prompt improvement retrieval failed: %s", exc)
+
+        pattern_rules_section = ""
+        try:
+            from app.core.pattern_learner import PatternLearner
+            pl = PatternLearner(str(self.workspace_dir))
+            rules = pl.get_rules_for_prompt()
+            if rules:
+                pattern_rules_section = f"\n{rules}\n"
+        except Exception:
+            pass
+
         return (
             f"System Bootstrapped Context:\n"
-            f"{soul}{dynamic_section}{profile_section}{profile_summary_section}{graph_section}{standing_orders_section}{active_skills_section}{agents}{tools}{memory_section}"
+            f"{soul}{dynamic_section}{profile_section}{profile_summary_section}{graph_section}{standing_orders_section}{active_skills_section}{correction_section}{prompt_improvements_section}{pattern_rules_section}{agents}{tools}{memory_section}"
         )

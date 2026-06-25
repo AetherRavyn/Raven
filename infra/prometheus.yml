@@ -2,6 +2,6 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: saras
+  - job_name: raven
     static_configs:
-      - targets: ["saras:8765"]
+      - targets: ["raven:8765"]

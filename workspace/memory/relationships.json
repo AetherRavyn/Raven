@@ -1,6 +1,39 @@
 {
   "u_ff69f412": {
     "user_id": "u_ff69f412",
+    "trust_level": 0.6500000000000001,
+    "formality": "casual",
+    "verbosity": "detailed",
+    "humor_factor": 0.5,
+    "inside_jokes": [],
+    "known_preferences": [],
+    "interaction_count": 15,
+    "last_seen": "2026-06-25T17:04:44.013337+00:00"
+  },
+  "paired_user": {
+    "user_id": "paired_user",
+    "trust_level": 0.5,
+    "formality": "professional",
+    "verbosity": "concise",
+    "humor_factor": 0.3,
+    "inside_jokes": [],
+    "known_preferences": [],
+    "interaction_count": 0,
+    "last_seen": ""
+  },
+  "admin123": {
+    "user_id": "admin123",
+    "trust_level": 0.5,
+    "formality": "professional",
+    "verbosity": "concise",
+    "humor_factor": 0.3,
+    "inside_jokes": [],
+    "known_preferences": [],
+    "interaction_count": 0,
+    "last_seen": ""
+  },
+  "default": {
+    "user_id": "default",
     "trust_level": 0.5,
     "formality": "professional",
     "verbosity": "concise",

@@ -1,4 +1,4 @@
-"""Prometheus metrics for SARAS observability (A5).
+"""Prometheus metrics for RAVEN observability (A5).
 
 Extends the existing :mod:`app.core.metrics` with the gauges and
 counters that the A4 audit + policy v2 + vault subsystems need
@@ -11,7 +11,7 @@ unconditionally.
 Naming convention
 -----------------
 
-All metrics are prefixed with ``saras_`` and follow the
+All metrics are prefixed with ``raven_`` and follow the
 ``<unit>_<subject>_<verb>`` pattern.  Counters end in ``_total``;
 histograms in ``_seconds``; gauges have no suffix.
 """
@@ -75,69 +75,69 @@ def _init_prometheus() -> bool:
     global log_redactions_total
 
     audit_events_total = Counter(
-        "saras_audit_events_total",
+        "raven_audit_events_total",
         "Audit events recorded",
         ["kind", "risk"],
     )
     audit_events_by_risk = Counter(
-        "saras_audit_events_by_risk_total",
+        "raven_audit_events_by_risk_total",
         "Audit events by risk level",
         ["risk"],
     )
     audit_redactions_total = Counter(
-        "saras_audit_redactions_total",
+        "raven_audit_redactions_total",
         "PII redactions applied during audit serialization",
         ["rule"],
     )
     audit_log_size_bytes = Gauge(
-        "saras_audit_log_size_bytes",
+        "raven_audit_log_size_bytes",
         "Size of the audit log JSONL file",
     )
 
     policy_evaluations_total = Counter(
-        "saras_policy_evaluations_total",
+        "raven_policy_evaluations_total",
         "Policy v2 evaluations",
         ["verdict"],
     )
     policy_decisions_by_verdict = Counter(
-        "saras_policy_decisions_by_verdict_total",
+        "raven_policy_decisions_by_verdict_total",
         "Policy v2 verdicts issued",
         ["verdict", "risk_band"],
     )
     policy_approvals_pending = Gauge(
-        "saras_policy_approvals_pending",
+        "raven_policy_approvals_pending",
         "Pending approval requests in the queue",
     )
     policy_trust_tier_users = Gauge(
-        "saras_policy_trust_tier_users",
+        "raven_policy_trust_tier_users",
         "Number of users per trust tier",
         ["tier"],
     )
 
     vault_secrets_total = Gauge(
-        "saras_vault_secrets_total",
+        "raven_vault_secrets_total",
         "Number of secrets stored in the vault",
     )
     vault_rotations_total = Counter(
-        "saras_vault_rotations_total",
+        "raven_vault_rotations_total",
         "Key rotations performed",
     )
     vault_lookup_failures_total = Counter(
-        "saras_vault_lookup_failures_total",
+        "raven_vault_lookup_failures_total",
         "Vault lookups that fell back to env (vault disabled or missing)",
     )
 
     otel_spans_exported_total = Counter(
-        "saras_otel_spans_exported_total",
+        "raven_otel_spans_exported_total",
         "OpenTelemetry spans successfully exported",
     )
     otel_spans_dropped_total = Counter(
-        "saras_otel_spans_dropped_total",
+        "raven_otel_spans_dropped_total",
         "OpenTelemetry spans dropped (sample, error, or shutdown)",
     )
 
     log_redactions_total = Counter(
-        "saras_log_redactions_total",
+        "raven_log_redactions_total",
         "Log values that were redacted by the structured logger",
     )
     return True

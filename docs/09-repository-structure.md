@@ -1,6 +1,6 @@
 # 09 - Repository Structure, Setup & Deliverables
 
-This document maps every file in the SARAS repository, explains how modules
+This document maps every file in the RAVEN repository, explains how modules
 connect, provides setup instructions, and lists resume-ready accomplishments
 and a deliverables checklist aligned with the milestone roadmap.
 
@@ -9,7 +9,7 @@ and a deliverables checklist aligned with the milestone roadmap.
 ## Full Repository Tree
 
 ```
-SARAS/
+RAVEN/
 │
 ├── main.py                                # Entry point: asyncio.run(main()), starts brain + all connectors
 ├── pyproject.toml                         # Project metadata, dependencies (managed with uv)
@@ -21,18 +21,18 @@ SARAS/
 ├── README.md                              # Project overview, demo GIF, quickstart
 ├── Makefile                               # Common commands: dev, test, lint, download-models
 ├── Dockerfile                             # Python app container (CUDA base for GPU inference)
-├── docker-compose.yml                     # Full stack: saras app, PostgreSQL, Redis, Mosquitto, SearXNG
+├── docker-compose.yml                     # Full stack: raven app, PostgreSQL, Redis, Mosquitto, SearXNG
 │
-├── saras/                                 # Main Python package -- the entire bot
+├── raven/                                 # Main Python package -- the entire bot
 │   ├── __init__.py                        # Package init, version string
 │   ├── config.py                          # Loads config.yaml + .env, exposes typed Config dataclass
 │   ├── models.py                          # Pydantic/dataclass models: IncomingMessage, OutgoingMessage, ReplyContext
-│   ├── scheduler.py                       # SarasScheduler: APScheduler wrapper for reminders, alarms, routines
+│   ├── scheduler.py                       # RavenScheduler: APScheduler wrapper for reminders, alarms, routines
 │   ├── exceptions.py                      # Custom exceptions: LLMTimeoutError, SafetyBlockedError, ToolExecutionError
 │   │
 │   ├── brain/                             # Core intelligence subsystem
 │   │   ├── __init__.py
-│   │   ├── brain.py                       # SarasBrain: main orchestrator, handle_message(), tool loop
+│   │   ├── brain.py                       # RavenBrain: main orchestrator, handle_message(), tool loop
 │   │   ├── llm_engine.py                  # LLM client: vLLM OpenAI-compatible API, streaming, LoRA loading
 │   │   ├── memory.py                      # MemoryManager: pgvector semantic search, conversation history
 │   │   ├── personality.py                 # PersonalityManager: loads prompt files, user-specific tone adaptation
@@ -55,7 +55,7 @@ SARAS/
 │   │   ├── tts.py                         # TTSEngine: Piper TTS synthesis, audio format conversion
 │   │   ├── audio_utils.py                 # Format conversion (ogg/opus/wav/mp3), resampling, normalization
 │   │   ├── vad.py                         # Voice Activity Detection: Silero VAD wrapper, silence detection
-│   │   └── wake_word.py                   # Wake word detector: openWakeWord or custom model, "Hey SARAS"
+│   │   └── wake_word.py                   # Wake word detector: openWakeWord or custom model, "Hey RAVEN"
 │   │
 │   ├── sensors/                           # IoT sensor network
 │   │   ├── __init__.py
@@ -72,7 +72,7 @@ SARAS/
 │   │   ├── read_url.py                    # ReadURLTool: fetch URL, extract text with trafilatura/readability
 │   │   ├── weather.py                     # WeatherTool: Open-Meteo API, current + forecast
 │   │   ├── calculator.py                  # CalculatorTool: safe math expression eval (sympy)
-│   │   ├── set_reminder.py                # SetReminderTool: creates scheduled task via SarasScheduler
+│   │   ├── set_reminder.py                # SetReminderTool: creates scheduled task via RavenScheduler
 │   │   ├── smart_home.py                  # SmartHomeTool: control devices via DeviceRegistry + HA bridge
 │   │   ├── read_sensor.py                 # ReadSensorTool: query latest sensor values from DB/Redis
 │   │   ├── wikipedia.py                   # WikipediaTool: Wikipedia API search + summary extraction
@@ -114,7 +114,7 @@ SARAS/
 │   ├── package.json                       # Dependencies: @whiskeysockets/baileys, express, qrcode-terminal
 │   ├── package-lock.json
 │   ├── Dockerfile                         # Node.js 20 container for the bridge
-│   ├── .env.example                       # SARAS_CALLBACK_URL, PORT
+│   ├── .env.example                       # RAVEN_CALLBACK_URL, PORT
 │   ├── index.js                           # Express server: /send, /status endpoints + Baileys client
 │   ├── baileys_client.js                  # Baileys wrapper: QR auth, message listener, reconnection
 │   ├── message_handler.js                 # Incoming message parsing, forwards to Python callback URL
@@ -133,14 +133,14 @@ SARAS/
 │   ├── embeddings/                        # Sentence embedding model
 │   │   └── all-MiniLM-L6-v2/             # SentenceTransformer model files
 │   ├── wake_word/                         # Wake word detection model
-│   │   └── hey_saras.onnx                 # Custom openWakeWord model
+│   │   └── hey_raven.onnx                 # Custom openWakeWord model
 │   └── lora/                              # LoRA adapter weights
-│       └── saras-personality/             # Personality fine-tuned LoRA adapter
+│       └── raven-personality/             # Personality fine-tuned LoRA adapter
 │           ├── adapter_config.json
 │           └── adapter_model.safetensors
 │
 ├── prompts/                               # Personality and system prompt templates
-│   ├── system_prompt.txt                  # Base system prompt: who SARAS is, capabilities, constraints
+│   ├── system_prompt.txt                  # Base system prompt: who RAVEN is, capabilities, constraints
 │   ├── friendly.txt                       # Friendly personality overlay: casual tone, humor, warmth
 │   ├── professional.txt                   # Professional personality overlay: concise, formal
 │   ├── tool_instructions.txt              # Instructions for tool-calling format and behavior
@@ -154,13 +154,13 @@ SARAS/
 │   │   └── tool.py                        # Plugin implementation: subclass of BaseTool
 │   └── .gitkeep
 │
-├── tests/                                 # Test suite (mirrors saras/ package structure)
+├── tests/                                 # Test suite (mirrors raven/ package structure)
 │   ├── __init__.py
 │   ├── conftest.py                        # Shared fixtures: mock brain, mock LLM, test DB, test Redis
 │   │
 │   ├── brain/                             # Brain unit tests
 │   │   ├── __init__.py
-│   │   ├── test_brain.py                  # SarasBrain message handling, tool loop, error recovery
+│   │   ├── test_brain.py                  # RavenBrain message handling, tool loop, error recovery
 │   │   ├── test_llm_engine.py             # LLM client mocking, streaming, token counting
 │   │   ├── test_memory.py                 # Memory storage, semantic search, conversation history
 │   │   ├── test_personality.py            # Prompt loading, user-specific adaptation
@@ -229,10 +229,10 @@ SARAS/
 ├── data/                                  # Training datasets (gitignored, downloaded or generated)
 │   ├── .gitkeep
 │   ├── wake_word/                         # Wake word training audio samples
-│   │   ├── positive/                      # "Hey SARAS" recordings
+│   │   ├── positive/                      # "Hey RAVEN" recordings
 │   │   └── negative/                      # Background noise, other speech
 │   ├── lora/                              # LoRA fine-tuning datasets
-│   │   ├── conversations.jsonl            # Multi-turn conversation examples with SARAS personality
+│   │   ├── conversations.jsonl            # Multi-turn conversation examples with RAVEN personality
 │   │   ├── tool_calls.jsonl               # Tool-calling examples (function format)
 │   │   └── safety_refusals.jsonl          # Examples of appropriate refusal responses
 │   ├── safety/                            # Safety classifier training data
@@ -243,7 +243,7 @@ SARAS/
 │       └── noise_profiles/                # Background noise samples for augmentation
 │
 ├── docs/                                  # Design documentation (this series)
-│   ├── 00-overview.md                     # What SARAS is, interaction examples, stack overview
+│   ├── 00-overview.md                     # What RAVEN is, interaction examples, stack overview
 │   ├── 01-system-architecture.md          # Single-process architecture, message bus, brain design
 │   ├── 02-platform-connectors.md          # Telegram, Discord, WhatsApp, Voice I/O, Web API
 │   ├── 03-voice-personality.md            # Voice pipeline (STT + TTS), personality system, memory
@@ -269,16 +269,16 @@ SARAS/
 
 | File | Purpose |
 |---|---|
-| `main.py` | Entry point. Calls `asyncio.run(main())` which initializes `SarasBrain`, starts all connectors, MQTT listener, and scheduler as concurrent async tasks via `asyncio.gather()`. |
+| `main.py` | Entry point. Calls `asyncio.run(main())` which initializes `RavenBrain`, starts all connectors, MQTT listener, and scheduler as concurrent async tasks via `asyncio.gather()`. |
 | `pyproject.toml` | Project metadata, Python dependencies (faster-whisper, piper-tts, vllm, discord.py, python-telegram-bot, asyncpg, aioredis, sentence-transformers, apscheduler, fastapi, paho-mqtt, onnxruntime). Build system config for uv. |
 | `config.yaml` | All runtime configuration: which platforms are enabled, LLM model path, voice settings, MQTT broker address, tool toggles, safety thresholds. Secrets reference `.env` variables. |
-| `docker-compose.yml` | Orchestrates the full stack: SARAS Python app (GPU-enabled), PostgreSQL 16 with pgvector, Redis 7, Mosquitto MQTT broker, SearXNG (self-hosted search), and the WhatsApp bridge. |
+| `docker-compose.yml` | Orchestrates the full stack: RAVEN Python app (GPU-enabled), PostgreSQL 16 with pgvector, Redis 7, Mosquitto MQTT broker, SearXNG (self-hosted search), and the WhatsApp bridge. |
 
-### Brain Module (`saras/brain/`)
+### Brain Module (`raven/brain/`)
 
 | File | Purpose |
 |---|---|
-| `brain.py` | `SarasBrain` class. Receives `IncomingMessage` from any connector, orchestrates memory retrieval, context assembly, LLM inference, tool execution loop, and returns `OutgoingMessage`. Central hub of the entire system. |
+| `brain.py` | `RavenBrain` class. Receives `IncomingMessage` from any connector, orchestrates memory retrieval, context assembly, LLM inference, tool execution loop, and returns `OutgoingMessage`. Central hub of the entire system. |
 | `llm_engine.py` | Wraps the vLLM OpenAI-compatible API. Handles streaming token generation, LoRA adapter loading, token counting, and retry logic. |
 | `memory.py` | `MemoryManager` with two tiers: recent conversation history (last N messages from PostgreSQL) and long-term semantic memory (pgvector similarity search). Handles memory extraction, storage, and retrieval. |
 | `personality.py` | Loads personality prompt files from `prompts/`, merges base system prompt with personality overlay, adapts tone based on user preferences stored in the DB. |
@@ -286,7 +286,7 @@ SARAS/
 | `tool_router.py` | Parses tool call JSON from LLM output, validates parameters against tool schemas, dispatches to the correct tool's `execute()` method, and formats results for the LLM. |
 | `embeddings.py` | Thin wrapper around SentenceTransformer (`all-MiniLM-L6-v2`). Generates 384-dim embeddings for memory storage and query. |
 
-### Connector Module (`saras/connectors/`)
+### Connector Module (`raven/connectors/`)
 
 | File | Purpose |
 |---|---|
@@ -297,7 +297,7 @@ SARAS/
 | `voice_io.py` | Local microphone/speaker connector using PyAudio. Listens for wake word, uses VAD to detect speech boundaries, sends audio to STT, plays TTS responses through speaker. |
 | `web_api.py` | FastAPI server with REST endpoints (`/chat`, `/status`, `/devices`) and WebSocket for real-time chat. Serves as admin dashboard and programmatic API. |
 
-### Voice Module (`saras/voice/`)
+### Voice Module (`raven/voice/`)
 
 | File | Purpose |
 |---|---|
@@ -305,9 +305,9 @@ SARAS/
 | `tts.py` | `TTSEngine` wrapping Piper TTS. Converts text to speech audio, outputs WAV/OGG/OPUS. Handles sentence-level streaming for low-latency voice responses. |
 | `audio_utils.py` | Audio format conversion (OGG Opus to WAV, resampling to 16kHz for Whisper), volume normalization, silence trimming. |
 | `vad.py` | Silero VAD wrapper. Detects speech start/end in audio streams. Used by VoiceIOConnector and Discord voice to know when the user has finished speaking. |
-| `wake_word.py` | Wake word detector using openWakeWord. Continuously listens on mic for "Hey SARAS" trigger phrase before activating the main STT pipeline. |
+| `wake_word.py` | Wake word detector using openWakeWord. Continuously listens on mic for "Hey RAVEN" trigger phrase before activating the main STT pipeline. |
 
-### Safety Module (`saras/safety/`)
+### Safety Module (`raven/safety/`)
 
 | File | Purpose |
 |---|---|
@@ -331,7 +331,7 @@ SARAS/
                  │               │                               │
                  ▼               ▼                               ▼
         ┌────────────┐  ┌──────────────┐                ┌──────────────┐
-        │ Connectors │  │  SarasBrain  │                │  Scheduler   │
+        │ Connectors │  │  RavenBrain  │                │  Scheduler   │
         │            │  │              │                │              │
         │ telegram   │  │              │                │ (APScheduler)│
         │ discord    │  │              │                └──────┬───────┘
@@ -366,7 +366,7 @@ SARAS/
                               └──────────────┘
 
      ┌──────────────┐         ┌──────────────┐
-     │ MQTT Listener │────────▶│  SarasBrain  │  (pushes alerts when anomaly detected)
+     │ MQTT Listener │────────▶│  RavenBrain  │  (pushes alerts when anomaly detected)
      │ sensors/      │         └──────────────┘
      └──────┬───────┘
             │
@@ -386,7 +386,7 @@ SARAS/
      └──────────────┘
 
      ┌──────────────┐
-     │  Safety Gate  │◀──── called by SarasBrain on every input and output
+     │  Safety Gate  │◀──── called by RavenBrain on every input and output
      │              │
      │ classifier   │
      │ injection    │
@@ -412,7 +412,7 @@ SARAS/
 - `tools` import `sensors`, `scheduler`, `utils` (as needed per tool)
 - `sensors` import `brain` (to push alerts), `utils`
 - `safety` imports `utils`
-- `utils` imports nothing from `saras` (leaf dependency)
+- `utils` imports nothing from `raven` (leaf dependency)
 
 ---
 
@@ -432,8 +432,8 @@ SARAS/
 **1. Clone the repository**
 
 ```bash
-git clone https://github.com/your-username/SARAS.git
-cd SARAS
+git clone https://github.com/your-username/RAVEN.git
+cd RAVEN
 ```
 
 **2. Install uv and create virtual environment**
@@ -461,9 +461,9 @@ apscheduler, fastapi, paho-mqtt, onnxruntime, and others.
 sudo apt install postgresql-16-pgvector
 
 # Create database and user
-sudo -u postgres psql -c "CREATE USER saras WITH PASSWORD 'your_password';"
-sudo -u postgres psql -c "CREATE DATABASE saras OWNER saras;"
-sudo -u postgres psql -d saras -c "CREATE EXTENSION vector;"
+sudo -u postgres psql -c "CREATE USER raven WITH PASSWORD 'your_password';"
+sudo -u postgres psql -c "CREATE DATABASE raven OWNER raven;"
+sudo -u postgres psql -d raven -c "CREATE EXTENSION vector;"
 
 # Run schema migrations
 python scripts/run_migrations.py
@@ -495,7 +495,7 @@ cp .env.example .env
 # Edit .env with your secrets:
 #   TELEGRAM_BOT_TOKEN=your_telegram_token
 #   DISCORD_BOT_TOKEN=your_discord_token
-#   DATABASE_URL=postgresql://saras:your_password@localhost:5432/saras
+#   DATABASE_URL=postgresql://raven:your_password@localhost:5432/raven
 #   REDIS_URL=redis://localhost:6379/0
 #   HA_LONG_LIVED_TOKEN=your_home_assistant_token  (optional)
 
@@ -517,13 +517,13 @@ This downloads:
 The vLLM model (Mistral 7B AWQ) is downloaded automatically on first run
 by vLLM from Hugging Face (~4 GB).
 
-**8. Run SARAS**
+**8. Run RAVEN**
 
 ```bash
 python main.py
 ```
 
-SARAS will start all enabled connectors and print status to the console.
+RAVEN will start all enabled connectors and print status to the console.
 You should see log lines confirming each connector is online.
 
 **9. Set up WhatsApp bridge (optional)**
@@ -532,7 +532,7 @@ You should see log lines confirming each connector is online.
 cd whatsapp-bridge
 npm install
 cp .env.example .env
-# Edit .env: set SARAS_CALLBACK_URL=http://localhost:8080/webhook/whatsapp
+# Edit .env: set RAVEN_CALLBACK_URL=http://localhost:8080/webhook/whatsapp
 
 node index.js
 # Scan the QR code with your WhatsApp mobile app
@@ -550,7 +550,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-This starts: SARAS app, PostgreSQL + pgvector, Redis, Mosquitto, SearXNG,
+This starts: RAVEN app, PostgreSQL + pgvector, Redis, Mosquitto, SearXNG,
 and the WhatsApp bridge. The app container has CUDA support for GPU inference.
 
 ---
@@ -610,22 +610,22 @@ buildable deliverable.
 
 ### M1: Brain + Telegram (Weeks 1-3)
 
-- [ ] `saras/brain/brain.py` -- SarasBrain class with handle_message() method
-- [ ] `saras/brain/llm_engine.py` -- vLLM client with streaming token generation
-- [ ] `saras/brain/memory.py` -- MemoryManager with conversation history (PostgreSQL)
-- [ ] `saras/brain/memory.py` -- Semantic memory search with pgvector embeddings
-- [ ] `saras/brain/embeddings.py` -- SentenceTransformer embedding wrapper
-- [ ] `saras/brain/personality.py` -- System prompt loading from prompts/ files
-- [ ] `saras/brain/context_builder.py` -- Prompt assembly with token budget
-- [ ] `saras/models.py` -- IncomingMessage, OutgoingMessage, ReplyContext dataclasses
-- [ ] `saras/config.py` -- Config loader (config.yaml + .env)
-- [ ] `saras/db/schema.sql` -- PostgreSQL schema: users, conversations, memories
-- [ ] `saras/db/migrations/001_initial_schema.sql` -- Initial migration
-- [ ] `saras/utils/database.py` -- AsyncPG connection pool
-- [ ] `saras/utils/redis_client.py` -- Redis async client wrapper
-- [ ] `saras/utils/logging.py` -- Structured logging setup
-- [ ] `saras/connectors/base.py` -- BaseConnector ABC with reconnection logic
-- [ ] `saras/connectors/telegram.py` -- TelegramConnector: text messages, commands
+- [ ] `raven/brain/brain.py` -- RavenBrain class with handle_message() method
+- [ ] `raven/brain/llm_engine.py` -- vLLM client with streaming token generation
+- [ ] `raven/brain/memory.py` -- MemoryManager with conversation history (PostgreSQL)
+- [ ] `raven/brain/memory.py` -- Semantic memory search with pgvector embeddings
+- [ ] `raven/brain/embeddings.py` -- SentenceTransformer embedding wrapper
+- [ ] `raven/brain/personality.py` -- System prompt loading from prompts/ files
+- [ ] `raven/brain/context_builder.py` -- Prompt assembly with token budget
+- [ ] `raven/models.py` -- IncomingMessage, OutgoingMessage, ReplyContext dataclasses
+- [ ] `raven/config.py` -- Config loader (config.yaml + .env)
+- [ ] `raven/db/schema.sql` -- PostgreSQL schema: users, conversations, memories
+- [ ] `raven/db/migrations/001_initial_schema.sql` -- Initial migration
+- [ ] `raven/utils/database.py` -- AsyncPG connection pool
+- [ ] `raven/utils/redis_client.py` -- Redis async client wrapper
+- [ ] `raven/utils/logging.py` -- Structured logging setup
+- [ ] `raven/connectors/base.py` -- BaseConnector ABC with reconnection logic
+- [ ] `raven/connectors/telegram.py` -- TelegramConnector: text messages, commands
 - [ ] `main.py` -- Entry point with asyncio.gather()
 - [ ] `config.yaml` -- Initial configuration file
 - [ ] `docker-compose.yml` -- PostgreSQL + Redis containers
@@ -635,13 +635,13 @@ buildable deliverable.
 
 ### M2: Voice (Weeks 4-6)
 
-- [ ] `saras/voice/stt.py` -- faster-whisper STT engine integration
-- [ ] `saras/voice/tts.py` -- Piper TTS synthesis engine
-- [ ] `saras/voice/audio_utils.py` -- Audio format conversion (OGG/WAV/OPUS)
-- [ ] `saras/voice/vad.py` -- Silero VAD wrapper for speech boundary detection
-- [ ] `saras/voice/wake_word.py` -- openWakeWord detector for "Hey SARAS"
-- [ ] `saras/connectors/telegram.py` -- Voice note handling (download, transcribe, reply with audio)
-- [ ] `saras/connectors/voice_io.py` -- VoiceIOConnector with PyAudio mic/speaker
+- [ ] `raven/voice/stt.py` -- faster-whisper STT engine integration
+- [ ] `raven/voice/tts.py` -- Piper TTS synthesis engine
+- [ ] `raven/voice/audio_utils.py` -- Audio format conversion (OGG/WAV/OPUS)
+- [ ] `raven/voice/vad.py` -- Silero VAD wrapper for speech boundary detection
+- [ ] `raven/voice/wake_word.py` -- openWakeWord detector for "Hey RAVEN"
+- [ ] `raven/connectors/telegram.py` -- Voice note handling (download, transcribe, reply with audio)
+- [ ] `raven/connectors/voice_io.py` -- VoiceIOConnector with PyAudio mic/speaker
 - [ ] `scripts/download_models.sh` -- Model download script (Whisper, Piper, embeddings)
 - [ ] `models/` directory structure with .gitkeep files
 - [ ] `tests/voice/test_stt.py` -- STT transcription tests
@@ -652,22 +652,22 @@ buildable deliverable.
 
 ### M3: Tools (Weeks 7-9)
 
-- [ ] `saras/tools/base.py` -- BaseTool ABC with name, description, parameters, execute()
-- [ ] `saras/brain/tool_router.py` -- Tool call parsing and dispatch from LLM output
-- [ ] `saras/tools/web_search.py` -- SearXNG web search tool
-- [ ] `saras/tools/run_code.py` -- Sandboxed Python code execution
-- [ ] `saras/tools/read_url.py` -- URL content extraction (trafilatura)
-- [ ] `saras/tools/weather.py` -- Open-Meteo weather API
-- [ ] `saras/tools/calculator.py` -- Safe math expression evaluation
-- [ ] `saras/tools/set_reminder.py` -- Reminder creation via scheduler
-- [ ] `saras/tools/wikipedia.py` -- Wikipedia search and summary
-- [ ] `saras/tools/news.py` -- Hacker News + RSS feed reader
-- [ ] `saras/tools/take_photo.py` -- Camera capture tool
-- [ ] `saras/tools/play_music.py` -- Media playback control
-- [ ] `saras/tools/file_reader.py` -- PDF/TXT/DOCX file reading
-- [ ] `saras/tools/datetime_tool.py` -- Time, timezone, date math
-- [ ] `saras/tools/plugin_loader.py` -- Dynamic plugin discovery from plugins/
-- [ ] `saras/scheduler.py` -- SarasScheduler with APScheduler
+- [ ] `raven/tools/base.py` -- BaseTool ABC with name, description, parameters, execute()
+- [ ] `raven/brain/tool_router.py` -- Tool call parsing and dispatch from LLM output
+- [ ] `raven/tools/web_search.py` -- SearXNG web search tool
+- [ ] `raven/tools/run_code.py` -- Sandboxed Python code execution
+- [ ] `raven/tools/read_url.py` -- URL content extraction (trafilatura)
+- [ ] `raven/tools/weather.py` -- Open-Meteo weather API
+- [ ] `raven/tools/calculator.py` -- Safe math expression evaluation
+- [ ] `raven/tools/set_reminder.py` -- Reminder creation via scheduler
+- [ ] `raven/tools/wikipedia.py` -- Wikipedia search and summary
+- [ ] `raven/tools/news.py` -- Hacker News + RSS feed reader
+- [ ] `raven/tools/take_photo.py` -- Camera capture tool
+- [ ] `raven/tools/play_music.py` -- Media playback control
+- [ ] `raven/tools/file_reader.py` -- PDF/TXT/DOCX file reading
+- [ ] `raven/tools/datetime_tool.py` -- Time, timezone, date math
+- [ ] `raven/tools/plugin_loader.py` -- Dynamic plugin discovery from plugins/
+- [ ] `raven/scheduler.py` -- RavenScheduler with APScheduler
 - [ ] `prompts/tool_instructions.txt` -- Tool-calling format instructions for LLM
 - [ ] `plugins/README.md` -- Plugin development guide
 - [ ] `plugins/example_plugin/` -- Reference plugin implementation
@@ -676,15 +676,15 @@ buildable deliverable.
 
 ### M4: Discord + WhatsApp (Weeks 10-12)
 
-- [ ] `saras/connectors/discord.py` -- DiscordConnector: text channels, slash commands
-- [ ] `saras/connectors/discord.py` -- Discord voice channel support (join, listen, speak)
-- [ ] `saras/connectors/whatsapp.py` -- WhatsAppConnector: HTTP bridge client
+- [ ] `raven/connectors/discord.py` -- DiscordConnector: text channels, slash commands
+- [ ] `raven/connectors/discord.py` -- Discord voice channel support (join, listen, speak)
+- [ ] `raven/connectors/whatsapp.py` -- WhatsAppConnector: HTTP bridge client
 - [ ] `whatsapp-bridge/index.js` -- Express server with /send and /status endpoints
 - [ ] `whatsapp-bridge/baileys_client.js` -- Baileys wrapper: QR auth, reconnection
 - [ ] `whatsapp-bridge/message_handler.js` -- Message parsing and forwarding
 - [ ] `whatsapp-bridge/package.json` -- Node.js dependencies
 - [ ] `whatsapp-bridge/Dockerfile` -- Container for the bridge
-- [ ] `saras/connectors/web_api.py` -- WebAPIConnector: REST + WebSocket + dashboard
+- [ ] `raven/connectors/web_api.py` -- WebAPIConnector: REST + WebSocket + dashboard
 - [ ] `tests/connectors/test_discord.py` -- Discord connector tests
 - [ ] `tests/connectors/test_whatsapp.py` -- WhatsApp connector tests
 - [ ] `tests/connectors/test_web_api.py` -- Web API tests
@@ -692,13 +692,13 @@ buildable deliverable.
 
 ### M5: Sensors + Smart Home (Weeks 13-16)
 
-- [ ] `saras/sensors/mqtt_listener.py` -- MQTTSensorListener: MQTT subscribe + parse
-- [ ] `saras/sensors/device_registry.py` -- DeviceRegistry: CRUD for devices in PostgreSQL
-- [ ] `saras/sensors/anomaly_detection.py` -- Isolation Forest anomaly detector
-- [ ] `saras/sensors/home_assistant.py` -- Home Assistant REST API client
-- [ ] `saras/tools/smart_home.py` -- SmartHomeTool: LLM-callable device control
-- [ ] `saras/tools/read_sensor.py` -- ReadSensorTool: query latest sensor values
-- [ ] `saras/db/migrations/002_sensor_devices.sql` -- Sensor + device tables
+- [ ] `raven/sensors/mqtt_listener.py` -- MQTTSensorListener: MQTT subscribe + parse
+- [ ] `raven/sensors/device_registry.py` -- DeviceRegistry: CRUD for devices in PostgreSQL
+- [ ] `raven/sensors/anomaly_detection.py` -- Isolation Forest anomaly detector
+- [ ] `raven/sensors/home_assistant.py` -- Home Assistant REST API client
+- [ ] `raven/tools/smart_home.py` -- SmartHomeTool: LLM-callable device control
+- [ ] `raven/tools/read_sensor.py` -- ReadSensorTool: query latest sensor values
+- [ ] `raven/db/migrations/002_sensor_devices.sql` -- Sensor + device tables
 - [ ] `prompts/sensor_context.txt` -- Template for sensor state injection into context
 - [ ] Mosquitto MQTT broker in docker-compose.yml
 - [ ] `tests/sensors/test_mqtt_listener.py` -- MQTT listener tests
@@ -714,8 +714,8 @@ buildable deliverable.
 - [ ] `data/lora/conversations.jsonl` -- Curate multi-turn conversation dataset
 - [ ] `data/lora/tool_calls.jsonl` -- Curate tool-calling examples dataset
 - [ ] `data/lora/safety_refusals.jsonl` -- Curate safety refusal examples
-- [ ] LoRA fine-tune Mistral 7B for SARAS personality and tool calling
-- [ ] `models/lora/saras-personality/` -- Trained LoRA adapter weights
+- [ ] LoRA fine-tune Mistral 7B for RAVEN personality and tool calling
+- [ ] `models/lora/raven-personality/` -- Trained LoRA adapter weights
 - [ ] `data/safety/` -- Compile safety classifier training data
 - [ ] Train DistilBERT safety classifier (8 categories)
 - [ ] `scripts/export_safety_model.py` -- Export to ONNX
@@ -728,14 +728,14 @@ buildable deliverable.
 
 ### M7: Polish + Deploy (Weeks 21-24)
 
-- [ ] `saras/safety/safety_gate.py` -- Full safety pipeline integration
-- [ ] `saras/safety/content_classifier.py` -- ONNX classifier integration
-- [ ] `saras/safety/prompt_injection.py` -- Prompt injection detector
-- [ ] `saras/safety/iot_safety.py` -- IoT confirmation and allow-list gates
-- [ ] `saras/safety/rate_limiter.py` -- Redis rate limiter
-- [ ] `saras/safety/audit.py` -- Audit logger
-- [ ] `saras/db/migrations/004_audit_log.sql` -- Audit log table
-- [ ] `saras/utils/metrics.py` -- Prometheus metrics export
+- [ ] `raven/safety/safety_gate.py` -- Full safety pipeline integration
+- [ ] `raven/safety/content_classifier.py` -- ONNX classifier integration
+- [ ] `raven/safety/prompt_injection.py` -- Prompt injection detector
+- [ ] `raven/safety/iot_safety.py` -- IoT confirmation and allow-list gates
+- [ ] `raven/safety/rate_limiter.py` -- Redis rate limiter
+- [ ] `raven/safety/audit.py` -- Audit logger
+- [ ] `raven/db/migrations/004_audit_log.sql` -- Audit log table
+- [ ] `raven/utils/metrics.py` -- Prometheus metrics export
 - [ ] `Dockerfile` -- Production container with CUDA support
 - [ ] `docker-compose.yml` -- Complete stack with all services
 - [ ] `.github/workflows/ci.yml` -- CI pipeline: lint, type check, test, coverage
@@ -758,7 +758,7 @@ buildable deliverable.
 
 ## License and Contribution
 
-SARAS is released under the **MIT License**. You are free to use, modify, and
+RAVEN is released under the **MIT License**. You are free to use, modify, and
 distribute it for personal or commercial purposes.
 
 ### Contributing

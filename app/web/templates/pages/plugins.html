@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}PLUGINS — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">PLUGINS</h1>
+  <p class="text-zinc-500 text-[11px]">Workspace plugins (package_kind=plugin) · v32</p>
+  <div class="grid grid-cols-4 gap-3 text-[12px]" id="plugins-summary">
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase">total</div>
+      <div class="text-zinc-100 text-2xl tabular-nums">{{ summary.count if summary else 0 }}</div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase">healthy</div>
+      <div class="text-accent-500 text-2xl tabular-nums">{{ summary.healthy if summary else 0 }}</div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase">degraded</div>
+      <div class="text-warn-500 text-2xl tabular-nums">{{ summary.degraded if summary else 0 }}</div>
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase">unhealthy</div>
+      <div class="text-err-500 text-2xl tabular-nums">{{ summary.unhealthy if summary else 0 }}</div>
+    </div>
+  </div>
+  <div class="border border-ink-600 bg-ink-800 rounded">
+    <table class="w-full text-[12px]">
+      <thead class="text-zinc-500 border-b border-ink-600">
+        <tr>
+          <th class="text-left px-3 py-1.5">module_id</th>
+          <th class="text-left px-3 py-1.5">name</th>
+          <th class="text-left px-3 py-1.5">version</th>
+          <th class="text-left px-3 py-1.5">stability</th>
+          <th class="text-left px-3 py-1.5">trust</th>
+        </tr>
+      </thead>
+      <tbody id="plugins-tbody">
+        {% if plugins %}
+          {% for p in plugins %}
+            <tr class="border-b border-ink-700 hover:bg-ink-700">
+              <td class="px-3 py-1.5 font-mono text-accent-500">{{ p.get("module_id", "?") }}</td>
+              <td class="px-3 py-1.5">{{ p.get("display_name", "?") }}</td>
+              <td class="px-3 py-1.5 text-zinc-400">{{ p.get("version", "?") }}</td>
+              <td class="px-3 py-1.5 text-zinc-400">{{ p.get("stability", "?") }}</td>
+              <td class="px-3 py-1.5 text-zinc-400">{{ p.get("trust_level", "?") }}</td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="5" class="px-3 py-3 text-zinc-600 text-center">[no plugins discovered]</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

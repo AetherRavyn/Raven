@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Memory — Raven{% endblock %}
+{% block main %}
+<section class="space-y-4" x-data="memoryPage()">
+  <div class="flex items-center justify-between">
+    <h1 class="text-sm tracking-wider uppercase" style="color: var(--text-primary);">Memory System</h1>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="card p-3">
+      <div class="text-[10px] uppercase tracking-wider" style="color: var(--text-muted);">Memories</div>
+      <div class="mt-1 text-[13px] font-semibold" style="color: var(--accent);" x-text="stats.total"></div>
+    </div>
+    <div class="card p-3">
+      <div class="text-[10px] uppercase tracking-wider" style="color: var(--text-muted);">Tool Guides</div>
+      <div class="mt-1 text-[13px]" style="color: var(--text-primary);" x-text="stats.tools"></div>
+    </div>
+    <div class="card p-3">
+      <div class="text-[10px] uppercase tracking-wider" style="color: var(--text-muted);">KG Entities</div>
+      <div class="mt-1 text-[13px]" style="color: var(--text-primary);" x-text="stats.kg_entities"></div>
+    </div>
+    <div class="card p-3">
+      <div class="text-[10px] uppercase tracking-wider" style="color: var(--text-muted);">KG Relationships</div>
+      <div class="mt-1 text-[13px]" style="color: var(--text-primary);" x-text="stats.kg_relations"></div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="card p-4">
+    <div class="text-[10px] uppercase tracking-wider mb-3" style="color: var(--text-muted);">Search Memory</div>
+    <div class="flex gap-2">
+      <input x-model="searchQuery" @keyup.enter="searchMemory()" class="input flex-1" placeholder="Search memories...">
+      <button @click="searchMemory()" class="btn btn-primary">Search</button>
+    </div>
+    <div class="mt-3 space-y-2" x-show="searchResults.length > 0">
+      <template x-for="result in searchResults" :key="result.content">
+        <div class="p-2 rounded text-[12px]" style="background: var(--bg-tertiary); border: 1px solid var(--border-color);">
+          <span style="color: var(--text-primary);" x-text="result.content"></span>
+          <span class="ml-2 text-[10px]" style="color: var(--text-muted);" x-text="'via ' + result.source"></span>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Store Memory -->
+  <div class="card p-4">
+    <div class="text-[10px] uppercase tracking-wider mb-3" style="color: var(--text-muted);">Store Memory</div>
+    <div class="flex gap-2">
+      <input x-model="storeContent" class="input flex-1" placeholder="Memory content to store...">
+      <select x-model="storeCategory" class="input" style="width: 120px;">
+        <option value="FACT">Fact</option>
+        <option value="RULE">Rule</option>
+        <option value="TOOL_GUIDE">Tool Guide</option>
+      </select>
+      <button @click="storeMemory()" class="btn btn-primary">Store</button>
+    </div>
+    <div x-show="storeMessage" class="mt-2 text-[12px]" :style="storeSuccess ? 'color: var(--success)' : 'color: var(--danger)'" x-text="storeMessage"></div>
+  </div>
+</section>
+
+<script>
+function memoryPage() {
+  return {
+    stats: { total: 0, tools: 0, kg_entities: 0, kg_relations: 0 },
+    searchQuery: '',
+    searchResults: [],
+    storeContent: '',
+    storeCategory: 'FACT',
+    storeMessage: '',
+    storeSuccess: false,
+
+    async init() {
+      try {
+        const mem = await fetch('/api/memory/search?q=status').then(r => r.json());
+        this.stats.total = mem.total || 0;
+      } catch(e) {}
+    },
+
+    async searchMemory() {
+      if (!this.searchQuery) return;
+      try {
+        const res = await fetch(`/api/memory/search?q=${encodeURIComponent(this.searchQuery)}`).then(r => r.json());
+        this.searchResults = res.results || [];
+      } catch(e) { this.searchResults = []; }
+    },
+
+    async storeMemory() {
+      if (!this.storeContent) return;
+      try {
+        await fetch('/api/memory/store', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({content: this.storeContent, category: this.storeCategory})
+        });
+        this.storeMessage = 'Memory stored successfully';
+        this.storeSuccess = true;
+        this.storeContent = '';
+        setTimeout(() => this.storeMessage = '', 3000);
+      } catch(e) {
+        this.storeMessage = 'Failed to store memory';
+        this.storeSuccess = false;
+      }
+    }
+  };
+}
+</script>
+{% endblock %}

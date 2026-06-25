@@ -1,0 +1,63 @@
+# Prometheus scrape config for RAVEN.
+#
+# This config is what the Prometheus container (started by
+# `monitoring/docker-compose.yml`) reads at boot.  It defines two
+# scrape jobs:
+#
+#   1. `raven-app` — the FastAPI web server in `app/web/server.py`,
+#      which mounts Prometheus's `make_asgi_app()` at `/metrics`.
+#      This exposes the runtime counters/gauges from
+#      `app/observability/metrics.py` (audit events, policy
+#      decisions, vault rotations, etc.).
+#
+#   2. `raven-eval-textfile` — the textfile collector reading
+#      `workspace/eval/eval_metrics.prom`.  This is the output of
+#      `scripts/eval_to_prom.py`, which the nightly timer runs as
+#      step 3 of the `nightly-eval.service` (see §8.6/§8.7).
+#
+# Adjust the targets if your RAVEN web server listens on a
+# different host or port.  Both jobs use a 15s scrape interval —
+# fast enough for the dashboard to feel real-time, slow enough that
+# a flaky CI doesn't generate spurious alerts.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: raven
+
+# Runtime counters from the RAVEN web server's /metrics endpoint.
+# `app/web/server.py:117-121` mounts the prometheus_client
+# ASGI app at /metrics when `prometheus_client` is importable.
+scrape_configs:
+  - job_name: raven-app
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - host.docker.internal:8080
+        labels:
+          component: web
+          service: raven
+
+  # Eval-trend metrics from the textfile collector.  Prometheus's
+  # textfile collector reads one or more files on each scrape;
+  # here we point it at the single file the nightly timer writes.
+  - job_name: raven-eval-textfile
+    file_sd_configs:
+      - files:
+          - /workspace/eval/*.prom
+        refresh_interval: 30s
+    metric_relabel_configs:
+      # The textfile format prefixes samples with the filename as
+      # an instance label by default; we want a stable label here.
+      - source_labels: [__name__]
+        regex: raven_eval_.*
+        action: keep
+
+# Optional: an alertmanager endpoint for RAVEN-specific alerts.
+# Uncomment and point at your alertmanager if you run one.
+#
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']

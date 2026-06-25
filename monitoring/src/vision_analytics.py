@@ -126,7 +126,7 @@ class VisionAnalyticsEngine:
 
 
 class VisionService:
-    """Microservice wrapper for Vision Analytics to allow configuration via Redis Bus."""
+    """Microservice wrapper for Vision Analytics to allow configuration via MessageBus."""
     def __init__(self, bus, engine: VisionAnalyticsEngine):
         self.bus = bus
         self.engine = engine

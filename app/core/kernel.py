@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class ModuleManifest:
-    """Standardized metadata block for any SARAS component (Tool, Sensor, Agent)."""
+    """Standardized metadata block for any RAVEN component (Tool, Sensor, Agent)."""
 
     def __init__(
         self,
@@ -28,7 +28,7 @@ class ModuleManifest:
 
 class SystemKernel:
     """
-    Central registry and capability graph for SARAS.
+    Central registry and capability graph for RAVEN.
     All modules must register here to declare their intent, compute cost, and risk level.
     """
 
@@ -75,6 +75,44 @@ class SystemKernel:
         self._update_graph("agents", manifest)
         logger.info(f"Kernel registered agent: {agent_name}")
 
+    def deregister(self, name: str) -> bool:
+        """Remove a registered tool/agent by name.
+
+        Returns ``True`` if a manifest was removed, ``False`` if
+        nothing was registered under ``name``.  Mirrors the
+        inverse of :meth:`register_tool` and :meth:`register_agent`
+        so the loader's ``_undo_tool`` / ``_undo_agent`` rollback
+        step can clean the kernel after a module hot-unload.
+
+        The capability graph entry for the name is also removed
+        so :meth:`get_capability_graph` does not advertise a
+        no-longer-registered tool/agent.
+        """
+        removed = self.modules.pop(name, None)
+        if removed is None:
+            return False
+        # Strip the matching entry from whichever capability-graph
+        # bucket the manifest was filed under.  The graph is a
+        # simple list-of-dicts keyed by ``name``.
+        kind = removed.kind
+        bucket_key = {
+            "tool": "tools",
+            "agent": "agents",
+            "sensor": "sensors",
+        }.get(kind)
+        if bucket_key is not None:
+            self._capability_graph[bucket_key] = [
+                entry
+                for entry in self._capability_graph[bucket_key]
+                if entry.get("name") != name
+            ]
+        logger.info("Kernel deregistered %s: %s", kind, name)
+        return True
+
+    # Alias for API consistency
+    deregister_tool = deregister
+    deregister_agent = deregister
+
     def _update_graph(self, category: str, manifest: ModuleManifest) -> None:
         """Updates the live capability graph for routing."""
         self._capability_graph[category].append(
@@ -86,7 +124,7 @@ class SystemKernel:
         )
 
     def get_capability_graph(self) -> Dict[str, Any]:
-        """Returns the full map of what SARAS is currently allowed to do."""
+        """Returns the full map of what RAVEN is currently allowed to do."""
         return self._capability_graph
 
     def get_module(self, name: str) -> ModuleManifest | None:

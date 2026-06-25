@@ -20,7 +20,7 @@ class OpenAIProviderClient(BaseLLMProvider):
         timeout: int = 30,
         request_fn: Callable[..., Any] | None = None,
     ) -> None:
-        self._api_key = api_key or Config.OPENAI_API_KEY
+        self._api_key = Config.OPENAI_API_KEY if api_key is None else api_key
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
         self._request_fn = request_fn
@@ -30,12 +30,12 @@ class OpenAIProviderClient(BaseLLMProvider):
         return "openai"
 
     def _headers(self) -> Dict[str, str]:
-        if not self._api_key:
-            raise ValueError("OPENAI_API_KEY is not configured")
-        return {
-            "Authorization": f"Bearer {self._api_key}",
+        headers: Dict[str, str] = {
             "Content-Type": "application/json",
         }
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        return headers
 
     async def _request(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         if self._request_fn is not None:

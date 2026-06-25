@@ -1,14 +1,14 @@
-# SARAS Competitive Gap Analysis vs OpenClaw, NeMoClaw, ZeroClaw/PicoClaw Patterns, and MiroFish
+# RAVEN Competitive Gap Analysis vs OpenClaw, NeMoClaw, ZeroClaw/PicoClaw Patterns, and MiroFish
 
 **Document version:** 1.0  
-**Project:** SARAS  
-**Purpose:** Identify what SARAS is missing compared with the strongest ideas in OpenClaw, NeMoClaw, lightweight claw-style systems, and MiroFish-style predictive engines — then convert that into a practical roadmap for building a low-compute, modular, JARVIS/FRIDAY-class personal intelligence system.
+**Project:** RAVEN  
+**Purpose:** Identify what RAVEN is missing compared with the strongest ideas in OpenClaw, NeMoClaw, lightweight claw-style systems, and MiroFish-style predictive engines — then convert that into a practical roadmap for building a low-compute, modular, JARVIS/FRIDAY-class personal intelligence system.
 
 ---
 
 ## 1. Executive Summary
 
-SARAS already has a strong base:
+RAVEN already has a strong base:
 
 - multi-platform connectors
 - tool-using agent runtime
@@ -20,7 +20,7 @@ SARAS already has a strong base:
 - sensors/monitoring hooks
 - broad tool ecosystem
 
-But to become a true **JARVIS / FRIDAY-like personal operating intelligence**, SARAS is still missing several critical layers that the best competing systems or adjacent systems emphasize:
+But to become a true **JARVIS / FRIDAY-like personal operating intelligence**, RAVEN is still missing several critical layers that the best competing systems or adjacent systems emphasize:
 
 1. **A truly modular runtime contract**  
    OpenClaw/ZeroClaw-style systems are stronger at clean pluggability across channels, providers, tools, and runtimes.
@@ -29,13 +29,13 @@ But to become a true **JARVIS / FRIDAY-like personal operating intelligence**, S
    NeMoClaw’s main value is not “being smarter”; it is safer, more governable, and more production-ready.
 
 3. **A very lightweight edge strategy**  
-   PicoClaw/ZeroClaw patterns show that not everything should run in one heavy Python process. SARAS needs edge nodes and tiny workers.
+   PicoClaw/ZeroClaw patterns show that not everything should run in one heavy Python process. RAVEN needs edge nodes and tiny workers.
 
 4. **A stronger “eyes on the internet” layer**  
    `agent_reach` is strategically important and should become a first-class perception subsystem, not just an adjacent package.
 
 5. **A predictive world-modeling layer**  
-   MiroFish’s key differentiation is simulation-based forecasting from real data, narrative propagation, and social reaction modeling. SARAS currently does not have this.
+   MiroFish’s key differentiation is simulation-based forecasting from real data, narrative propagation, and social reaction modeling. RAVEN currently does not have this.
 
 6. **A real personality engine, not just prompt personality**  
    JARVIS/FRIDAY-class UX requires stable identity, conversational rhythm, emotional calibration, memory-grounded preferences, and on-screen presence.
@@ -44,7 +44,7 @@ But to become a true **JARVIS / FRIDAY-like personal operating intelligence**, S
    A proper “face” or presence layer is needed: screen, dashboard, activity stream, voice persona, memory cards, live status, agent thinking states.
 
 8. **A long-horizon autonomy layer**  
-   SARAS is still primarily reactive. It needs goals, plans, routines, prediction jobs, background research, and proactive recommendations.
+   RAVEN is still primarily reactive. It needs goals, plans, routines, prediction jobs, background research, and proactive recommendations.
 
 The right direction is **not** to copy any one competitor. The right direction is to combine:
 
@@ -54,7 +54,7 @@ The right direction is **not** to copy any one competitor. The right direction i
 - **PicoClaw** → low-cost edge architecture
 - **MiroFish** → simulation + forecasting + social/world modeling
 - **Agent Reach** → internet eyes / cross-platform retrieval layer
-- **SARAS strengths** → voice, tools, swarm logic, sensors, personal assistant orientation
+- **RAVEN strengths** → voice, tools, swarm logic, sensors, personal assistant orientation
 
 ---
 
@@ -71,7 +71,7 @@ The right direction is **not** to copy any one competitor. The right direction i
 - approachable onboarding and consumer feel
 - live canvas / interactive UI orientation
 
-**Where SARAS is already strong:**
+**Where RAVEN is already strong:**
 
 - strong tool runtime
 - good multi-platform architecture
@@ -80,7 +80,7 @@ The right direction is **not** to copy any one competitor. The right direction i
 - semantic memory exists
 - sensors/monitoring direction is stronger than typical general assistants
 
-**Where SARAS is weaker than OpenClaw:**
+**Where RAVEN is weaker than OpenClaw:**
 
 - ecosystem cohesion
 - extensibility ergonomics
@@ -104,14 +104,14 @@ The right direction is **not** to copy any one competitor. The right direction i
 - cost/performance instrumentation
 - governance / production-readiness
 
-**Where SARAS is already strong:**
+**Where RAVEN is already strong:**
 
 - some security checking exists
 - some rate-limiting exists
 - separate tools and runtime concepts exist
 - monitoring direction exists
 
-**Where SARAS is weaker than NeMoClaw:**
+**Where RAVEN is weaker than NeMoClaw:**
 
 - no complete deny-by-default policy system
 - no full execution sandbox boundary for every risky tool
@@ -135,7 +135,7 @@ The right direction is **not** to copy any one competitor. The right direction i
 - simple deployability
 - explicit worker loops and supervised restart model
 
-**Where SARAS is weaker:**
+**Where RAVEN is weaker:**
 
 - modularity is good, but not strict enough
 - too much logic still lives in a monolithic Python runtime
@@ -155,7 +155,7 @@ The right direction is **not** to copy any one competitor. The right direction i
 - simple binary deployment
 - tiny always-on workers for local sensing and message forwarding
 
-**Where SARAS is weaker:**
+**Where RAVEN is weaker:**
 
 - too much dependence on one central Python process
 - no formal edge-agent protocol
@@ -180,7 +180,7 @@ The right direction is **not** to copy any one competitor. The right direction i
 - reaction forecasting
 - policy/event/market/sentiment outcome exploration
 
-**Where SARAS is currently far behind:**
+**Where RAVEN is currently far behind:**
 
 - no world-modeling engine
 - no scenario simulator
@@ -195,7 +195,7 @@ The right direction is **not** to copy any one competitor. The right direction i
 
 ## 2.6 Agent Reach
 
-`agent_reach` should be considered strategically equivalent to SARAS getting “internet eyes.”
+`agent_reach` should be considered strategically equivalent to RAVEN getting “internet eyes.”
 
 **What it brings:**
 
@@ -205,7 +205,7 @@ The right direction is **not** to copy any one competitor. The right direction i
 - repeatable access to web/social/content surfaces
 - a more reality-grounded web research layer than a generic search-only toolset
 
-**Current weakness in SARAS:**
+**Current weakness in RAVEN:**
 
 - `agent_reach` is not yet a first-class integrated subsystem in the main assistant loop
 - no unified “world ingestion” pipeline that treats Agent Reach as core perception
@@ -213,14 +213,14 @@ The right direction is **not** to copy any one competitor. The right direction i
 
 ---
 
-## 3. What SARAS Is Missing for a True JARVIS / FRIDAY-Class System
+## 3. What RAVEN Is Missing for a True JARVIS / FRIDAY-Class System
 
 This section is the main gap list.
 
 ## 3.1 Missing architectural layers
 
 ### A. System registry / modular kernel
-SARAS needs a formal modular kernel with first-class plugin registration for:
+RAVEN needs a formal modular kernel with first-class plugin registration for:
 
 - channels
 - tools
@@ -236,7 +236,7 @@ SARAS needs a formal modular kernel with first-class plugin registration for:
 Current state is partially modular, but not yet universal.
 
 ### B. Capability graph
-SARAS needs a machine-readable capability map:
+RAVEN needs a machine-readable capability map:
 
 - what each module can do
 - resource cost
@@ -250,7 +250,7 @@ SARAS needs a machine-readable capability map:
 This is required for low-compute routing.
 
 ### C. Resource-aware router
-SARAS needs a router that decides:
+RAVEN needs a router that decides:
 
 - use small local logic vs full LLM
 - use central model vs API vs edge worker
@@ -328,7 +328,7 @@ Need time-based life events memory:
 - when
 - where
 - who was involved
-- what SARAS learned
+- what RAVEN learned
 - whether it mattered
 
 ### C. Semantic memory hygiene
@@ -345,7 +345,7 @@ Need:
 Need a real short-lived context selector, not just broad prompt injection.
 
 ### E. Metacognition
-Need SARAS to know:
+Need RAVEN to know:
 - how confident it is
 - when it should verify
 - when it should ask follow-up
@@ -439,7 +439,7 @@ Need:
 - post-hoc tracking of prediction accuracy
 
 ### F. Prediction memory
-Need SARAS to remember:
+Need RAVEN to remember:
 - what it predicted
 - why
 - confidence at the time
@@ -466,7 +466,7 @@ Agent Reach should evolve into a core perception substrate.
 - web/social/podcast/video extraction into a unified evidence model
 
 ### Missing outcome:
-SARAS should be able to say:
+RAVEN should be able to say:
 
 - “I’ve tracked this story across Twitter, Reddit, YouTube, GitHub, and news”
 - “Here is the consensus, disagreement, and likely next move”
@@ -539,7 +539,7 @@ Need:
 - explainable alerts
 
 ### C. Real-world action planner
-Need SARAS to coordinate:
+Need RAVEN to coordinate:
 - alerts
 - voice response
 - camera snapshot
@@ -575,7 +575,7 @@ Need compatibility contracts between modules.
 
 ---
 
-## 4. Non-Negotiable Design Principles for the Future SARAS
+## 4. Non-Negotiable Design Principles for the Future RAVEN
 
 To become a true low-compute, modular JARVIS-like system, these principles should guide everything.
 
@@ -626,7 +626,7 @@ Prediction must be tied to:
 
 ---
 
-## 5. Target Architecture for “SARAS Prime”
+## 5. Target Architecture for “RAVEN Prime”
 
 ## 5.1 Core layers
 
@@ -806,7 +806,7 @@ This is the direct “what we are missing” checklist.
 
 The correct end-state is:
 
-> **SARAS is a modular personal intelligence operating system that can talk, listen, watch, remember, plan, predict, and act across digital and physical environments — while remaining low-compute, user-controlled, and extensible.**
+> **RAVEN is a modular personal intelligence operating system that can talk, listen, watch, remember, plan, predict, and act across digital and physical environments — while remaining low-compute, user-controlled, and extensible.**
 
 It should feel like:
 
@@ -823,7 +823,7 @@ It should feel like:
 ## 8. Build Strategy: The Right Way to Reach “JARVIS-Class” Without Wasting Compute
 
 ## Phase 0 — Stabilize the current system
-Goal: make existing SARAS trustworthy before adding major new intelligence layers.
+Goal: make existing RAVEN trustworthy before adding major new intelligence layers.
 
 ### Deliverables
 - connector startup consistency
@@ -861,7 +861,7 @@ Any new tool or module can declare:
 ---
 
 ## Phase 2 — Agent Reach as the perception layer
-Goal: give SARAS continuous eyes on the internet.
+Goal: give RAVEN continuous eyes on the internet.
 
 ### Deliverables
 - first-class Agent Reach adapter
@@ -873,12 +873,12 @@ Goal: give SARAS continuous eyes on the internet.
 - world-state knowledge graph updates from internet sources
 
 ### Success criteria
-SARAS can continuously track stories and entities across multiple public sources.
+RAVEN can continuously track stories and entities across multiple public sources.
 
 ---
 
 ## Phase 3 — Personality + embodiment interface
-Goal: make SARAS feel alive, warm, and distinct.
+Goal: make RAVEN feel alive, warm, and distinct.
 
 ### Deliverables
 - personality engine
@@ -890,7 +890,7 @@ Goal: make SARAS feel alive, warm, and distinct.
 - relationship-aware tone control
 
 ### Success criteria
-SARAS feels like a consistent being, not just a tool runner.
+RAVEN feels like a consistent being, not just a tool runner.
 
 ---
 
@@ -907,7 +907,7 @@ Goal: move from reactive assistant to proactive partner.
 - user-facing action board
 
 ### Success criteria
-SARAS can own long-lived tasks without spamming the user.
+RAVEN can own long-lived tasks without spamming the user.
 
 ---
 
@@ -945,7 +945,7 @@ Start with a layered forecasting stack:
 - prediction memory
 
 ### Success criteria
-SARAS can answer:
+RAVEN can answer:
 - what may happen next
 - why
 - what assumptions drive that view
@@ -954,7 +954,7 @@ SARAS can answer:
 ---
 
 ## Phase 6 — Low-compute distributed architecture
-Goal: let SARAS live everywhere cheaply.
+Goal: let RAVEN live everywhere cheaply.
 
 ### Deliverables
 - edge node protocol
@@ -970,7 +970,7 @@ Not every feature requires the main brain or premium LLM.
 
 ---
 
-## 9. Practical Low-Compute Prediction Architecture for SARAS
+## 9. Practical Low-Compute Prediction Architecture for RAVEN
 
 This section describes the recommended way to achieve “MiroFish-like value” without MiroFish-like compute cost.
 
@@ -1035,13 +1035,13 @@ After outcome is known:
 - update assumptions
 - remember lessons
 
-This gives SARAS gradual real-world forecasting improvement.
+This gives RAVEN gradual real-world forecasting improvement.
 
 ---
 
 ## 10. Recommended Module Map
 
-SARAS should be refactored into these major modules.
+RAVEN should be refactored into these major modules.
 
 - `kernel` — registry, lifecycle, capability graph
 - `policy` — permissions, approvals, action risk
@@ -1107,11 +1107,11 @@ Priority order:
 
 ## 12. Final Recommendation
 
-The best future for SARAS is **not** “yet another chatbot with more tools.”
+The best future for RAVEN is **not** “yet another chatbot with more tools.”
 
 The correct future is:
 
-> **SARAS becomes a modular personal intelligence OS with five permanent senses:**
+> **RAVEN becomes a modular personal intelligence OS with five permanent senses:**
 >
 > 1. **ears** — voice and audio  
 > 2. **eyes** — Agent Reach + web/social/video/news perception  
@@ -1125,7 +1125,7 @@ And it should operate in three compute tiers:
 - **normal assistant mode** for daily help
 - **deep intelligence mode** for research, forecasting, and strategic reasoning
 
-That is how SARAS can become:
+That is how RAVEN can become:
 - personal like OpenClaw
 - safe like NeMoClaw
 - efficient like PicoClaw/ZeroClaw patterns
@@ -1137,4 +1137,4 @@ That is how SARAS can become:
 
 ## 13. One-Line North Star
 
-**Build SARAS into a low-compute, modular, voice-first, internet-aware, predictive personal intelligence system with real personality, real memory, real safety, and real-world agency.**
+**Build RAVEN into a low-compute, modular, voice-first, internet-aware, predictive personal intelligence system with real personality, real memory, real safety, and real-world agency.**

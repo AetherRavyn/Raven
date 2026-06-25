@@ -1,0 +1,30 @@
+[Unit]
+Description=Raven Gateway Daemon
+Documentation=https://github.com/swadhinbiswas/Raven
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i/raven
+ExecStart=/home/%i/raven/.venv/bin/python -m app.cli.main daemon
+Restart=always
+RestartSec=5
+TimeoutStopSec=15
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=raven
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/home/%i/raven /home/%i/.raven
+PrivateTmp=yes
+
+# Resource limits
+MemoryMax=2G
+CPUQuota=200%
+
+[Install]
+WantedBy=multi-user.target

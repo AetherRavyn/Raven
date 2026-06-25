@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}WEBHOOKS — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">WEBHOOKS</h1>
+  <p class="text-zinc-500 text-[11px]">Outbound HTTP hooks · CRUD ships in v33 · v32 ships the page surface only</p>
+  <div class="border border-ink-600 bg-ink-800 rounded p-3">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-zinc-500 text-[10px] uppercase">registered webhooks</span>
+      <span class="text-zinc-600 text-[10px]">count: 0</span>
+    </div>
+    <div class="text-zinc-600 text-[12px]" id="webhooks-list">[no webhooks — CRUD ships in v33]</div>
+  </div>
+  <div class="border border-ink-600 bg-ink-800 rounded p-3 space-y-2">
+    <div class="text-zinc-500 text-[10px] uppercase">add webhook (disabled in v32)</div>
+    <div class="flex items-center gap-2 text-[12px]">
+      <input class="bg-ink-900 border border-ink-600 rounded px-2 py-1 flex-1 text-zinc-300 font-mono"
+             placeholder="https://example.com/raven-hook" disabled />
+      <button class="text-zinc-500 px-3 py-1 border border-ink-600 rounded" disabled>add</button>
+    </div>
+    <p class="text-zinc-600 text-[11px]">Wire-up lands in v33 alongside the JSONL-backed WebhookStore.</p>
+  </div>
+</section>
+{% endblock %}

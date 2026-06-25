@@ -1,0 +1,25 @@
+# Auto-provision the Prometheus datasource.
+#
+# Mounted by `monitoring/docker-compose.yml` at
+# `/etc/grafana/provisioning/datasources/prometheus.yml`.  Grafana
+# reads this at startup; the dashboard can then reference
+# `Prometheus` by name (see `monitoring/grafana/raven-overview.json`,
+# the `templating.list[].current.value` field).
+#
+# Adjust the `url` if Prometheus is on a different host.  The
+# default assumes Prometheus runs as a sidecar container with the
+# default port 9090, joined via the `raven-monitoring` Docker
+# network defined in `monitoring/docker-compose.yml`.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: "15s"
+      httpMethod: POST

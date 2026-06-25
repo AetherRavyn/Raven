@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.file_organizer
+display_name: File Organizer
+version: "1.0.0"
+category: skill
+description: "Organize files by type, date, or project. Deduplicate and clean up directories."
+tags: [files, organize, cleanup, dedup, filesystem]
+capabilities: [file_tool, exec_tool]
+trust_level: system
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.90
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "organize.*files|clean.*directory|sort.*downloads"
+    confidence: 0.87

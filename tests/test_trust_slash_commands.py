@@ -152,7 +152,8 @@ class TestRegistryBasics:
     def test_all_returns_list(self):
         reg = SlashCommandRegistry()
         all_cmds = reg.all()
-        assert len(all_cmds) == 4
+        # Phase 5 v13 — added CronCommand to the default registry.
+        assert len(all_cmds) == 5
         assert all(hasattr(c, "name") for c in all_cmds)
 
 

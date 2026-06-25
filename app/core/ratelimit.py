@@ -1,19 +1,25 @@
 # app/core/ratelimit.py
-"""In-memory sliding-window rate limiter for per-user request throttling."""
+"""Rate limiter with SQLite persistence — survives restarts."""
 
 from __future__ import annotations
 
+import logging
+import sqlite3
+import threading
 import time
 from collections import defaultdict, deque
+from pathlib import Path
 
-_WINDOW_SECONDS = 60  # window duration
-_MAX_REQUESTS_PER_WINDOW = 20  # limit per window
-_BURST_WINDOW_SECONDS = 5  # short burst window
-_MAX_BURST = 5  # max requests in burst window
+logger = logging.getLogger(__name__)
+
+_WINDOW_SECONDS = 60
+_MAX_REQUESTS_PER_WINDOW = 20
+_BURST_WINDOW_SECONDS = 5
+_MAX_BURST = 5
 
 
 class RateLimiter:
-    """Thread-safe (asyncio-compatible) sliding window rate limiter."""
+    """Sliding window rate limiter with optional SQLite persistence."""
 
     def __init__(
         self,
@@ -27,135 +33,115 @@ class RateLimiter:
         self._burst_window = burst_window
         self._burst_limit = max_burst
         self._history: dict[str, deque[float]] = defaultdict(deque)
+        self._db: sqlite3.Connection | None = None
+        self._lock = threading.Lock()
+        self._init_db()
+
+    def _init_db(self) -> None:
+        """Initialize SQLite persistence."""
+        try:
+            db_path = Path("workspace/ratelimit.sqlite")
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            self._db = sqlite3.connect(str(db_path), check_same_thread=False)
+            self._db.execute("""
+                CREATE TABLE IF NOT EXISTS rate_limits (
+                    user_key TEXT NOT NULL,
+                    timestamp REAL NOT NULL,
+                    PRIMARY KEY (user_key, timestamp)
+                )
+            """)
+            self._db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_rl_key ON rate_limits(user_key)"
+            )
+            self._db.commit()
+        except Exception as exc:
+            logger.debug("RateLimiter SQLite init failed (in-memory mode): %s", exc)
+            self._db = None
+
+    def _load_history(self, user_key: str) -> deque[float]:
+        """Load request history from SQLite."""
+        if not self._db:
+            return self._history[user_key]
+        try:
+            cutoff = time.time() - self._window
+            rows = self._db.execute(
+                "SELECT timestamp FROM rate_limits WHERE user_key = ? AND timestamp > ?",
+                (user_key, cutoff),
+            ).fetchall()
+            return deque(r[0] for r in rows)
+        except Exception:
+            return self._history[user_key]
+
+    def _save_timestamp(self, user_key: str, ts: float) -> None:
+        """Persist a timestamp to SQLite."""
+        if not self._db:
+            return
+        try:
+            self._db.execute(
+                "INSERT INTO rate_limits (user_key, timestamp) VALUES (?, ?)",
+                (user_key, ts),
+            )
+            self._db.commit()
+        except Exception:
+            pass
+
+    def _cleanup_old(self) -> None:
+        """Remove old entries from SQLite."""
+        if not self._db:
+            return
+        try:
+            cutoff = time.time() - self._window * 2
+            self._db.execute("DELETE FROM rate_limits WHERE timestamp < ?", (cutoff,))
+            self._db.commit()
+        except Exception:
+            pass
 
     def is_allowed(self, user_key: str) -> tuple[bool, str]:
-        """Check if the request is within rate limits.
-
-        Returns (allowed: bool, reason: str).
-        reason is empty string if allowed.
-        """
+        """Check if the request is within rate limits."""
         now = time.monotonic()
-        history = self._history[user_key]
+        wall_now = time.time()
 
-        # Remove timestamps outside the main window
-        while history and now - history[0] > self._window:
-            history.popleft()
+        with self._lock:
+            history = self._load_history(user_key)
 
-        # Check burst: requests in the last burst_window seconds
-        burst_count = sum(1 for t in history if now - t <= self._burst_window)
-        if burst_count >= self._burst_limit:
-            retry_after = (
-                self._burst_window - (now - history[-self._burst_limit])
-                if len(history) >= self._burst_limit
-                else self._burst_window
-            )
-            return (
-                False,
-                f"Slow down — max {self._burst_limit} requests per {self._burst_window}s. "
-                f"Retry in {retry_after:.0f}s.",
-            )
+            # Remove timestamps outside the main window
+            while history and now - history[0] > self._window:
+                history.popleft()
 
-        # Check main window
-        if len(history) >= self._limit:
-            retry_after = self._window - (now - history[0])
-            return (
-                False,
-                f"Rate limit exceeded — max {self._limit} requests per {self._window}s. "
-                f"Retry in {retry_after:.0f}s.",
-            )
+            # Check burst
+            burst_count = sum(1 for t in history if now - t <= self._burst_window)
+            if burst_count >= self._burst_limit:
+                retry_after = self._burst_window
+                return (
+                    False,
+                    f"Slow down — max {self._burst_limit} requests per {self._burst_window}s.",
+                )
 
-        history.append(now)
+            # Check main window
+            if len(history) >= self._limit:
+                return (
+                    False,
+                    f"Rate limit exceeded — max {self._limit} requests per {self._window}s.",
+                )
+
+            history.append(now)
+            self._history[user_key] = history
+            self._save_timestamp(user_key, wall_now)
+
+        # Periodic cleanup
+        if hash(user_key) % 20 == 0:
+            self._cleanup_old()
+
         return True, ""
 
 
-class RedisRateLimiter:
-    """Redis-backed sliding-window rate limiter (survives bot restarts).
-
-    Uses a sorted-set per user_key to track request timestamps.
-    Falls back silently if Redis is unreachable — returns (True, "").
-    """
-
-    def __init__(self, redis_url: str, window: int = 60, limit: int = 20) -> None:
-        import redis.asyncio as aioredis  # type: ignore
-
-        self._redis = aioredis.from_url(redis_url, decode_responses=True)
-        self._window = window
-        self._limit = limit
-        self._redis_down = False
-
-    async def is_allowed_async(self, user_key: str) -> tuple[bool, str]:
-        """Async variant — use this from async contexts."""
-        import time
-
-        now = time.time()
-        pipe_key = f"ratelimit:{user_key}"
-        try:
-            async with self._redis.pipeline() as pipe:
-                pipe.zremrangebyscore(pipe_key, 0, now - self._window)
-                pipe.zcard(pipe_key)
-                pipe.zadd(pipe_key, {str(now): now})
-                pipe.expire(pipe_key, self._window + 1)
-                results = await pipe.execute()
-            count = results[1]
-            if self._redis_down:
-                logger.info("RedisRateLimiter reconnected successfully.")
-                self._redis_down = False
-            if count >= self._limit:
-                return False, f"Rate limit: {self._limit} req/{self._window}s"
-            return True, ""
-        except Exception as exc:
-            if not self._redis_down:
-                logger.warning(
-                    "RedisRateLimiter error (falling back to allow): %s", exc
-                )
-                self._redis_down = True
-            return True, ""
-
-    def is_allowed(self, user_key: str) -> tuple[bool, str]:
-        """Sync shim for compatibility with in-memory RateLimiter callers.
-
-        Runs the async check in the current event loop if available,
-        otherwise falls back to allow (non-blocking degradation).
-        """
-        import asyncio
-
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Can't block a running loop — schedule and permit immediately
-                # (rate-limit will take effect on next call once scheduled)
-                loop.create_task(self.is_allowed_async(user_key))
-                return True, ""
-            return loop.run_until_complete(self.is_allowed_async(user_key))
-        except Exception:
-            return True, ""
+_GLOBAL_RATE_LIMITER: RateLimiter | None = None
 
 
-import logging as _logging
-
-logger = _logging.getLogger(__name__)
-
-_GLOBAL_RATE_LIMITER: RateLimiter | RedisRateLimiter | None = None
-
-
-def get_rate_limiter() -> RateLimiter | RedisRateLimiter:
-    """Return the rate limiter.
-
-    If REDIS_URL is set, returns a RedisRateLimiter (persistent across restarts).
-    Otherwise returns the in-memory RateLimiter.
-    """
+def get_rate_limiter() -> RateLimiter:
+    """Return the rate limiter (SQLite-backed, persistent across restarts)."""
     global _GLOBAL_RATE_LIMITER
     if _GLOBAL_RATE_LIMITER is not None:
         return _GLOBAL_RATE_LIMITER
-
-    try:
-        from app.settings.config import Config
-
-        if Config.REDIS_URL:
-            _GLOBAL_RATE_LIMITER = RedisRateLimiter(Config.REDIS_URL)
-            return _GLOBAL_RATE_LIMITER
-    except Exception:
-        pass
-
     _GLOBAL_RATE_LIMITER = RateLimiter()
     return _GLOBAL_RATE_LIMITER

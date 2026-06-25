@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}A2A Modules — Raven{% endblock %}
+{% block main %}
+<section class="space-y-4" x-data="modulesPage()">
+  <div class="flex items-center justify-between">
+    <h1 class="text-sm tracking-wider uppercase" style="color: var(--text-primary);">A2A Modules</h1>
+  </div>
+
+  <!-- Module Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+    <template x-for="mod in modules" :key="mod.name">
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-semibold" style="color: var(--accent);" x-text="mod.name"></span>
+          <span class="badge badge-green" x-text="mod.skills.length + ' skills'"></span>
+        </div>
+        <p class="text-[12px] mb-3" style="color: var(--text-secondary);" x-text="mod.description"></p>
+        <div class="text-[10px]" style="color: var(--text-muted);">
+          Transport: <span x-text="mod.transport"></span>
+        </div>
+        <div class="mt-2 flex flex-wrap gap-1">
+          <template x-for="skill in mod.skills" :key="skill">
+            <span class="badge badge-blue text-[10px]" x-text="skill"></span>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Module Call Interface -->
+  <div class="card p-4">
+    <div class="text-[10px] uppercase tracking-wider mb-3" style="color: var(--text-muted);">Call Module</div>
+    <div class="flex gap-2">
+      <select x-model="callModule" class="input" style="width: 150px;">
+        <option value="">Select module...</option>
+        <template x-for="mod in modules" :key="mod.name">
+          <option :value="mod.name" x-text="mod.name"></option>
+        </template>
+      </select>
+      <input x-model="callMethod" class="input flex-1" placeholder="Method name (e.g. memory.recall)">
+      <button @click="callModuleMethod()" class="btn btn-primary">Call</button>
+    </div>
+    <div x-show="callResult" class="mt-3 p-3 rounded text-[12px] font-mono" style="background: var(--bg-tertiary); border: 1px solid var(--border-color);">
+      <pre x-text="callResult" style="white-space: pre-wrap;"></pre>
+    </div>
+  </div>
+</section>
+
+<script>
+function modulesPage() {
+  return {
+    modules: [],
+    callModule: '',
+    callMethod: '',
+    callResult: '',
+
+    async init() {
+      try {
+        const res = await fetch('/modules').then(r => r.json());
+        this.modules = res.modules || [];
+      } catch(e) {}
+    },
+
+    async callModuleMethod() {
+      if (!this.callModule || !this.callMethod) return;
+      try {
+        const res = await fetch(`/module/${this.callModule}/${this.callMethod}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: '{}'
+        }).then(r => r.json());
+        this.callResult = JSON.stringify(res, null, 2);
+      } catch(e) { this.callResult = 'Error: ' + e.message; }
+    }
+  };
+}
+</script>
+{% endblock %}

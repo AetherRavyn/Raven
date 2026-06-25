@@ -16,10 +16,10 @@ env:
   PYTHON_VERSION: "3.12"
   # Run tests in this environment so the Helix client can reach
   # the service container in the `test` job.
-  SARAS_HELIX_URL: http://localhost:8080
-  SARAS_LOG_JSON: "true"
-  SARAS_LOG_LEVEL: INFO
-  SARAS_OTEL_IN_MEMORY: "true"
+  RAVEN_HELIX_URL: http://localhost:8080
+  RAVEN_LOG_JSON: "true"
+  RAVEN_LOG_LEVEL: INFO
+  RAVEN_OTEL_IN_MEMORY: "true"
 
 jobs:
   # ---------------------------------------------------------------------

@@ -1,0 +1,33 @@
+{
+  "author": "RAVEN team",
+  "description": "Organize files by type, date, or project. Deduplicate and clean up directories.",
+  "eval_records": [],
+  "inputs": [
+    {
+      "default": null,
+      "description": "",
+      "name": "query",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "file_organizer",
+  "outputs": [],
+  "permissions": [
+    "filesystem.read",
+    "process.spawn"
+  ],
+  "promotion_threshold": 20,
+  "risk_level": "low",
+  "schema_version": "1.0",
+  "source": "bundled",
+  "tags": [
+    "files",
+    "organize",
+    "cleanup",
+    "dedup",
+    "filesystem"
+  ],
+  "trust": "workspace",
+  "version": "1.0.0"
+}

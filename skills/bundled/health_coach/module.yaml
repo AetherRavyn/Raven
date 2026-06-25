@@ -1,0 +1,20 @@
+schema_version: "1.0"
+module_id: skill.bundled.health_coach
+display_name: Health Coach
+version: "1.0.0"
+category: skill
+description: "Track sleep, exercise, nutrition, and mood. Analyze trends and provide health insights."
+tags: [health, sleep, exercise, nutrition, mood, fitness, coaching]
+capabilities: [health_tracker, user_model, nudge_engine]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.85
+triggers:
+  - pattern: "log.*sleep|how.*sleep|sleep.*track"
+    confidence: 0.85
+  - pattern: "log.*exercise|workout|exercise.*today"
+    confidence: 0.85
+  - pattern: "health.*summary|health.*stats|how.*health"
+    confidence: 0.80

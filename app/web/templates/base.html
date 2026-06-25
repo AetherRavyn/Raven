@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Raven — AI Agent Dashboard{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/app.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'], mono: ['JetBrains Mono', 'Menlo', 'monospace'] },
+        },
+      },
+    };
+  </script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js"></script>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); }
+    .font-mono, code, pre { font-family: 'JetBrains Mono', Menlo, monospace; }
+  </style>
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="antialiased">
+  <div class="flex h-screen w-screen overflow-hidden">
+    {% include "sidebar.html" %}
+    <main class="flex-1 flex flex-col overflow-hidden">
+      <header class="border-b px-4 py-2 flex items-center gap-3" style="border-color: var(--border-color); background: var(--bg-secondary);">
+        <span style="color: var(--text-muted);">Raven</span>
+        <span style="color: var(--text-muted);">/</span>
+        <span class="font-medium" style="color: var(--accent);">{{ page_label or page }}</span>
+        <span class="flex-1"></span>
+        <div class="flex items-center gap-3">
+          <!-- Theme Toggle -->
+          <div x-data="{ theme: localStorage.getItem('theme') || 'dark' }" x-init="$watch('theme', val => { localStorage.setItem('theme', val); document.documentElement.setAttribute('data-theme', val); })" class="flex items-center gap-1">
+            <button @click="theme = 'dark'" :class="theme === 'dark' ? 'opacity-100' : 'opacity-40'" class="text-sm transition-opacity" title="Dark">🌙</button>
+            <button @click="theme = 'midnight'" :class="theme === 'midnight' ? 'opacity-100' : 'opacity-40'" class="text-sm transition-opacity" title="Midnight">🌑</button>
+            <button @click="theme = 'light'" :class="theme === 'light' ? 'opacity-100' : 'opacity-40'" class="text-sm transition-opacity" title="Light">☀️</button>
+          </div>
+          <span id="status-pill" class="text-[11px]" style="color: var(--text-muted);">—</span>
+        </div>
+      </header>
+      <div id="main" class="flex-1 overflow-auto p-4">
+        {% block main %}{% endblock %}
+      </div>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+  <script>
+    // Apply saved theme on load
+    (function() {
+      const saved = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
+  {% block body_extra %}{% endblock %}
+</body>
+</html>

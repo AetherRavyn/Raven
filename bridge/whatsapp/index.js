@@ -1,11 +1,11 @@
 /**
- * SARAS WhatsApp Bridge — Baileys <-> SARAS HTTP REST
+ * RAVEN WhatsApp Bridge — Baileys <-> RAVEN HTTP REST
  *
- * Receives WhatsApp messages and forwards them to SARAS via POST /whatsapp/incoming.
- * Listens on /send for outbound messages from SARAS to WhatsApp.
+ * Receives WhatsApp messages and forwards them to RAVEN via POST /whatsapp/incoming.
+ * Listens on /send for outbound messages from RAVEN to WhatsApp.
  *
  * Env vars:
- *   SARAS_URL          Base URL of SARAS web server (default: http://localhost:8001)
+ *   RAVEN_URL          Base URL of RAVEN web server (default: http://localhost:8001)
  *   BRIDGE_PORT        Port to listen on (default: 3001)
  *   SESSION_DIR        Directory for Baileys auth state (default: ./wa_session)
  */
@@ -23,7 +23,7 @@ const pino = require("pino");
 const path = require("path");
 const fs = require("fs");
 
-const SARAS_URL = process.env.SARAS_URL || "http://localhost:8001";
+const RAVEN_URL = process.env.RAVEN_URL || "http://localhost:8001";
 const BRIDGE_PORT = parseInt(process.env.BRIDGE_PORT || "3001", 10);
 const SESSION_DIR = process.env.SESSION_DIR || "./wa_session";
 
@@ -39,7 +39,7 @@ app.use(express.json());
 /**
  * POST /send
  * Body: { "jid": "1234567890@s.whatsapp.net", "text": "Hello" }
- * Sends a message from SARAS → WhatsApp.
+ * Sends a message from RAVEN → WhatsApp.
  */
 app.post("/send", async (req, res) => {
   const { jid, text } = req.body;
@@ -138,11 +138,11 @@ async function connectToWhatsApp() {
       };
 
       try {
-        await axios.post(`${SARAS_URL}/whatsapp/incoming`, payload, {
+        await axios.post(`${RAVEN_URL}/whatsapp/incoming`, payload, {
           timeout: 10000,
         });
       } catch (err) {
-        logger.error({ err }, "Failed to forward message to SARAS");
+        logger.error({ err }, "Failed to forward message to RAVEN");
       }
     }
   });

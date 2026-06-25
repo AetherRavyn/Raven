@@ -4,9 +4,9 @@ display_name: Agent Reach
 version: "1.0.0"
 category: integration
 description: Internet reach and web research skill for reading and searching supported platforms.
-owner: saras
+owner: raven
 maintainers:
-  - saras
+  - raven
 tags:
   - web
   - search

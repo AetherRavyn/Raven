@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}PROFILES — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">PROFILES</h1>
+  <p class="text-zinc-500 text-[11px]">Per-user profiles (preferences, facts, projects) · v32 read-only</p>
+  <div class="grid grid-cols-2 gap-3 text-[12px]">
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase mb-2">known user_ids</div>
+      {% if user_ids %}
+        <ul class="space-y-1" id="profiles-list">
+          {% for uid in user_ids %}
+            <li class="font-mono text-zinc-300 text-[12px]">· {{ uid }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="text-zinc-600 text-[12px]">[no profiles on disk yet — write to a profile via the chat path to seed]</div>
+      {% endif %}
+    </div>
+    <div class="border border-ink-600 bg-ink-800 rounded p-3">
+      <div class="text-zinc-500 text-[10px] uppercase mb-2">selected profile</div>
+      <div class="text-zinc-400 text-[12px]" id="profile-detail">
+        {% if selected %}
+          <div class="text-zinc-100 text-[14px] mb-1">{{ selected.display_name or selected.user_id }}</div>
+          <div class="text-zinc-500 text-[11px] mb-2">user_id: {{ selected.user_id }}</div>
+          {% if selected.preferences %}
+            <div class="text-zinc-500 text-[10px] uppercase mt-2">preferences</div>
+            <ul class="text-zinc-300 text-[12px] space-y-0.5">
+              {% for p in selected.preferences[:6] %}<li>· {{ p }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+          {% if selected.facts %}
+            <div class="text-zinc-500 text-[10px] uppercase mt-2">facts</div>
+            <ul class="text-zinc-300 text-[12px] space-y-0.5">
+              {% for f in selected.facts[:6] %}<li>· {{ f }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        {% else %}
+          <div class="text-zinc-600">[no profile selected]</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

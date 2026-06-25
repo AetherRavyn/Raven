@@ -223,9 +223,9 @@ Minor warning also observed:
 
 ---
 
-## 14. Practical Takeaways for SARAS
+## 14. Practical Takeaways for RAVEN
 
-Useful patterns to reuse in SARAS:
+Useful patterns to reuse in RAVEN:
 
 1. trait/interface boundaries for provider, channel, tool, memory
 2. one central tool registry constructor

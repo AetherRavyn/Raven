@@ -1,7 +1,7 @@
 [project]
-name = "saras"
-version = "0.1.0"
-description = "Add your description here"
+name = "raven"
+version = "1.0.0"
+description = "Raven — JARVIS-class personal AI agent. Self-improving, multi-platform, autonomous."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
@@ -12,6 +12,10 @@ dependencies = [
     "deepgram-sagemaker>=0.2.0",
     "discord-py>=2.6.4",
     "edge-tts>=7.2.7",
+    # v33: Piper-TTS replaces edge-tts for the on-device
+    # personality voice (autherRaven).  onnxruntime is already
+    # present above.
+    "piper-tts>=1.3.0",
     "fastapi>=0.129.0",
     "genai>=2.1.0",
     "google-api-python-client>=2.190.0",
@@ -29,7 +33,7 @@ dependencies = [
     "lap>=0.5.12",
     "loguru>=0.7.3",
     "mcp[cli]>=1.26.0",
-    "neo4j>=6.1.0",
+
     "numpy>=2.4.2",
     "onnxruntime>=1.24.2",
     "opencv-contrib-python>=4.13.0.92",
@@ -43,7 +47,7 @@ dependencies = [
     "python-telegram-bot>=22.6",
     "pytubefix>=10.3.6",
     "pytz>=2025.2",
-    "redis>=7.2.0",
+
     "requests>=2.32.5",
     "sounddevice>=0.5.5",
     "soundfile>=0.13.1",
@@ -54,10 +58,13 @@ dependencies = [
     "textblob>=0.19.0",
     "ultralytics>=8.4.14",
     "faster-whisper>=1.1.0",
+    # v33: whisper.cpp via pywhispercpp (C++ inference) replaces
+    # faster-whisper for the wake-word → STT path.
+    "pywhispercpp>=1.4.0",
     "vosk>=0.3.45",
     "slack-bolt>=1.22.0",
     "pydub>=0.25.1",
-    "chromadb>=0.6.0",
+
     "sentence-transformers>=3.4.0",
     "apscheduler>=3.10.4",
     "uvicorn[standard]>=0.34.0",
@@ -66,8 +73,7 @@ dependencies = [
     "yfinance>=1.2.0",
     "yt-dlp>=2026.2.4",
     "aiomqtt>=2.3.0",
-    "asyncpg>=0.30.0",
-    "pgvector>=0.3.6",
+
     "alembic>=1.16.0",
     "aiosqlite>=0.21.0",
     "prometheus-client>=0.21.0",
@@ -82,7 +88,7 @@ dependencies = [
 ]
 
 [project.scripts]
-saras = "app.cli.main:main"
+raven = "app.cli.main:main"
 
 [dependency-groups]
 dev = [
@@ -92,6 +98,7 @@ dev = [
     "pytest-asyncio>=0.26.0",
     "pytest-cov>=6.0.0",
     "pytest-timeout>=2.4.0",
+    "cairosvg>=2.9.0",
 ]
 
 [tool.pytest.ini_options]
@@ -100,18 +107,29 @@ dev = [
 # the audited suite — they are ad-hoc probes from earlier work.
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# Add the repo root to sys.path so `from scripts.audit_query import ...`
+# works in the audit-CLI tests.  ``scripts/`` is a flat directory of
+# CLI entrypoints (start_helix.sh, coverage.sh, audit_query.py, etc.)
+# that lives at the repo root rather than inside the ``app/`` package.
+pythonpath = ["."]
 addopts = [
     "--strict-markers",
     "--tb=short",
     "-ra",
 ]
 # Use the HelixDB service container in CI.  Override locally with
-# SARAS_HELIX_URL=http://localhost:8080 .venv/bin/pytest ...
+# RAVEN_HELIX_URL=http://localhost:8080 .venv/bin/pytest ...
 filterwarnings = [
     "ignore::DeprecationWarning:opentelemetry.*",
     "ignore::DeprecationWarning:prometheus_client.*",
     "ignore::DeprecationWarning:google.*",
     "ignore::DeprecationWarning:urllib3.*",
+    # pytest-asyncio's auto mode interferes with `asyncio.run()`
+    # inside KnowledgeManager methods, leaving an unawaited
+    # `KnowledgeGraphTool.execute` coroutine in the GC.  The
+    # warning is benign (the JSONL fallback path is exercised
+    # correctly) but pollutes test output.
+    "ignore:coroutine 'KnowledgeGraphTool.execute' was never awaited:RuntimeWarning",
 ]
 
 [tool.ruff]

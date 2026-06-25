@@ -214,7 +214,7 @@ class RuntimeEvent:
 
 
 class CameraIngestionService:
-    """Microservice wrapper for CameraStream using Redis MessageBus."""
+    """Microservice wrapper for CameraStream using MessageBus."""
 
     def __init__(self, config: CameraConfig, bus):
         self.config = config
@@ -232,7 +232,7 @@ class CameraIngestionService:
             while True:
                 frame = self.stream.get_frame()
                 if frame is not None:
-                    # Encode frame to base64 for Redis using PIL
+                    # Encode frame to base64 for bus using PIL
                     image = Image.fromarray(frame[..., ::-1])  # Convert BGR to RGB
                     buffer = io.BytesIO()
                     image.save(buffer, format="JPEG")
@@ -604,7 +604,7 @@ class CorrelationEngine:
 
 
 class IntelligenceService:
-    """Microservice wrapper for v4 Advanced AI logic using Redis MessageBus."""
+    """Microservice wrapper for v4 Advanced AI logic using MessageBus."""
 
     def __init__(self, bus):
         self.bus = bus
@@ -835,7 +835,7 @@ class HomeSentinelSystem:
         return [asdict(c) for c in self._cameras.values()]
 
     def get_latest_jpeg(self, camera_id: str) -> Optional[bytes]:
-        # In microservices, we'd get this from Redis, but for now we can just return None or fetch from a cache
+        # In microservices, we'd get this from graph, but for now we can just return None or fetch from a cache
         return None
 
     def get_recent_events(self, limit: int = 100) -> List[Dict]:

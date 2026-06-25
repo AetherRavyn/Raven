@@ -1,19 +1,19 @@
 # 03 - Voice & Personality
 
-## The Voice of SARAS
+## The Voice of RAVEN
 
-SARAS doesn't sound like a robot. It sounds like a person. It has a consistent voice,
+RAVEN doesn't sound like a robot. It sounds like a person. It has a consistent voice,
 a personality, a sense of humor, and it remembers who you are.
 
 This document covers:
-1. How SARAS hears (STT)
-2. How SARAS speaks (TTS)
-3. How SARAS thinks (personality system)
-4. How SARAS remembers (long-term memory)
+1. How RAVEN hears (STT)
+2. How RAVEN speaks (TTS)
+3. How RAVEN thinks (personality system)
+4. How RAVEN remembers (long-term memory)
 
 ---
 
-## Speech-to-Text (How SARAS Hears)
+## Speech-to-Text (How RAVEN Hears)
 
 ### Model: faster-whisper (CTranslate2)
 
@@ -137,7 +137,7 @@ class VoiceEngine:
     def _domain_prompt(self) -> str:
         """Context prompt to improve IoT/home domain accuracy."""
         return (
-            "SARAS smart home assistant conversation. "
+            "RAVEN smart home assistant conversation. "
             "Devices include lights, thermostat, door lock, garage, "
             "temperature sensor, motion sensor. "
             "Common commands: turn on, turn off, set to, what is, check."
@@ -157,10 +157,10 @@ class VoiceEngine:
 
         # Normalize common misrecognitions
         replacements = {
-            "sarah's": "SARAS",
-            "saras's": "SARAS",
-            "saris": "SARAS",
-            "sardis": "SARAS",
+            "sarah's": "RAVEN",
+            "raven's": "RAVEN",
+            "saris": "RAVEN",
+            "sardis": "RAVEN",
         }
         for wrong, right in replacements.items():
             text = text.replace(wrong, right)
@@ -170,9 +170,9 @@ class VoiceEngine:
 
 ---
 
-## Text-to-Speech (How SARAS Speaks)
+## Text-to-Speech (How RAVEN Speaks)
 
-SARAS needs to sound natural. The voice must be consistent across all platforms --
+RAVEN needs to sound natural. The voice must be consistent across all platforms --
 whether it's replying as a Telegram voice note or speaking through a Raspberry Pi
 speaker.
 
@@ -211,7 +211,7 @@ class PiperTTS:
         Returns:
             Path to generated audio file
         """
-        output_path = f"/tmp/saras_tts_{hash(text)}_{time.time()}"
+        output_path = f"/tmp/raven_tts_{hash(text)}_{time.time()}"
         wav_path = f"{output_path}.wav"
 
         # Piper CLI generates WAV
@@ -308,11 +308,11 @@ Total time: ~2-4 seconds for a typical exchange
 
 ### System Prompt Architecture
 
-SARAS's personality is defined by a layered system prompt:
+RAVEN's personality is defined by a layered system prompt:
 
 ```python
 class PersonalityManager:
-    """Manages SARAS's personality and contextual behavior."""
+    """Manages RAVEN's personality and contextual behavior."""
 
     def build_system_prompt(self, user_id: str, context: dict) -> str:
         """Build the full system prompt for a conversation turn."""
@@ -337,7 +337,7 @@ class PersonalityManager:
         return "\n\n".join(parts)
 
     def _core_identity(self) -> str:
-        return """You are SARAS, a personal AI companion and friend.
+        return """You are RAVEN, a personal AI companion and friend.
 
 You are talking to your friend through a messaging platform or voice.
 You are NOT a formal assistant. You are a friend who happens to be very smart
@@ -353,7 +353,7 @@ Key behaviors:
 - When you need to use a tool, just do it naturally. Don't announce it formally.
 - If they sound stressed or upset, be empathetic first, helpful second.
 
-Your name is SARAS. You can hear (through voice notes and microphones),
+Your name is RAVEN. You can hear (through voice notes and microphones),
 see (through photos they send), control smart home devices, search the web,
 run code, set reminders, and much more.
 
@@ -478,7 +478,7 @@ GOOD: "That sucks. Want to talk about it, or just want a distraction?"
 
 ## Long-Term Memory System
 
-SARAS remembers things about you across conversations, across platforms, and across
+RAVEN remembers things about you across conversations, across platforms, and across
 time. This is what makes it feel like a real companion, not a stateless chatbot.
 
 ### Memory Architecture
@@ -515,7 +515,7 @@ time. This is what makes it feel like a real companion, not a stateless chatbot.
 
 ### Memory Extraction
 
-After each conversation, SARAS extracts memorable facts:
+After each conversation, RAVEN extracts memorable facts:
 
 ```python
 from sentence_transformers import SentenceTransformer
@@ -649,24 +649,24 @@ Conversation:
 ```
 Conversation on Feb 5:
   User: "I just got promoted to senior engineer at Google!"
-  SARAS: "That's amazing! Congrats! You've been working so hard for this."
+  RAVEN: "That's amazing! Congrats! You've been working so hard for this."
 
   → Memory stored: "User got promoted to Senior Engineer at Google in Feb 2026"
 
 Conversation on Feb 12 (different platform):
   User: "I'm so stressed about work"
-  SARAS recalls memory → knows user is at Google as Senior SDE
-  SARAS: "The new senior role weighing on you? Or is it something specific?
+  RAVEN recalls memory → knows user is at Google as Senior SDE
+  RAVEN: "The new senior role weighing on you? Or is it something specific?
           The jump to senior can be a lot."
 
-  User: (surprised SARAS remembers) "Yeah exactly, the expectations are different"
+  User: (surprised RAVEN remembers) "Yeah exactly, the expectations are different"
 ```
 
 ---
 
 ## Voice Adaptation by Platform
 
-SARAS adjusts response length and style based on the platform:
+RAVEN adjusts response length and style based on the platform:
 
 ```python
 async def adapt_response_for_platform(self, response: str, context: ReplyContext) -> str:
@@ -706,3 +706,74 @@ async def adapt_response_for_platform(self, response: str, context: ReplyContext
 
     return response
 ```
+
+---
+
+## v33 Update — whisper.cpp + Piper-TTS autherRaven (2026-06-21)
+
+The voice stack is now **fully local**. The previous hybrid stack
+(`faster-whisper` for STT + `edge-tts` for TTS) had three
+drawbacks: a 1 GB STT model, cloud TTS round-trips on every
+sentence, and a robotic cloud voice. v33 swaps both engines:
+
+| Layer | Old (v32) | New (v33) |
+|---|---|---|
+| STT | `faster-whisper` (CTranslate2) | `pywhispercpp` (whisper.cpp C++) |
+| TTS | `edge-tts` (Microsoft cloud) | `piper-tts` (ONNX, local) |
+| Output | Inline `sounddevice.play` | `SinkRegistry` fan-out |
+
+### What changed in the code
+
+- **`app/voice/transcribe.py`** — replaced `faster-whisper` with
+  `pywhispercpp`.  The loader is `WHISPER_CPP_OFFLINE=1` aware —
+  if the ggml model is missing and offline mode is on, it fails
+  fast with `FileNotFoundError` (this is what the conftest uses
+  to stub the engine in tests).
+- **`app/voice/tts.py`** — `synthesize()` now calls Piper-TTS
+  instead of `edge-tts`.  `voice=` accepts an `.onnx` path; a
+  legacy `edge-tts` BCP-47 string logs a `DeprecationWarning`
+  and falls back to the autherRaven default.
+- **`app/voice/piper.py`** — new thin wrapper around
+  `piper-tts`.  Lazy-loads the voice, caches it in a
+  process-global dict, and exposes both `synthesize(text) -> bytes`
+  and `synthesize_to_path(text) -> str` (the latter for
+  backward compat with the old file-path-returning API).
+- **`app/voice/sinks.py`** — new `VoiceSink` ABC + three impls:
+  `LocalSoundDeviceSink`, `WebSocketVoiceSink`, `NoOpSink`.
+- **`app/voice/sink_registry.py`** — new fan-out dispatcher.
+  Every user_id can have N sinks; audio is read into bytes once
+  then `asyncio.gather`-ed across all sinks, with per-sink
+  exception isolation.
+- **`app/voice/pipeline.py`** — the inline `sd.play/sd.wait`
+  block is gone.  `_speak_streaming` now hands audio to the
+  registry.  The chime builder uses an in-memory WAV + the
+  registry's `play_bytes` (no temp file).
+
+### What ships in the v33 box
+
+- `app/voice/en_US-lessac-medium.onnx` — the autherRaven Piper
+  voice model (already on disk; ~60 MB).
+- `workspace/models/whisper/ggml-tiny.bin` — ggml-tiny whisper
+  model (download via `bash scripts/download-whisper-model.sh`).
+- `app/web/static/voice.js` — browser MediaRecorder glue that
+  binds the 🎙 button and connects to `/voice/{user_id}` WS.
+
+### Browser wire format
+
+The `/voice/{user_id}` WebSocket carries binary audio frames:
+4-byte little-endian `uint32` sample-rate prefix + raw WAV
+bytes.  The browser's `voice.js` decodes the prefix and
+constructs the right `AudioContext` for the payload — Piper
+voices at 22 050 Hz, fallback voices at 16 000 Hz, etc.
+
+### Backward compatibility
+
+- `synthesize(text, voice=None) -> str` (file path) is
+  preserved.
+- `Config.VOICE_TTS_VOICE` still works; a BCP-47 string emits
+  a one-time deprecation warning and falls back to the default
+  voice.
+- `sounddevice` is still used for the on-device sink; only the
+  invocation point moved from `pipeline._speak_streaming` to
+  `LocalSoundDeviceSink.play`.
+

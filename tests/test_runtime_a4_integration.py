@@ -52,9 +52,9 @@ def _make_runtime_stub(
     # Apply env flags for the duration of the test.
     saved = {}
     for name, want in (
-        ("SARAS_VAULT_ENABLED", vault),
-        ("SARAS_AUDIT_V2", audit),
-        ("SARAS_POLICY_V2", policy),
+        ("RAVEN_VAULT_ENABLED", vault),
+        ("RAVEN_AUDIT_V2", audit),
+        ("RAVEN_POLICY_V2", policy),
     ):
         saved[name] = os.environ.pop(name, None)
         if want:
@@ -63,13 +63,13 @@ def _make_runtime_stub(
     state_dir = tmp_path / "state"
     state_dir.mkdir(exist_ok=True)
     audit_path = tmp_path / "audit.jsonl"
-    os.environ["SARAS_POLICY_STATE_DIR"] = str(state_dir)
-    os.environ["SARAS_AUDIT_PATH"] = str(audit_path)
+    os.environ["RAVEN_POLICY_STATE_DIR"] = str(state_dir)
+    os.environ["RAVEN_AUDIT_PATH"] = str(audit_path)
 
     try:
         # Use ephemeral keys and per-test paths so the vault doesn't
         # bleed state across tests (the default vault file lives at
-        # ~/.saras/vault.json which would persist forever).
+        # ~/.raven/vault.json which would persist forever).
         from app.core.vault import SecretVault
 
         secret_vault = SecretVault(
@@ -106,9 +106,9 @@ def _make_runtime_stub(
         s.secret_vault = secret_vault
         s.audit_log_v2 = audit_log_v2
         s.policy_engine_v2 = policy_engine_v2
-        s._use_vault_v2 = _env_flag("SARAS_VAULT_ENABLED")
-        s._use_audit_v2 = _env_flag("SARAS_AUDIT_V2")
-        s._use_policy_v2 = _env_flag("SARAS_POLICY_V2")
+        s._use_vault_v2 = _env_flag("RAVEN_VAULT_ENABLED")
+        s._use_audit_v2 = _env_flag("RAVEN_AUDIT_V2")
+        s._use_policy_v2 = _env_flag("RAVEN_POLICY_V2")
         # Bind the methods (so the tests can call them like methods).
         from app.core.runtime import AgentRuntime
 

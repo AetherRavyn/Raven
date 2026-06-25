@@ -52,13 +52,17 @@ class GoogleProviderClient(BaseLLMProvider):
                 "error": "GOOGLE_API_KEY/GEMINI_API_KEY is not configured",
             }
 
-        url = f"{self._base_url}/models/{model}:generateContent?key={self._api_key}"
+        url = f"{self._base_url}/models/{model}:generateContent"
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": self._api_key,
+        }
         if self._request_fn is not None:
             response = await asyncio.to_thread(
                 self._request_fn,
                 "POST",
                 url,
-                {"Content-Type": "application/json"},
+                headers,
                 payload,
                 self._timeout,
             )
@@ -70,7 +74,7 @@ class GoogleProviderClient(BaseLLMProvider):
         def _send() -> Any:
             return requests.post(
                 url,
-                headers={"Content-Type": "application/json"},
+                headers=headers,
                 json=payload,
                 timeout=self._timeout,
             )

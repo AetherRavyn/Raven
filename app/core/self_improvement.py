@@ -1,5 +1,5 @@
 # app/core/self_improvement.py
-"""Self-Improvement Loop — SARAS learns from its own performance.
+"""Self-Improvement Loop — RAVEN learns from its own performance.
 
 Components:
   1. Interaction Feedback Tracker — records success/failure per tool + model combo

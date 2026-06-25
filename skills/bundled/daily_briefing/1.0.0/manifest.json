@@ -1,0 +1,37 @@
+{
+  "author": "RAVEN team",
+  "description": "Generate a personalized morning briefing: weather, calendar, news, tasks, and goals.",
+  "eval_records": [],
+  "inputs": [
+    {
+      "default": null,
+      "description": "",
+      "name": "query",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "daily_briefing",
+  "outputs": [],
+  "permissions": [
+    "network.egress",
+    "network.ingress",
+    "user_data.read",
+    "process.spawn"
+  ],
+  "promotion_threshold": 20,
+  "risk_level": "low",
+  "schema_version": "1.0",
+  "source": "bundled",
+  "tags": [
+    "briefing",
+    "morning",
+    "weather",
+    "news",
+    "tasks",
+    "productivity",
+    "goal_manager"
+  ],
+  "trust": "workspace",
+  "version": "1.0.0"
+}

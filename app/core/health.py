@@ -1,15 +1,14 @@
 # app/core/health.py
-"""Dependency Health Monitor — graceful degradation for SARAS.
+"""Dependency Health Monitor — graceful degradation for RAVEN.
 
 Periodically checks all external dependencies and reports status.
-When a dependency goes down, SARAS can:
+When a dependency goes down, RAVEN can:
   - Route around it (use a fallback)
   - Inform the user proactively
   - Log to the self-improvement tracker
   - Show status on the dashboard
 
 Checked services:
-  - Redis (sentinel bridge, caching)
   - Ollama / local LLM (System 1 fast path)
   - Home Assistant (smart home control)
   - SMTP (email sending)
@@ -22,12 +21,24 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable, Coroutine, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 logger = logging.getLogger(__name__)
+
+
+class ServiceNotConfigured(Exception):
+    """Raised by a check function when the service isn't configured.
+
+    A :class:`HealthMonitor` treats this differently from a real
+    failure: the service stays at :attr:`ServiceStatus.UNKNOWN`
+    rather than :attr:`ServiceStatus.DOWN`, so a fresh install
+    that has *not* set up SMTP / HomeAssistant / GoogleCalendar
+    does not spam the AmbientLoop with "5 services DOWN" on
+    every 5-minute tick.
+    """
 
 
 class ServiceStatus(str, Enum):
@@ -71,7 +82,6 @@ class HealthMonitor:
 
     def _register_default_checks(self) -> None:
         """Register health check functions for known services."""
-        self._register("redis", self._check_redis)
         self._register("ollama", self._check_ollama)
         self._register("home_assistant", self._check_home_assistant)
         self._register("smtp", self._check_smtp)
@@ -111,6 +121,16 @@ class HealthMonitor:
             service.error = ""
             service.consecutive_failures = 0
             service.last_healthy = now_str
+
+        except ServiceNotConfigured:
+            # Operator hasn't configured this service — leave
+            # it at UNKNOWN (not DOWN) so the AmbientLoop's
+            # "5 services DOWN" warning doesn't fire on a fresh
+            # install.
+            service.status = ServiceStatus.UNKNOWN
+            service.error = ""
+            service.latency_ms = 0.0
+            service.consecutive_failures = 0
 
         except Exception as exc:
             elapsed = (time.time() - start) * 1000
@@ -167,20 +187,19 @@ class HealthMonitor:
 
     # ── Individual Health Checks ───────────────────────────────────────
 
-    async def _check_redis(self) -> None:
-        """Check Redis connectivity."""
-        from app.settings.config import Config
-        import redis.asyncio as aioredis
-
-        r = aioredis.from_url(Config.REDIS_URL, socket_connect_timeout=3)
-        try:
-            await r.ping()
-        finally:
-            await r.close()
-
     def _check_ollama(self) -> None:
         """Check Ollama local LLM availability."""
         from app.settings.config import Config
+        # Only check Ollama when it's the active LLM provider —
+        # otherwise the check is irrelevant and would always
+        # fail on a RAVEN install that uses OpenAI / Anthropic /
+        # Helix instead.
+        if not Config.OLLAMA_BASE_URL:
+            raise ServiceNotConfigured("OLLAMA_BASE_URL not set")
+        if (Config.LLM_PROVIDER or "").lower() != "ollama":
+            raise ServiceNotConfigured(
+                f"LLM_PROVIDER={Config.LLM_PROVIDER!r} — not Ollama"
+            )
         import urllib.request
 
         url = f"{Config.OLLAMA_BASE_URL}/api/tags"
@@ -193,8 +212,8 @@ class HealthMonitor:
         """Check Home Assistant API."""
         from app.settings.config import Config
 
-        if not Config.HOME_ASSISTANT_TOKEN:
-            raise ValueError("HOME_ASSISTANT_TOKEN not configured")
+        if not Config.HOME_ASSISTANT_URL or not Config.HOME_ASSISTANT_TOKEN:
+            raise ServiceNotConfigured("HOME_ASSISTANT_URL / TOKEN not set")
 
         import urllib.request
 
@@ -211,10 +230,9 @@ class HealthMonitor:
     def _check_smtp(self) -> None:
         """Check SMTP server connectivity."""
         from app.settings.config import Config
-        import smtplib
-
         if not Config.SMTP_HOST:
-            raise ValueError("SMTP_HOST not configured")
+            raise ServiceNotConfigured("SMTP_HOST not set")
+        import smtplib
 
         smtp = smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT, timeout=5)
         smtp.ehlo()
@@ -229,10 +247,10 @@ class HealthMonitor:
         token_path = Path(Config.GOOGLE_CALENDAR_TOKEN_PATH)
 
         if not creds_path.exists():
-            raise FileNotFoundError("Google Calendar credentials not found")
+            raise ServiceNotConfigured("Google Calendar credentials not found")
 
         if not token_path.exists():
-            raise FileNotFoundError("Google Calendar token not found (auth needed)")
+            raise ServiceNotConfigured("Google Calendar token not found (auth needed)")
 
 
 # ── Module singleton ───────────────────────────────────────────────────

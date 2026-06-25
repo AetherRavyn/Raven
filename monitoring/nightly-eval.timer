@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly eval timer (03:15 local)
+Documentation=https://github.com/swadhinbiswas/Raven
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+RandomizedDelaySec=0
+Unit=raven-nightly-eval.service
+
+[Install]
+WantedBy=timers.target

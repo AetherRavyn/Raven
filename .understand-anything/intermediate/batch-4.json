@@ -1,0 +1,543 @@
+{
+  "nodes": [
+    {
+      "id": "file:app/provider/base.py",
+      "type": "file",
+      "name": "base.py",
+      "filePath": "app/provider/base.py",
+      "summary": "Abstract base class (BaseLLMProvider) defining the interface for all LLM providers: a `name` property and an async `chat_completion` method accepting model, messages, temperature, and max_tokens.",
+      "tags": ["provider", "abstract", "interface", "llm"],
+      "complexity": "simple",
+      "languageNotes": "Uses ABC and abstractmethod decorators. Pure interface file with no runtime logic."
+    },
+    {
+      "id": "file:app/provider/factory.py",
+      "type": "file",
+      "name": "factory.py",
+      "filePath": "app/provider/factory.py",
+      "summary": "Provider factory that maps provider name strings (openai, anthropic, google, xai, ollama, openrouter, nvidia, huggingface, bytez, lm_studio, localai, vllm, CLI proxies) to their concrete client instances. Returns BaseLLMProvider or CLIProxyProvider objects.",
+      "tags": ["provider", "factory", "routing", "configuration"],
+      "complexity": "moderate",
+      "languageNotes": "Uses lazy imports for optional providers. Normalizes provider names to lowercase."
+    },
+    {
+      "id": "file:app/provider/registry.py",
+      "type": "file",
+      "name": "registry.py",
+      "filePath": "app/provider/registry.py",
+      "summary": "Provider registry containing AuthType and ProviderTier enums, ModelInfo and ProviderInfo dataclasses, and PROVIDER_REGISTRY — a comprehensive list of 25+ LLM providers with their metadata (auth type, tier, models, base URLs, env vars). Includes helper functions: get_provider, get_providers_by_tier, get_providers_by_group, get_enabled_providers.",
+      "tags": ["provider", "registry", "configuration", "metadata", "data"],
+      "complexity": "complex",
+      "languageNotes": "Dataclass-heavy with enum-based type safety. Large static data structure."
+    },
+    {
+      "id": "file:app/provider/manager.py",
+      "type": "file",
+      "name": "manager.py",
+      "filePath": "app/provider/manager.py",
+      "summary": "ProviderManager class that persists user provider preferences (active provider/model, enabled list, ranking, fallback chains) to a JSON file. Provides select_model() for picking the best provider/model pair, and get_all_providers/get_models_list for dashboard APIs.",
+      "tags": ["provider", "manager", "preferences", "persistence", "dashboard"],
+      "complexity": "moderate",
+      "languageNotes": "JSON-based persistence with Path operations. Properties with getters/setters."
+    },
+    {
+      "id": "file:app/provider/openai/client.py",
+      "type": "file",
+      "name": "client.py",
+      "filePath": "app/provider/openai/client.py",
+      "summary": "OpenAIProviderClient — concrete BaseLLMProvider for OpenAI-compatible APIs. Supports configurable base_url, optional request_fn for testing, and async HTTP via requests.post in a thread. Parses OpenAI chat completion responses and extracts content from choices.",
+      "tags": ["provider", "openai", "api-client", "http"],
+      "complexity": "moderate",
+      "languageNotes": "Async wrapper around sync requests.post via asyncio.to_thread. Graceful handling of missing requests package."
+    },
+    {
+      "id": "file:app/provider/anthropic/client.py",
+      "type": "file",
+      "name": "client.py",
+      "filePath": "app/provider/anthropic/client.py",
+      "summary": "AnthropicProviderClient — concrete BaseLLMProvider for Anthropic's Messages API. Converts OpenAI-style messages to Anthropic format (system prompt extraction, role mapping), sends to /messages endpoint, and extracts text from content blocks.",
+      "tags": ["provider", "anthropic", "api-client", "http"],
+      "complexity": "moderate",
+      "languageNotes": "Static method _to_anthropic_messages handles message format conversion between OpenAI and Anthropic schemas."
+    },
+    {
+      "id": "file:app/provider/google/client.py",
+      "type": "file",
+      "name": "client.py",
+      "filePath": "app/provider/google/client.py",
+      "summary": "GoogleProviderClient — concrete BaseLLMProvider for Google Gemini/Generative Language API. Converts messages to Google's contents format (role mapping: system→user, assistant→model), uses API key auth via URL query parameter, and extracts text from candidates.",
+      "tags": ["provider", "google", "gemini", "api-client", "http"],
+      "complexity": "moderate",
+      "languageNotes": "Google API uses key in URL rather than header. Generation config is a nested object."
+    },
+    {
+      "id": "file:app/provider/xai/clinet.py",
+      "type": "file",
+      "name": "clinet.py",
+      "filePath": "app/provider/xai/clinet.py",
+      "summary": "XAIGrpcClient — gRPC-based client for xAI's Chat API. Unlike other providers (HTTP), this uses Protocol Buffers and gRPC stubs. Supports chat completion, streaming, and image input. Handles proto module imports from multiple possible locations.",
+      "tags": ["provider", "xai", "grpc", "protobuf", "streaming"],
+      "complexity": "complex",
+      "languageNotes": "gRPC client with lazy proto module imports. Non-async (blocking gRPC calls). Multi-module import resolution for generated stubs."
+    },
+    {
+      "id": "file:app/core/model_router.py",
+      "type": "file",
+      "name": "model_router.py",
+      "filePath": "app/core/model_router.py",
+      "summary": "Contains two routing classes: ModelRouter (classifies text into local/cheap/deep routes, prefers local Ollama for simple queries, uses FeedbackStore for route bias) and AutoModelRouter (static class that auto-detects the best available provider by checking local endpoints, API keys, CLI tools, and free fallbacks in priority order).",
+      "tags": ["routing", "model-selection", "decision-making", "local-first"],
+      "complexity": "complex",
+      "languageNotes": "RouteDecision dataclass with slots=True. AutoModelRouter uses classmethods exclusively. Local endpoint health checks via urllib."
+    },
+    {
+      "id": "file:app/core/cost_router/router.py",
+      "type": "file",
+      "name": "router.py",
+      "filePath": "app/core/cost_router/router.py",
+      "summary": "CostRouter — a sophisticated model routing engine that selects the cheapest model satisfying quality, cost, capability, and budget constraints. Features: source-trust capping (low-trust sources can't use expensive models), per-request and remaining budget enforcement, quality-scored candidate ranking (cost + latency - quality*0.10), fallback chain generation, and health-aware filtering.",
+      "tags": ["routing", "cost-aware", "budget", "quality", "health"],
+      "complexity": "complex",
+      "languageNotes": "Module docstring documents design philosophy. Score formula: cost + latency/1000 - quality*0.10. Budget uses min(per-request, remaining, ledger-config)."
+    },
+    {
+      "id": "file:app/voice/pipeline.py",
+      "type": "file",
+      "name": "pipeline.py",
+      "filePath": "app/voice/pipeline.py",
+      "summary": "VoicePipeline — a blocking microphone-to-LLM-to-speaker pipeline implementing the always-on voice interface. Uses openwakeword (ONNX) for wake word detection, RMS-based VAD for speech endpointing, faster-whisper/pywhispercpp for STT, and piper TTS for synthesis. Features: barge-in detection, speaker identification, audio feedback chimes, sentence-level streaming TTS, and sink registry for multi-output fan-out (local speaker + browser WebSocket).",
+      "tags": ["voice", "pipeline", "wake-word", "vad", "tts", "stt", "audio"],
+      "complexity": "complex",
+      "languageNotes": "Runs blocking audio loop in thread executor. Uses asyncio.run_coroutine_threadsafe for thread→async bridging. Lazy heavy imports (numpy, sounddevice, openwakeword)."
+    },
+    {
+      "id": "file:app/voice/tts.py",
+      "type": "file",
+      "name": "tts.py",
+      "filePath": "app/voice/tts.py",
+      "summary": "TTS engine using Piper-TTS (local ONNX) for the AetherRavyn personality. Provides synthesize() returning WAV file path and synthesize_bytes() for browser-WS sink. Handles backward-compat with legacy edge-tts BCP-47 voice names via deprecation warnings. Voice resolution: explicit path → Config.PIPER_VOICE_MODEL → legacy Config.VOICE_TTS_VOICE → default model.",
+      "tags": ["voice", "tts", "piper", "speech-synthesis", "local"],
+      "complexity": "moderate",
+      "languageNotes": "Async functions wrapping sync Piper calls. DeprecatedConfig pattern with warnings.warn. File-path-based API for backward compat."
+    },
+    {
+      "id": "file:app/voice/transcribe.py",
+      "type": "file",
+      "name": "transcribe.py",
+      "filePath": "app/voice/transcribe.py",
+      "summary": "Async audio-to-text transcription with two engines: whisper.cpp via pywhispercpp (CPU, ggml quantized, ~75MB) as primary, Vosk small English model as offline fallback. Thread-safe model caching, configurable via WHISPER_CPP_MODEL/LANGUAGE/THREADS env vars. Supports WHISPER_CPP_OFFLINE=1 for test environments. Input normalization to WAV mono 16kHz 16-bit.",
+      "tags": ["voice", "stt", "transcription", "whisper", "vosk"],
+      "complexity": "complex",
+      "languageNotes": "Global model cache with threading.Lock. pywhispercpp wraps C++ whisper.cpp. Audio format conversion via pydub for Vosk fallback."
+    },
+    {
+      "id": "file:app/voice/speaker_id.py",
+      "type": "file",
+      "name": "speaker_id.py",
+      "filePath": "app/voice/speaker_id.py",
+      "summary": "Speaker identification via voice embeddings. Supports two backends: resemblyzer (lightweight) and speechbrain (ECAPA-TDNN, higher accuracy). Features: enrollment (average multiple samples for better accuracy), cosine similarity matching (0.75 threshold), persistence to workspace/voice/speaker_profiles/ as JSON + .npy files. Returns (user_id, confidence) tuples.",
+      "tags": ["voice", "speaker-identification", "biometrics", "embeddings"],
+      "complexity": "complex",
+      "languageNotes": "Module singleton pattern via get_speaker_identifier(). Lazy encoder loading. Embedding persistence via numpy .save/.load."
+    },
+    {
+      "id": "file:app/voice/voicetool.py",
+      "type": "file",
+      "name": "voicetool.py",
+      "filePath": "app/voice/voicetool.py",
+      "summary": "VoiceTool — agent tool implementing voice I/O operations: detect_wake_word (OpenWakeWord), listen (sounddevice recording), transcribe (Vosk), speak (Edge TTS), and voice_pipeline (full wake→record→transcribe sequence). Extends BaseTool with a rich ToolSchema. Publishes events to VoiceEventBus for each stage.",
+      "tags": ["voice", "tool", "agent-tool", "wake-word", "recording", "transcription"],
+      "complexity": "complex",
+      "languageNotes": "Extends BaseTool. Event bus integration via optional import. Multiple optional dependency guards (sounddevice, vosk, edge_tts, openwakeword)."
+    },
+    {
+      "id": "file:app/sensors/camera_bridge.py",
+      "type": "file",
+      "name": "camera_bridge.py",
+      "filePath": "app/sensors/camera_bridge.py",
+      "summary": "HTTP webhook receiver bridge between the monitoring/ anomaly detection system and SARAS BotSignal. Handles POST /internal/camera-alert events (person_detected, etc.) and notifies admin users via their configured messaging platforms with optional snapshot attachments.",
+      "tags": ["sensors", "camera", "webhook", "notifications", "bridge"],
+      "complexity": "simple",
+      "languageNotes": "Async handler function. Uses Config.ADMIN_USER_IDS for notification targets. Parses platform:chat_id format."
+    },
+    {
+      "id": "file:app/sensors/mqtt_listener.py",
+      "type": "file",
+      "name": "mqtt_listener.py",
+      "filePath": "app/sensors/mqtt_listener.py",
+      "summary": "Async MQTT subscriber that monitors IoT sensor topics, stores latest readings in-memory (_sensor_state dict), and fires BotSignal alerts for anomalous conditions (motion detection, temperature extremes >35°C or <5°C). Auto-reconnects on connection drops with 10-second backoff.",
+      "tags": ["sensors", "mqtt", "iot", "monitoring", "alerts"],
+      "complexity": "moderate",
+      "languageNotes": "Uses aiomqtt async client. Module-level state dict (_sensor_state). Async reconnect loop with backoff."
+    },
+    {
+      "id": "file:app/core/proactive_core/engine.py",
+      "type": "file",
+      "name": "engine.py",
+      "filePath": "app/core/proactive_core/engine.py",
+      "summary": "ProactiveEngine — four-stage pipeline that decides SPEAK/SILENCE/DEFER for incoming ProactiveSignals: (1) DND/quiet hours check, (2) value gate scoring (value × confidence - interruption_cost), (3) silence/rate-limit/dedup/annoyance, (4) channel dispatch. Per-user, pluggable stages, stateless decision producer (never sends directly).",
+      "tags": ["proactive", "decision-making", "pipeline", "quiet-hours", "value-gate"],
+      "complexity": "complex",
+      "languageNotes": "Dataclass configs with factory defaults. EngineConfig composes GateConfig, SilenceConfig, DispatcherConfig. for_user() classmethod for per-user instantiation."
+    },
+    {
+      "id": "file:app/core/proactive_core/anticipation.py",
+      "type": "file",
+      "name": "anticipation.py",
+      "filePath": "app/core/proactive_core/anticipation.py",
+      "summary": "Anticipation engine that predicts user needs from learned habits. Supports three pattern types: time-of-day (rolling average trigger time), day-of-week, and sequence (X then Y). HabitTracker records fire events with rolling average updates. AnticipationEngine generates Predictions with confidence scores. generate_signals() builder combines follow-ups, anomalies, and predictions into deduplicated ProactiveSignals.",
+      "tags": ["proactive", "anticipation", "habit-tracking", "prediction", "patterns"],
+      "complexity": "complex",
+      "languageNotes": "Protocol-based HabitStore for pluggable storage. Rolling average formula for trigger time. Confidence asymptotes at 0.95 with 10 occurrences."
+    },
+    {
+      "id": "file:app/core/proactive_core/dispatcher.py",
+      "type": "file",
+      "name": "dispatcher.py",
+      "filePath": "app/core/proactive_core/dispatcher.py",
+      "summary": "ChannelDispatcher picks (channel, target) for a ProactiveSignal using per-kind ChannelPreference table, urgency overrides (CRITICAL→voice), and per-user channel registration. Falls back to default_channel. Returns SPEAK decision with or without a resolved target — the delivery adapter fills in missing targets via continuity resolver.",
+      "tags": ["proactive", "dispatch", "channel-selection", "routing"],
+      "complexity": "moderate",
+      "languageNotes": "DispatcherConfig dataclass with urgency overrides. Two-level fallback: preferred channel → default channel. Target=None triggers adapter-level resolution."
+    },
+    {
+      "id": "file:app/core/autonomy_engine.py",
+      "type": "file",
+      "name": "autonomy_engine.py",
+      "filePath": "app/core/autonomy_engine.py",
+      "summary": "AutonomyEngine — background engine for long-horizon autonomous planning and execution. Manages a goals.jsonl file with a step state machine (Pending→InProgress→Completed, Retry with exponential backoff up to 3 retries, Blocked). Each cycle: plans via TaskPlanner, executes steps via AgentRuntime, verifies via ResultVerifier, notifies via TaskInboxStore. Blocked steps don't block independent siblings.",
+      "tags": ["autonomy", "planning", "execution", "state-machine", "long-horizon"],
+      "complexity": "complex",
+      "languageNotes": "JSONL file format for goal persistence. Atomic file writes via tmp+replace pattern. ConductorAgent for project management delegation."
+    },
+    {
+      "id": "file:app/core/cognition_ladder.py",
+      "type": "file",
+      "name": "cognition_ladder.py",
+      "filePath": "app/core/cognition_ladder.py",
+      "summary": "CognitionLadder — 4-step model escalation that starts with tiny/cheap models and escalates only when confidence is too low. Default ladder: tiny (ollama/qwen2.5:3b, 0.65 floor) → small (groq/llama-3.1-8b, 0.70) → medium (anthropic/claude-haiku-4-5, 0.80) → large (anthropic/claude-sonnet-4-5, accept all). Cache-aware, failure-aware (skips failed steps on retry), per-step timeouts.",
+      "tags": ["cognition", "model-escalation", "cost-optimization", "caching"],
+      "complexity": "complex",
+      "languageNotes": "Producer type alias: Callable[[LadderStep], Awaitable[tuple[str, float]]]. Cache key includes model+prompt+suffix. LadderResult.to_dict() for serialization."
+    },
+    {
+      "id": "file:app/core/metacognition.py",
+      "type": "file",
+      "name": "metacognition.py",
+      "filePath": "app/core/metacognition.py",
+      "summary": "MetaCognitiveMonitor — tracks reasoning quality across problem categories and adapts strategy selection. Records PerformanceRecords (query category, strategy, tools, success, confidence, duration). Uses Thompson sampling-inspired exploration/exploitation for strategy selection (analytical, creative, systematic, rapid, collaborative). Persists aggregated StrategyStats to metacog.json.",
+      "tags": ["metacognition", "self-monitoring", "strategy-selection", "learning"],
+      "complexity": "complex",
+      "languageNotes": "Score formula: success_rate*0.5 + avg_confidence*0.3 + speed_bonus*0.2. Exploration bonus: 1/sqrt(attempts)*0.1. Global singleton via get_metacognitive_monitor()."
+    },
+    {
+      "id": "file:app/core/perception.py",
+      "type": "file",
+      "name": "perception.py",
+      "filePath": "app/core/perception.py",
+      "summary": "PerceptionEngine — background internet monitoring that watches user-defined topics via AgentReach (multi-source discovery: DuckDuckGo, Reddit, YouTube). Extracts evidence items with sentiment analysis (keyword heuristics), stores to evidence.jsonl, and feeds into the world knowledge graph. Topics persist to watched_topics.json with configurable check intervals.",
+      "tags": ["perception", "internet-monitoring", "evidence", "sentiment", "knowledge-graph"],
+      "complexity": "moderate",
+      "languageNotes": "Pydantic models for WatchedTopic and EvidenceItem. AgentReach for multi-source web discovery. Simple keyword-based sentiment analysis."
+    },
+    {
+      "id": "file:app/core/attention.py",
+      "type": "file",
+      "name": "attention.py",
+      "filePath": "app/core/attention.py",
+      "summary": "WorkingMemory — bounded 7±2 item attention buffer mimicking human cognitive constraints. Items have relevance (decays over time), importance (eviction resistance), and access patterns. Features: focus/dismiss/get operations, relevance decay with periodic apply_decay(), priority-based eviction (effective_score = relevance*0.4 + importance*0.3 + recency*0.3), and context text generation for prompt injection.",
+      "tags": ["attention", "working-memory", "cognitive", "eviction", "relevance"],
+      "complexity": "moderate",
+      "languageNotes": "Miller's Law (7±2) capacity. Effective score combines relevance, importance, and recency. Capacity clamped to 3-12 range."
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:app/provider/factory.py",
+      "target": "file:app/provider/base.py",
+      "type": "imports",
+      "label": "imports BaseLLMProvider",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/factory.py",
+      "target": "file:app/provider/openai/client.py",
+      "type": "imports",
+      "label": "imports OpenAIProviderClient",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/factory.py",
+      "target": "file:app/provider/anthropic/client.py",
+      "type": "imports",
+      "label": "imports AnthropicProviderClient",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/factory.py",
+      "target": "file:app/provider/google/client.py",
+      "type": "imports",
+      "label": "imports GoogleProviderClient",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/factory.py",
+      "target": "file:app/provider/xai/clinet.py",
+      "type": "imports",
+      "label": "imports XAIGrpcClient",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/registry.py",
+      "target": "file:app/provider/base.py",
+      "type": "imports",
+      "label": "imports base types",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/manager.py",
+      "target": "file:app/provider/factory.py",
+      "type": "imports",
+      "label": "imports factory",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/manager.py",
+      "target": "file:app/provider/registry.py",
+      "type": "imports",
+      "label": "imports PROVIDER_REGISTRY, get_provider",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/openai/client.py",
+      "target": "file:app/provider/base.py",
+      "type": "imports",
+      "label": "imports BaseLLMProvider",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/anthropic/client.py",
+      "target": "file:app/provider/base.py",
+      "type": "imports",
+      "label": "imports BaseLLMProvider",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/google/client.py",
+      "target": "file:app/provider/base.py",
+      "type": "imports",
+      "label": "imports BaseLLMProvider",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/xai/clinet.py",
+      "target": "file:app/provider/base.py",
+      "type": "imports",
+      "label": "imports base types",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/core/model_router.py",
+      "target": "file:app/provider/manager.py",
+      "type": "imports",
+      "label": "imports create_provider via factory",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/core/cost_router/router.py",
+      "target": "file:app/core/cost_router/types.py",
+      "type": "imports",
+      "label": "imports RouteRequest, RouteDecision, ModelTier, etc.",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/core/cost_router/router.py",
+      "target": "file:app/core/cost_router/ledger.py",
+      "type": "imports",
+      "label": "imports BudgetLedger",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/provider/openai/client.py",
+      "target": "file:app/provider/base.py",
+      "type": "inherits",
+      "label": "OpenAIProviderClient extends BaseLLMProvider",
+      "weight": 0.9
+    },
+    {
+      "source": "file:app/provider/anthropic/client.py",
+      "target": "file:app/provider/base.py",
+      "type": "inherits",
+      "label": "AnthropicProviderClient extends BaseLLMProvider",
+      "weight": 0.9
+    },
+    {
+      "source": "file:app/provider/google/client.py",
+      "target": "file:app/provider/base.py",
+      "type": "inherits",
+      "label": "GoogleProviderClient extends BaseLLMProvider",
+      "weight": 0.9
+    },
+    {
+      "source": "file:app/provider/factory.py",
+      "target": "file:app/provider/openai/client.py",
+      "type": "creates",
+      "label": "creates OpenAIProviderClient instances",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/provider/factory.py",
+      "target": "file:app/provider/anthropic/client.py",
+      "type": "creates",
+      "label": "creates AnthropicProviderClient instances",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/provider/factory.py",
+      "target": "file:app/provider/google/client.py",
+      "type": "creates",
+      "label": "creates GoogleProviderClient instances",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/provider/factory.py",
+      "target": "file:app/provider/xai/clinet.py",
+      "type": "creates",
+      "label": "creates XAIGrpcClient instances",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/provider/manager.py",
+      "target": "file:app/provider/registry.py",
+      "type": "depends_on",
+      "label": "uses PROVIDER_REGISTRY for provider lookup",
+      "weight": 0.6
+    },
+    {
+      "source": "file:app/core/model_router.py",
+      "target": "file:app/core/cost_router/router.py",
+      "type": "related",
+      "label": "simpler alternative to cost-aware routing",
+      "weight": 0.5
+    },
+    {
+      "source": "file:app/voice/voicetool.py",
+      "target": "file:app/voice/pipeline.py",
+      "type": "imports",
+      "label": "imports VoicePipeline concepts",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/voice/voicetool.py",
+      "target": "file:app/voice/tts.py",
+      "type": "related",
+      "label": "alternative TTS path (Edge TTS vs Piper)",
+      "weight": 0.5
+    },
+    {
+      "source": "file:app/voice/voicetool.py",
+      "target": "file:app/voice/transcribe.py",
+      "type": "related",
+      "label": "alternative STT path (Vosk direct vs unified transcribe)",
+      "weight": 0.5
+    },
+    {
+      "source": "file:app/voice/pipeline.py",
+      "target": "file:app/voice/tts.py",
+      "type": "calls",
+      "label": "calls synthesize() for TTS output",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/voice/pipeline.py",
+      "target": "file:app/voice/transcribe.py",
+      "type": "calls",
+      "label": "calls transcribe_audio() for STT",
+      "weight": 0.8
+    },
+    {
+      "source": "file:app/voice/pipeline.py",
+      "target": "file:app/voice/speaker_id.py",
+      "type": "calls",
+      "label": "uses speaker identification for multi-user recognition",
+      "weight": 0.6
+    },
+    {
+      "source": "file:app/core/proactive_core/engine.py",
+      "target": "file:app/core/proactive_core/dispatcher.py",
+      "type": "imports",
+      "label": "imports ChannelDispatcher for signal dispatch",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/core/proactive_core/engine.py",
+      "target": "file:app/core/proactive_core/anticipation.py",
+      "type": "imports",
+      "label": "imports anticipation types for signal generation",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/core/proactive_core/dispatcher.py",
+      "target": "file:app/core/proactive_core/engine.py",
+      "type": "related",
+      "label": "dispatcher is used by engine for channel selection",
+      "weight": 0.5
+    },
+    {
+      "source": "file:app/core/proactive_core/anticipation.py",
+      "target": "file:app/core/proactive_core/engine.py",
+      "type": "feeds",
+      "label": "generates ProactiveSignals consumed by engine",
+      "weight": 0.6
+    },
+    {
+      "source": "file:app/core/autonomy_engine.py",
+      "target": "file:app/core/model_router.py",
+      "type": "related",
+      "label": "uses agent runtime which relies on model routing",
+      "weight": 0.5
+    },
+    {
+      "source": "file:app/core/cognition_ladder.py",
+      "target": "file:app/core/cost_router/types.py",
+      "type": "imports",
+      "label": "imports ModelTier for tier classification",
+      "weight": 0.7
+    },
+    {
+      "source": "file:app/sensors/camera_bridge.py",
+      "target": "file:app/sensors/mqtt_listener.py",
+      "type": "related",
+      "label": "both are sensor integration points for BotSignal",
+      "weight": 0.5
+    },
+    {
+      "source": "file:app/core/metacognition.py",
+      "target": "file:app/core/cognition_ladder.py",
+      "type": "related",
+      "label": "metacognition monitors strategies that influence ladder decisions",
+      "weight": 0.5
+    },
+    {
+      "source": "file:app/core/attention.py",
+      "target": "file:app/core/metacognition.py",
+      "type": "related",
+      "label": "working memory feeds context to metacognitive monitoring",
+      "weight": 0.5
+    },
+    {
+      "source": "file:app/core/perception.py",
+      "target": "file:app/core/attention.py",
+      "type": "feeds",
+      "label": "perception evidence feeds into working memory",
+      "weight": 0.6
+    },
+    {
+      "source": "file:app/core/attention.py",
+      "target": "file:app/core/proactive_core/anticipation.py",
+      "type": "related",
+      "label": "working memory context informs anticipation predictions",
+      "weight": 0.5
+    }
+  ]
+}

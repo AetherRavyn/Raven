@@ -1,0 +1,35 @@
+{
+  "author": "RAVEN team",
+  "description": "Conduct multi-source research on a topic: web search, papers, summarize findings.",
+  "eval_records": [],
+  "inputs": [
+    {
+      "default": null,
+      "description": "",
+      "name": "query",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "research_deep_dive",
+  "outputs": [],
+  "permissions": [
+    "network.egress",
+    "network.ingress",
+    "filesystem.read"
+  ],
+  "promotion_threshold": 20,
+  "risk_level": "low",
+  "schema_version": "1.0",
+  "source": "bundled",
+  "tags": [
+    "research",
+    "web-search",
+    "analysis",
+    "papers",
+    "summary",
+    "url_tool"
+  ],
+  "trust": "workspace",
+  "version": "1.0.0"
+}

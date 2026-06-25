@@ -6,27 +6,20 @@
   "preferred_language": null,
   "communication_style": null,
   "preferences": [
-    "My name is Alex. I prefer concise answers. I work on SARAS. I use laptop-01. I decided to keep the graph local.",
-    "My name is Alex. I like Telegram. I use notes.md."
+    "I prefer detailed answers.",
+    "My name is Alex. I prefer concise answers."
   ],
   "facts": [
-    "My name is Alex. I prefer concise answers. I work on SARAS. I use laptop-01. I decided to keep the graph local.",
-    "My name is Alex. I like Telegram. I use notes.md."
+    "My name is Alex. I prefer concise answers."
   ],
   "tasks": [],
   "projects": [],
-  "files": [
-    "notes.md"
-  ],
-  "devices": [
-    "My name is Alex. I prefer concise answers. I work on SARAS. I use laptop-01. I decided to keep the graph local."
-  ],
-  "decisions": [
-    "My name is Alex. I prefer concise answers. I work on SARAS. I use laptop-01. I decided to keep the graph local."
-  ],
+  "files": [],
+  "devices": [],
+  "decisions": [],
   "tools": [],
-  "updated_at": "2026-04-19T12:15:36.194691+00:00",
-  "expires_at": null,
+  "updated_at": "2026-06-24T06:21:33.187113+00:00",
+  "expires_at": "2000-01-01T00:00:00Z",
   "confidence": 1.0,
-  "pinned": false
+  "pinned": true
 }

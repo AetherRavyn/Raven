@@ -28,10 +28,10 @@ class TestConversationManagerIngest:
         assert t.id  # non-empty
 
     def test_ingest_appends_to_working_memory(self) -> None:
-        self.cm.ingest_turn("s1", "user", "Project: saras")
+        self.cm.ingest_turn("s1", "user", "Project: raven")
         wm = self.cm.get_or_create("s1")
         assert "project" in wm.facts
-        assert wm.facts["project"] == "saras"
+        assert wm.facts["project"] == "raven"
 
     def test_ingest_picks_up_topic(self) -> None:
         self.cm.ingest_turn("s1", "user", "About Phase D, what's next?")
@@ -40,14 +40,14 @@ class TestConversationManagerIngest:
 
     def test_multiple_turns(self) -> None:
         for role, content in [
-            ("user", "Project: saras. HelixDB is fast."),
+            ("user", "Project: raven. HelixDB is fast."),
             ("assistant", "Yes, HelixDB replaces Neo4j."),
             ("user", "ok"),
         ]:
             self.cm.ingest_turn("s1", role, content)
         wm = self.cm.get_or_create("s1")
         assert len(wm.recent_turns) == 3
-        assert wm.facts == {"project": "saras"}
+        assert wm.facts == {"project": "raven"}
 
 
 class TestConversationManagerCompression:
@@ -109,11 +109,11 @@ class TestConversationManagerContext:
         assert self.cm.context_for_prompt("s1") == ""
 
     def test_context_includes_sections(self) -> None:
-        self.cm.ingest_turn("s1", "user", "project=saras")
+        self.cm.ingest_turn("s1", "user", "project=raven")
         text = self.cm.context_for_prompt("s1")
         assert "Topic:" in text
         assert "Known facts:" in text
-        assert "project = saras" in text
+        assert "project = raven" in text
 
     def test_context_max_chars(self) -> None:
         for i in range(20):
@@ -122,9 +122,9 @@ class TestConversationManagerContext:
         assert len(text) <= 203  # 200 + the "..." suffix
 
     def test_facts_returns_dict(self) -> None:
-        self.cm.ingest_turn("s1", "user", "project=saras. owner=alice.")
+        self.cm.ingest_turn("s1", "user", "project=raven. owner=alice.")
         facts = self.cm.facts("s1")
-        assert facts == {"project": "saras", "owner": "alice"}
+        assert facts == {"project": "raven", "owner": "alice"}
 
     def test_topic_returns_string_or_none(self) -> None:
         assert self.cm.topic("s1") is None
@@ -167,7 +167,7 @@ class TestConversationManagerPersistence:
         assert self.cm.serialize("nope") is None
 
     def test_round_trip(self) -> None:
-        self.cm.ingest_turn("s1", "user", "project=saras")
+        self.cm.ingest_turn("s1", "user", "project=raven")
         data = self.cm.serialize("s1")
         assert data is not None
         # Restore into a fresh manager
@@ -177,7 +177,7 @@ class TestConversationManagerPersistence:
         cm2.restore("s1", data)
         assert "s1" in cm2.list_sessions()
         facts = cm2.facts("s1")
-        assert facts == {"project": "saras"}
+        assert facts == {"project": "raven"}
 
     def test_clear_drops_session(self) -> None:
         self.cm.ingest_turn("s1", "user", "hello")
@@ -202,10 +202,10 @@ class TestConversationManagerExplain:
         assert out == {"session_id": "s1", "present": False}
 
     def test_explain_with_data(self) -> None:
-        self.cm.ingest_turn("s1", "user", "project=saras. HelixDB is fast.")
+        self.cm.ingest_turn("s1", "user", "project=raven. HelixDB is fast.")
         out = self.cm.explain("s1")
         assert out["present"] is True
-        assert out["facts"] == {"project": "saras"}
+        assert out["facts"] == {"project": "raven"}
         assert "HelixDB" in out["entities_top"]
 
 
@@ -217,14 +217,14 @@ class TestConversationManagerExplain:
 class TestRuntimeWiring:
     def setup_method(self) -> None:
         # Force the env flag for the duration of each test.
-        self._old = os.environ.get("SARAS_CONVERSATION_V2")
-        os.environ["SARAS_CONVERSATION_V2"] = "1"
+        self._old = os.environ.get("RAVEN_CONVERSATION_V2")
+        os.environ["RAVEN_CONVERSATION_V2"] = "1"
 
     def teardown_method(self) -> None:
         if self._old is None:
-            os.environ.pop("SARAS_CONVERSATION_V2", None)
+            os.environ.pop("RAVEN_CONVERSATION_V2", None)
         else:
-            os.environ["SARAS_CONVERSATION_V2"] = self._old
+            os.environ["RAVEN_CONVERSATION_V2"] = self._old
 
     def test_runtime_has_conversation_manager(self) -> None:
         from app.core.runtime import AgentRuntime
@@ -242,22 +242,22 @@ class TestRuntimeWiring:
         # Simulate ingesting a few turns (this is what
         # execute_turn would do).
         sid = "test-session-1"
-        r.conversation_manager.ingest_turn(sid, "user", "Project: saras")
-        r.conversation_manager.ingest_turn(sid, "assistant", "Acknowledged. project=saras.")
+        r.conversation_manager.ingest_turn(sid, "user", "Project: raven")
+        r.conversation_manager.ingest_turn(sid, "assistant", "Acknowledged. project=raven.")
         ctx = r.conversation_manager.context_for_prompt(sid)
         assert "Topic:" in ctx
-        assert "project = saras" in ctx
+        assert "project = raven" in ctx
         assert "Recent turns:" in ctx
 
 
 class TestRuntimeFlagOff:
     def setup_method(self) -> None:
-        self._old = os.environ.get("SARAS_CONVERSATION_V2")
-        os.environ.pop("SARAS_CONVERSATION_V2", None)
+        self._old = os.environ.get("RAVEN_CONVERSATION_V2")
+        os.environ.pop("RAVEN_CONVERSATION_V2", None)
 
     def teardown_method(self) -> None:
         if self._old is not None:
-            os.environ["SARAS_CONVERSATION_V2"] = self._old
+            os.environ["RAVEN_CONVERSATION_V2"] = self._old
 
     def test_flag_off_by_default(self) -> None:
         from app.core.runtime import AgentRuntime

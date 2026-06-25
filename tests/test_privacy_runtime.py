@@ -422,20 +422,20 @@ class TestRuntimePrivacyGate:
 
     def teardown_method(self) -> None:
         reset_privacy()
-        os.environ.pop("SARAS_PRIVACY_V2", None)
+        os.environ.pop("RAVEN_PRIVACY_V2", None)
 
     def _build_runtime(self, *, env: bool) -> Any:
         """Build a real AgentRuntime with privacy toggled on/off.
 
         We bypass the heavy provider setup by setting
-        ``SARAS_PRIVACY_V2`` and a stub provider.  The
+        ``RAVEN_PRIVACY_V2`` and a stub provider.  The
         constructor is large; we rely on the env flag being
         read at __init__ time.
         """
         if env:
-            os.environ["SARAS_PRIVACY_V2"] = "1"
+            os.environ["RAVEN_PRIVACY_V2"] = "1"
         else:
-            os.environ.pop("SARAS_PRIVACY_V2", None)
+            os.environ.pop("RAVEN_PRIVACY_V2", None)
 
 
         # Mock the LLM provider + workspace so the constructor
@@ -494,7 +494,7 @@ class TestRuntimePrivacyGate:
 
     def test_disabled_when_manager_missing(self) -> None:
         """If the manager can't be built, the gate stays permissive."""
-        os.environ["SARAS_PRIVACY_V2"] = "1"
+        os.environ["RAVEN_PRIVACY_V2"] = "1"
         # Clear the manager and patch the builder to return None.
 
         from app.core.runtime import AgentRuntime as AR
@@ -515,7 +515,7 @@ def _lite_init(rt: Any, *, privacy_override: Any = "auto") -> None:
     isolation.
     """
 
-    rt._use_privacy_v2 = _env_flag("SARAS_PRIVACY_V2")
+    rt._use_privacy_v2 = _env_flag("RAVEN_PRIVACY_V2")
     if privacy_override == "auto":
         from app.core.privacy import get_privacy_manager
 
@@ -538,10 +538,10 @@ def _env_flag(name: str) -> bool:
 
 class TestPrivacyConfig:
     def teardown_method(self) -> None:
-        os.environ.pop("SARAS_PRIVACY_V2", None)
+        os.environ.pop("RAVEN_PRIVACY_V2", None)
 
     def test_default_false(self) -> None:
-        os.environ.pop("SARAS_PRIVACY_V2", None)
+        os.environ.pop("RAVEN_PRIVACY_V2", None)
         from importlib import reload
         from app.settings import config as cfg_mod
 
@@ -549,7 +549,7 @@ class TestPrivacyConfig:
         assert cfg_mod.Config.PRIVACY_V2_ENABLED is False
 
     def test_enabled_via_env(self) -> None:
-        os.environ["SARAS_PRIVACY_V2"] = "true"
+        os.environ["RAVEN_PRIVACY_V2"] = "true"
         from importlib import reload
         from app.settings import config as cfg_mod
 
@@ -557,7 +557,7 @@ class TestPrivacyConfig:
         assert cfg_mod.Config.PRIVACY_V2_ENABLED is True
 
     def test_disabled_via_env(self) -> None:
-        os.environ["SARAS_PRIVACY_V2"] = "false"
+        os.environ["RAVEN_PRIVACY_V2"] = "false"
         from importlib import reload
         from app.settings import config as cfg_mod
 

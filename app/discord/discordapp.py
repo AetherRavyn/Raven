@@ -74,7 +74,7 @@ class DiscordBot(discord.Client):
         temp_file_path = None
         if len(content_text) > 20000 and not payload.file_path:
             fd, temp_file_path = tempfile.mkstemp(
-                prefix="saras_output_", suffix=".txt", text=True
+                prefix="raven_output_", suffix=".txt", text=True
             )
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 fh.write(content_text)

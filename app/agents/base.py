@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import json
 import logging
-import os
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from app.tools.base import BaseTool
 
@@ -17,7 +15,7 @@ _WORKSPACE_ROOT = Path("workspace") / "agents"
 
 class BaseAgent(ABC):
     """
-    Enhanced base class for all SARAS agents.
+    Enhanced base class for all RAVEN agents.
 
     Every agent now has:
     - **soul**        – immutable core purpose (who they *are*)
@@ -27,7 +25,7 @@ class BaseAgent(ABC):
     - **heartbeat**   – periodic background task interval (0 = disabled)
     - **markdown memory** – per-agent workspace with soul.md, goals.md,
       memory.md, journal.md, skill.md
-    - **pgvector-accelerated** semantic retrieval when MEMORY_BACKEND=pgvector
+    - **HelixDB** semantic retrieval for memory and skills
 
     All new properties have safe defaults so existing agents continue to work
     without modification.
@@ -61,11 +59,18 @@ class BaseAgent(ABC):
 
     @property
     def provider_name(self) -> str:
-        return "killo"
+        # Default to "auto" so :class:`SwarmManager` always asks
+        # :class:`AutoModelRouter` for the best model based on
+        # the *current* set of API keys (which may have been
+        # pasted on the /page/providers dashboard).  Subclasses
+        # may override to pin a specific provider.
+        return "auto"
 
     @property
     def model_name(self) -> str:
-        return "qwen/qwen3-coder:free"
+        # Empty string means "let AutoModelRouter pick the model
+        # for the chosen provider".  Subclasses may override.
+        return ""
 
     # --- Identity & Personality -----------------------------------------
 
@@ -174,61 +179,73 @@ class BaseAgent(ABC):
             return ""
 
     def save_to_memory(self, category: str, content: str) -> None:
-        """Appends a categorised entry to memory.md and PgVector (if available)."""
+        """Appends a categorised entry to memory.md and HelixDB.
+
+        File is capped at 50KB — oldest entries are trimmed when exceeded.
+        """
         self._ensure_memory_files()
         p = self.memory_dir / "memory.md"
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         entry = f"\n## [{category}] — {ts}\n\n{content}\n"
         with open(p, "a", encoding="utf-8") as f:
             f.write(entry)
-        # Persist to PgVector for fast semantic retrieval
-        self._pgvector_save(category, content)
+        # Trim if file exceeds 50KB
+        if p.stat().st_size > 50_000:
+            text = p.read_text(encoding="utf-8")
+            p.write_text(text[-40_000:], encoding="utf-8")
+        # Persist to HelixDB for fast semantic retrieval
+        self._helix_memory_save(category, content)
 
     def save_to_skills(self, skill_name: str, description: str) -> None:
-        """Appends a learned skill entry to skill.md and PgVector."""
+        """Appends a learned skill entry to skill.md and HelixDB memory.
+
+        File is capped at 30KB.
+        """
         self._ensure_memory_files()
         p = self.memory_dir / "skill.md"
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         entry = f"\n## {skill_name} — {ts}\n\n{description}\n"
         with open(p, "a", encoding="utf-8") as f:
             f.write(entry)
-        self._pgvector_save("SKILL", f"[{skill_name}] {description}")
+        # Trim if file exceeds 30KB
+        if p.stat().st_size > 30_000:
+            text = p.read_text(encoding="utf-8")
+            p.write_text(text[-25_000:], encoding="utf-8")
+        self._helix_memory_save("SKILL", f"[{skill_name}] {description}")
 
     def save_to_journal(self, entry: str) -> None:
-        """Appends a timestamped entry to journal.md."""
+        """Appends a timestamped entry to journal.md.
+
+        File is capped at 40KB.
+        """
         self._ensure_memory_files()
         p = self.memory_dir / "journal.md"
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         with open(p, "a", encoding="utf-8") as f:
             f.write(f"\n### {ts}\n\n{entry}\n")
+        # Trim if file exceeds 40KB
+        if p.stat().st_size > 40_000:
+            text = p.read_text(encoding="utf-8")
+            p.write_text(text[-30_000:], encoding="utf-8")
 
     # ------------------------------------------------------------------
-    # PgVector-accelerated semantic memory
+    # HelixDB semantic memory
     # ------------------------------------------------------------------
 
-    def _pgvector_save(self, category: str, content: str) -> None:
-        """Persist memory entry to PgVector store (if configured). Fire-and-forget."""
+    def _helix_memory_save(self, category: str, content: str) -> None:
+        """Persist memory entry to HelixDB memory store. Fire-and-forget."""
         try:
-            from app.settings.config import Config
-
-            if Config.MEMORY_BACKEND != "pgvector":
-                return
             from app.core.memory import get_memory_store
 
             store = get_memory_store()
-            # Tag content with agent name for scoped retrieval
             tagged = f"[agent:{self.name}] {content}"
             store.save(category="FACT", content=tagged, user_id=f"agent_{self.name}")
         except Exception as exc:
-            logger.debug("PgVector save skipped for %s: %s", self.name, exc)
+            logger.debug("HelixDB memory save skipped for %s: %s", self.name, exc)
 
-    def _pgvector_retrieve(self, query: str, top_k: int = 5) -> List[str]:
-        """Semantic search against PgVector for this agent's memories."""
+    def _helix_memory_retrieve(self, query: str, top_k: int = 5) -> List[str]:
+        """Semantic search against HelixDB memory for this agent's memories."""
         try:
-            from app.settings.config import Config
-
-            if Config.MEMORY_BACKEND != "pgvector":
-                return []
             from app.core.memory import get_memory_store
 
             store = get_memory_store()
@@ -237,14 +254,13 @@ class BaseAgent(ABC):
                 top_k=top_k,
                 user_id=f"agent_{self.name}",
             )
-            # Strip agent tag prefix for cleaner prompt injection
             cleaned = []
             prefix = f"[agent:{self.name}] "
             for r in results:
                 cleaned.append(r[len(prefix) :] if r.startswith(prefix) else r)
             return cleaned
         except Exception as exc:
-            logger.debug("PgVector retrieve skipped for %s: %s", self.name, exc)
+            logger.debug("HelixDB memory retrieve skipped for %s: %s", self.name, exc)
             return []
 
     # ------------------------------------------------------------------
@@ -257,8 +273,7 @@ class BaseAgent(ABC):
         skills, and recent memory context.  Used by SwarmManager when
         spawning a WorkerAgent.
 
-        When MEMORY_BACKEND=pgvector, semantic search is used for the
-        memory/skills sections (faster and more relevant than tail-of-file).
+        Uses HelixDB semantic search for the memory/skills sections.
         """
         self._ensure_memory_files()
 
@@ -266,7 +281,7 @@ class BaseAgent(ABC):
 
         # Header
         parts.append(
-            f"You are **{self.name}**, an elite specialist in the SARAS AI Agency."
+            f"You are **{self.name}**, an elite specialist in the RAVEN AI Agency."
         )
 
         # Soul
@@ -303,12 +318,12 @@ class BaseAgent(ABC):
             snippet = skills_text[-1500:] if len(skills_text) > 1500 else skills_text
             parts.append(f"\n## Learned Skills\n```\n{snippet}\n```")
 
-        # Memory context — prefer PgVector semantic search, fall back to file tail
-        pgvec_memories = self._pgvector_retrieve(
+        # Memory context — prefer HelixDB semantic search, fall back to file tail
+        helix_memories = self._helix_memory_retrieve(
             query=f"{self.name} recent tasks and knowledge", top_k=8
         )
-        if pgvec_memories:
-            mem_block = "\n".join(f"- {m}" for m in pgvec_memories)
+        if helix_memories:
+            mem_block = "\n".join(f"- {m}" for m in helix_memories)
             parts.append(f"\n## Relevant Memory (semantic)\n{mem_block}")
         else:
             # Fallback: last 2000 chars of memory.md

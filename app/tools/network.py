@@ -9,7 +9,7 @@ import socket
 import ssl
 import subprocess
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import psutil
 import requests
@@ -21,6 +21,46 @@ from app.tools.base import BaseTool, ToolParameter, ToolSchema
 class NetworkTool(BaseTool):
     DB_FILE = "network_memory.json"
     SHODAN_KEY = ""  # Add your key if you implement Shodan for reputation/CVEs
+
+    # ── SSRF Protection ─────────────────────────────────────────────
+
+    @staticmethod
+    def _is_private_target(target: str) -> bool:
+        """Check if a hostname/IP resolves to a private or loopback address.
+
+        Blocks SSRF to internal networks: 127.x, 10.x, 172.16-31.x, 192.168.x,
+        169.254.x (link-local), and cloud metadata IPs.
+        """
+        # Strip port and protocol
+        host = target.split("/")[0].split(":")[0].strip().lower()
+
+        # Block obvious internal hostnames
+        if host in {"localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"}:
+            return True
+
+        if host.startswith("169.254.") or host == "169.254.169.254":
+            return True
+
+        try:
+            addr = ipaddress.ip_address(host)
+            return addr.is_private or addr.is_loopback or addr.is_link_local
+        except ValueError:
+            pass
+
+        # Resolve hostname and check all addresses
+        try:
+            addrs = socket.getaddrinfo(host, None)
+            for family, _, _, _, sockaddr in addrs:
+                try:
+                    ip = ipaddress.ip_address(sockaddr[0])
+                    if ip.is_private or ip.is_loopback or ip.is_link_local:
+                        return True
+                except ValueError:
+                    continue
+        except (socket.gaierror, OSError):
+            pass
+
+        return False
 
     # ==========================================================
     # Metadata
@@ -204,7 +244,7 @@ class NetworkTool(BaseTool):
                 try:
                     await asyncio.to_thread(requests.get, "https://1.1.1.1", timeout=3)
                     return {"success": True, "status": "Connected"}
-                except:
+                except Exception:
                     return {"success": False, "status": "Disconnected"}
 
             # ----------------------------------
@@ -229,11 +269,32 @@ class NetworkTool(BaseTool):
                 return {"success": True, "asn": data}
 
             elif operation == "reputation_check":
-                # Placeholder for AbuseIPDB or VirusTotal API check
-                return {
-                    "success": True,
-                    "message": "Requires API integration (e.g., AbuseIPDB). Placeholder response: Clean.",
-                }
+                abuse_key = os.environ.get("ABUSEIPDB_API_KEY", "")
+                if not abuse_key:
+                    return await self.execute(operation="threat_summary", host=target)
+                try:
+                    resp = await asyncio.to_thread(
+                        requests.get,
+                        "https://api.abuseipdb.com/api/v2/check",
+                        params={"ipAddress": target, "maxAgeInDays": 90},
+                        headers={"Key": abuse_key, "Accept": "application/json"},
+                        timeout=10,
+                    )
+                    data = resp.json().get("data", {})
+                    return {
+                        "success": True,
+                        "ip": data.get("ipAddress", target),
+                        "abuse_score": data.get("abuseConfidenceScore", 0),
+                        "total_reports": data.get("totalReports", 0),
+                        "last_reported": data.get("lastReportedAt"),
+                        "country": data.get("countryCode"),
+                        "domain": data.get("domain"),
+                        "is_public": data.get("isPublic", True),
+                        "is_whitelisted": data.get("isWhitelisted", False),
+                        "categories": data.get("categories", []),
+                    }
+                except Exception as exc:
+                    return {"success": False, "error": f"AbuseIPDB check failed: {exc}"}
 
             elif operation == "threat_summary":
                 db = self._load_db()
@@ -254,6 +315,8 @@ class NetworkTool(BaseTool):
             elif operation == "dns_records":
                 if not host:
                     return {"success": False, "error": "host parameter required"}
+                if self._is_private_target(host):
+                    return {"success": False, "error": "Cannot query internal addresses"}
                 result = subprocess.run(["nslookup", host], capture_output=True)
                 return {"success": True, "records": result.stdout.decode()}
 
@@ -269,6 +332,8 @@ class NetworkTool(BaseTool):
             elif operation == "whois_lookup":
                 if not target:
                     return {"success": False, "error": "host or ip parameter required"}
+                if self._is_private_target(target):
+                    return {"success": False, "error": "Cannot query internal addresses"}
                 result = subprocess.run(["whois", target], capture_output=True)
                 return {
                     "success": True,
@@ -281,6 +346,8 @@ class NetworkTool(BaseTool):
             elif operation == "ping":
                 if not target:
                     return {"success": False, "error": "host or ip parameter required"}
+                if self._is_private_target(target):
+                    return {"success": False, "error": "Cannot probe internal/private addresses"}
                 param = "-n" if platform.system().lower() == "windows" else "-c"
                 result = subprocess.run(
                     ["ping", param, "4", target], capture_output=True
@@ -290,12 +357,14 @@ class NetworkTool(BaseTool):
             elif operation == "latency":
                 if not target:
                     return {"success": False, "error": "host or ip parameter required"}
+                if self._is_private_target(target):
+                    return {"success": False, "error": "Cannot probe internal/private addresses"}
                 start = time.time()
                 try:
                     await asyncio.to_thread(requests.get, f"http://{target}", timeout=3)
                     latency = (time.time() - start) * 1000
                     return {"success": True, "latency_ms": round(latency, 2)}
-                except:
+                except Exception:
                     return {
                         "success": False,
                         "error": "Could not connect to measure latency.",
@@ -316,6 +385,10 @@ class NetworkTool(BaseTool):
             # SCANNING
             # ----------------------------------
             elif operation == "port_scan":
+                if not target:
+                    return {"success": False, "error": "host or ip parameter required"}
+                if self._is_private_target(target):
+                    return {"success": False, "error": "Cannot scan internal/private addresses"}
                 ports = []
                 for p in range(1, 1025):
                     s = socket.socket()
@@ -327,6 +400,10 @@ class NetworkTool(BaseTool):
                 return {"success": True, "open_ports": ports}
 
             elif operation == "fast_scan":
+                if not target:
+                    return {"success": False, "error": "host or ip parameter required"}
+                if self._is_private_target(target):
+                    return {"success": False, "error": "Cannot scan internal/private addresses"}
                 ports = []
                 for p in [21, 22, 23, 25, 53, 80, 110, 143, 443, 445, 3306, 3389, 8080]:
                     s = socket.socket()
@@ -339,35 +416,62 @@ class NetworkTool(BaseTool):
             elif operation == "nmap_scan":
                 if not target:
                     return {"success": False, "error": "host or ip parameter required"}
+                if self._is_private_target(target):
+                    return {"success": False, "error": "Cannot scan internal/private addresses"}
                 result = subprocess.run(["nmap", "-sV", target], capture_output=True)
                 return {"success": True, "nmap_output": result.stdout.decode()}
 
             elif operation == "os_fingerprint":
                 if not target:
                     return {"success": False, "error": "host or ip parameter required"}
+                if self._is_private_target(target):
+                    return {"success": False, "error": "Cannot fingerprint internal/private addresses"}
                 result = subprocess.run(["nmap", "-O", target], capture_output=True)
                 return {"success": True, "os_output": result.stdout.decode()}
 
             elif operation == "subnet_scan":
-                # Basic ICMP sweep logic placeholder
+                if not subnet:
+                    return {"success": False, "error": "subnet parameter required (CIDR notation, e.g. 192.168.1.0/24)"}
+                try:
+                    network = ipaddress.ip_network(subnet, strict=False)
+                except ValueError as exc:
+                    return {"success": False, "error": f"Invalid subnet: {exc}"}
+                ping_param = "-n" if platform.system().lower() == "windows" else "-c"
+                hosts = []
+                for ip_addr in network.hosts():
+                    ip_str = str(ip_addr)
+                    result = subprocess.run(
+                        ["ping", ping_param, "1", "-W", "1", ip_str],
+                        capture_output=True, timeout=3,
+                    )
+                    if result.returncode == 0:
+                        hosts.append(ip_str)
+                    if len(hosts) >= 50:
+                        break
                 return {
                     "success": True,
-                    "message": f"Subnet scan for {subnet} initiated. (Use Scapy or nmap -sn for full implementation)",
+                    "subnet": subnet,
+                    "hosts_found": len(hosts),
+                    "hosts": hosts,
                 }
 
             # ----------------------------------
             # WEB
             # ----------------------------------
             elif operation == "http_headers":
+                if self._is_private_target(target):
+                    return {"success": False, "error": "Cannot probe internal/private addresses"}
                 try:
                     resp = await asyncio.to_thread(
                         requests.head, f"http://{target}", timeout=3
                     )
                     return {"success": True, "headers": dict(resp.headers)}
-                except:
+                except Exception:
                     return {"success": False, "error": "HTTP connection failed."}
 
             elif operation == "http_security":
+                if self._is_private_target(target):
+                    return {"success": False, "error": "Cannot probe internal/private addresses"}
                 try:
                     resp = await asyncio.to_thread(
                         requests.head, f"https://{target}", timeout=3
@@ -379,10 +483,12 @@ class NetworkTool(BaseTool):
                         "X-Frame-Options": "X-Frame-Options" in headers,
                     }
                     return {"success": True, "security_headers": sec_headers}
-                except:
+                except Exception:
                     return {"success": False, "error": "HTTPS connection failed."}
 
             elif operation == "technology_detect":
+                if self._is_private_target(target):
+                    return {"success": False, "error": "Cannot probe internal/private addresses"}
                 try:
                     resp = await asyncio.to_thread(
                         requests.get, f"http://{target}", timeout=3
@@ -393,7 +499,7 @@ class NetworkTool(BaseTool):
                         "success": True,
                         "technologies": {"Server": server, "PoweredBy": powered_by},
                     }
-                except:
+                except Exception:
                     return {"success": False, "error": "Connection failed."}
 
             # ----------------------------------
@@ -427,11 +533,31 @@ class NetworkTool(BaseTool):
                 return {"success": True, "interfaces": parsed}
 
             elif operation == "gateway":
-                # Works on most linux/windows systems via psutil or shell
-                return {
-                    "success": True,
-                    "message": "Gateway detection requires `netifaces` library or parsing `ip route`.",
-                }
+                try:
+                    if platform.system().lower() == "windows":
+                        result = subprocess.run(
+                            ["route", "print", "0.0.0.0"],
+                            capture_output=True, text=True, timeout=5,
+                        )
+                        for line in result.stdout.splitlines():
+                            if "0.0.0.0" in line and "On-link" not in line:
+                                parts = line.split()
+                                if len(parts) >= 3:
+                                    return {"success": True, "gateway": parts[2], "interface": parts[-1] if len(parts) > 3 else "unknown"}
+                    else:
+                        result = subprocess.run(
+                            ["ip", "route", "show", "default"],
+                            capture_output=True, text=True, timeout=5,
+                        )
+                        for line in result.stdout.splitlines():
+                            parts = line.split()
+                            if len(parts) >= 3 and parts[0] == "default":
+                                gw = parts[2]
+                                dev = parts[3] if len(parts) > 3 else "unknown"
+                                return {"success": True, "gateway": gw, "interface": dev}
+                    return {"success": True, "gateway": None, "message": "No default gateway found"}
+                except Exception as exc:
+                    return {"success": False, "error": f"Gateway detection failed: {exc}"}
 
             elif operation == "arp_table":
                 result = subprocess.run(["arp", "-a"], capture_output=True, text=True)
@@ -458,18 +584,89 @@ class NetworkTool(BaseTool):
                 return {"success": True, "potential_proxies": open_proxies}
 
             elif operation == "tor_detect":
-                # Would check against Tor exit node lists (e.g., check.torproject.org/exit-addresses)
-                return {
-                    "success": True,
-                    "is_tor": False,
-                    "message": "Placeholder. Query a Tor exit node API for real data.",
-                }
+                if not target:
+                    return {"success": False, "error": "host or ip parameter required"}
+                try:
+                    ip_to_check = target
+                    try:
+                        ip_to_check = socket.gethostbyname(target)
+                    except socket.gaierror:
+                        pass
+                    resp = await asyncio.to_thread(
+                        requests.get,
+                        "https://check.torproject.org/torbulkexitlist",
+                        timeout=10,
+                    )
+                    if resp.status_code == 200:
+                        exit_nodes = set(resp.text.strip().splitlines())
+                        is_tor = ip_to_check in exit_nodes
+                        return {
+                            "success": True,
+                            "is_tor": is_tor,
+                            "ip": ip_to_check,
+                            "message": f"IP {'is' if is_tor else 'is not'} a known Tor exit node" if is_tor else "IP is not a known Tor exit node",
+                        }
+                    return {
+                        "success": True,
+                        "is_tor": False,
+                        "message": "Could not fetch Tor exit list (check.torproject.org unreachable)",
+                    }
+                except Exception as exc:
+                    return {"success": False, "error": f"Tor detection failed: {exc}"}
 
             elif operation == "vpn_detect":
-                return {
-                    "success": True,
-                    "message": "Requires IP Intelligence API to check for Datacenter/VPN ASN flags.",
-                }
+                if not target:
+                    return {"success": False, "error": "host or ip parameter required"}
+                try:
+                    ip_to_check = target
+                    try:
+                        ip_to_check = socket.gethostbyname(target)
+                    except socket.gaierror:
+                        pass
+                    resp = await asyncio.to_thread(
+                        requests.get,
+                        f"https://ipapi.co/{ip_to_check}/json/",
+                        timeout=10,
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        org = data.get("org", "")
+                        is_vpn = False
+                        vpn_indicators = []
+                        vpn_keywords = ["vpn", "datacenter", "hosting", "cloud", "server", "proxy"]
+                        org_lower = org.lower()
+                        for kw in vpn_keywords:
+                            if kw in org_lower:
+                                vpn_indicators.append(kw)
+                                is_vpn = True
+                        return {
+                            "success": True,
+                            "ip": ip_to_check,
+                            "is_vpn": is_vpn,
+                            "confidence": "high" if len(vpn_indicators) >= 2 else "medium" if vpn_indicators else "low",
+                            "indicators": vpn_indicators,
+                            "org": org,
+                            "country": data.get("country_name"),
+                            "city": data.get("city"),
+                            "hosting": data.get("org", ""),
+                            "asn": data.get("asn"),
+                        }
+                    fallback_data = (
+                        await asyncio.to_thread(
+                            requests.get, f"http://ip-api.com/json/{ip_to_check}?fields=status,query,org,as,proxy,hosting",
+                            timeout=5,
+                        )
+                    ).json()
+                    return {
+                        "success": True,
+                        "ip": ip_to_check,
+                        "is_vpn": fallback_data.get("proxy", False),
+                        "is_hosting": fallback_data.get("hosting", False),
+                        "org": fallback_data.get("org", ""),
+                        "asn": fallback_data.get("as", ""),
+                    }
+                except Exception as exc:
+                    return {"success": False, "error": f"VPN detection failed: {exc}"}
 
             # ----------------------------------
             # FINGERPRINTING
@@ -504,12 +701,56 @@ class NetworkTool(BaseTool):
             # SECURITY
             # ----------------------------------
             elif operation == "cve_lookup":
-                # Placeholder for querying NIST NVD or vulners API
-                return {
-                    "success": True,
-                    "cves": [],
-                    "message": "Requires NVD/Vulners API integration.",
-                }
+                if not target:
+                    return {"success": False, "error": "host, ip, or software name required"}
+                try:
+                    params: dict = {"resultsPerPage": 20, "startIndex": 0}
+                    if ipaddress.ip_address(target).version == 4:
+                        params["keywordSearch"] = target
+                    else:
+                        params["keywordSearch"] = target
+                except ValueError:
+                    params["keywordSearch"] = target
+                try:
+                    resp = await asyncio.to_thread(
+                        requests.get,
+                        "https://services.nvd.nist.gov/rest/json/cves/2.0",
+                        params=params,
+                        timeout=15,
+                    )
+                    if resp.status_code != 200:
+                        return {"success": False, "error": f"NVD API returned {resp.status_code}"}
+                    data = resp.json()
+                    vulns = data.get("vulnerabilities", [])
+                    cves = []
+                    for v in vulns[:15]:
+                        cve = v.get("cve", {})
+                        cve_id = cve.get("id", "unknown")
+                        desc = ""
+                        for d in cve.get("descriptions", []):
+                            if d.get("lang") == "en":
+                                desc = d.get("value", "")
+                                break
+                        metrics = cve.get("metrics", {})
+                        cvss_score = None
+                        for key in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
+                            if key in metrics and metrics[key]:
+                                cvss_score = metrics[key][0].get("cvssData", {}).get("baseScore")
+                                break
+                        cves.append({
+                            "id": cve_id,
+                            "description": desc[:200],
+                            "cvss_score": cvss_score,
+                            "published": cve.get("published"),
+                            "last_modified": cve.get("lastModified"),
+                        })
+                    return {
+                        "success": True,
+                        "total_results": data.get("totalResults", 0),
+                        "cves": cves,
+                    }
+                except Exception as exc:
+                    return {"success": False, "error": f"CVE lookup failed: {exc}"}
 
             elif operation == "vulnerability_scan":
                 return await self.execute(
@@ -541,7 +782,7 @@ class NetworkTool(BaseTool):
                             requests.get, f"http://ip-api.com/json/{target}"
                         )
                     ).json()
-                except:
+                except Exception:
                     geo = {}
 
                 data = {"ports": ports, "geo": geo, "time": time.time()}

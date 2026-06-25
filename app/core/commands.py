@@ -79,7 +79,7 @@ class CommandGateway:
         tasks = ledger.list_tasks()
         pending = [t for t in tasks if t.get("status") == "pending_approval"]
 
-        lines = ["=== SARAS Status ==="]
+        lines = ["=== RAVEN Status ==="]
         lines.append(f"Pending Approvals: {len(pending)}")
         for p in pending:
             task_id = p.get("task_id", p.get("id", "unknown"))
@@ -247,7 +247,9 @@ class CommandGateway:
             return "Usage: /bash <command> or !<command>"
 
         try:
-            result = subprocess.run(args, shell=True, capture_output=True, text=True)
+            import shlex
+            cmd_parts = shlex.split(args)
+            result = subprocess.run(cmd_parts, capture_output=True, text=True, timeout=30)
             output = ""
             if result.stdout:
                 output += result.stdout

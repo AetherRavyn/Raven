@@ -1,14 +1,14 @@
-# SARAS Master Plan — JARVIS / FRIDAY-Class Personal Intelligence System
+# RAVEN Master Plan — JARVIS / FRIDAY-Class Personal Intelligence System
 **Version:** 1.0  
 **Status:** Master roadmap  
 **Target:** A low-compute, modular, self-hostable, personality-rich, predictive personal intelligence system  
-**Project:** SARAS
+**Project:** RAVEN
 
 ---
 
 ## 0. Executive Summary
 
-This document defines the full roadmap for evolving SARAS into a **JARVIS / FRIDAY-style personal intelligence system**:
+This document defines the full roadmap for evolving RAVEN into a **JARVIS / FRIDAY-style personal intelligence system**:
 
 - **modular**
 - **low-compute by default**
@@ -21,7 +21,7 @@ This document defines the full roadmap for evolving SARAS into a **JARVIS / FRID
 - **safe enough for real use**
 - **extensible enough to grow forever**
 
-This plan is written after comparing SARAS conceptually against systems and ideas from:
+This plan is written after comparing RAVEN conceptually against systems and ideas from:
 
 - **OpenClaw**
 - **NVIDIA NeMo Agent Toolkit / NemoClaw-style production patterns**
@@ -32,7 +32,7 @@ This plan is written after comparing SARAS conceptually against systems and idea
 
 The conclusion is:
 
-**SARAS already has the right direction, but to become a true sci-fi-grade assistant it must unify six things into one coherent operating system:**
+**RAVEN already has the right direction, but to become a true sci-fi-grade assistant it must unify six things into one coherent operating system:**
 
 1. **Personality**
 2. **Memory**
@@ -47,9 +47,9 @@ This document defines exactly what is missing and how to build it properly.
 
 # 1. Vision
 
-## 1.1 What SARAS should become
+## 1.1 What RAVEN should become
 
-SARAS should become a **Personal Intelligence OS**.
+RAVEN should become a **Personal Intelligence OS**.
 
 Not just a bot.  
 Not just an agent runner.  
@@ -83,7 +83,7 @@ It should behave like a believable **JARVIS / FRIDAY** style system:
 
 ## 1.2 Design constraints
 
-SARAS must be designed with these hard constraints:
+RAVEN must be designed with these hard constraints:
 
 ### A. Low compute first
 The system must run well on:
@@ -129,7 +129,7 @@ The system should feel magical, but be implemented with practical engineering.
 
 ---
 
-# 2. Comparison Summary: SARAS vs OpenClaw vs Nemo/NeMo vs ZeroClaw vs MiroFish
+# 2. Comparison Summary: RAVEN vs OpenClaw vs Nemo/NeMo vs ZeroClaw vs MiroFish
 
 ## 2.1 OpenClaw-style systems: strengths and gaps
 
@@ -142,7 +142,7 @@ The system should feel magical, but be implemented with practical engineering.
 - event-driven messaging
 - practical deployment patterns
 
-### What they usually lack for SARAS goals
+### What they usually lack for RAVEN goals
 - deep personality architecture
 - predictive world modeling
 - serious episodic memory
@@ -152,13 +152,13 @@ The system should feel magical, but be implemented with practical engineering.
 - human-like proactive assistance without spam
 - lower-layer system discipline for real-world home/server awareness
 
-### What SARAS should take
+### What RAVEN should take
 - channel reach
 - skill ergonomics
 - event-driven connector style
 - workspace-centered extensibility
 
-### What SARAS must do better
+### What RAVEN must do better
 - stronger memory
 - stronger personality consistency
 - stronger monitoring and observability
@@ -180,7 +180,7 @@ The system should feel magical, but be implemented with practical engineering.
 - optimization loops
 - production hardening
 
-### What SARAS should take
+### What RAVEN should take
 - tracing
 - evaluation harness
 - reliability discipline
@@ -189,12 +189,12 @@ The system should feel magical, but be implemented with practical engineering.
 - response quality benchmarking
 - tool success/failure observability
 
-### What SARAS must avoid
+### What RAVEN must avoid
 - becoming GPU-dependent
 - becoming enterprise-heavy and emotionally dead
 - turning into a sterile workflow engine with no companion identity
 
-### SARAS rule
+### RAVEN rule
 **Take NeMo’s production discipline, not its likely enterprise coldness.**
 
 ---
@@ -208,14 +208,14 @@ The system should feel magical, but be implemented with practical engineering.
 - clean runtime abstractions
 - explicit separations: provider / tool / channel / memory / runtime
 
-### What SARAS should take
+### What RAVEN should take
 - cleaner modular contracts
 - stronger runtime abstraction boundaries
 - more explicit pluggable backends
 - stricter security policy layers
 - lighter memory/runtime modes
 
-### What SARAS must improve beyond that
+### What RAVEN must improve beyond that
 - richer personality
 - richer UI presence
 - stronger proactive intelligence
@@ -233,14 +233,14 @@ The system should feel magical, but be implemented with practical engineering.
 - thin clients
 - lightweight distributed design
 
-### What SARAS should take
+### What RAVEN should take
 - edge node thinking
 - cheap distributed watchers
 - micro-agents at the edge
 - event shipping to a central brain
 - low-cost home intelligence architecture
 
-### What SARAS must add
+### What RAVEN must add
 - richer cognition
 - persistent memory
 - forecasting
@@ -258,7 +258,7 @@ The system should feel magical, but be implemented with practical engineering.
 - using real-world inputs to simulate futures
 - modeling social and behavioral outcomes
 
-### What SARAS should take
+### What RAVEN should take
 - prediction engine as a first-class subsystem
 - graph/world-state construction from live data
 - scenario generation
@@ -266,17 +266,17 @@ The system should feel magical, but be implemented with practical engineering.
 - forecast reports with confidence ranges
 - “what likely happens next” as a core product feature
 
-### What SARAS must avoid
+### What RAVEN must avoid
 - turning every task into massive simulation
 - requiring huge compute always
 - making predictions without confidence, evidence, or domain boundaries
 
-### SARAS rule
+### RAVEN rule
 **Prediction must be selective, explainable, and low-compute by default.**
 
 ---
 
-# 3. Biggest Missing Pieces in SARAS Right Now
+# 3. Biggest Missing Pieces in RAVEN Right Now
 
 This section is the most important practical comparison result.
 
@@ -369,7 +369,7 @@ A `Presence UI` with:
 
 ## 3.4 Missing Pillar: Proper Modular Kernel
 
-SARAS already has many components, but to support long-term growth it needs a stronger kernel.
+RAVEN already has many components, but to support long-term growth it needs a stronger kernel.
 
 ### Missing:
 - formal module lifecycle
@@ -454,7 +454,7 @@ An `ExecutiveLoop` that:
 `agent_reach` is strategically important.
 
 It should not be treated as a side utility.  
-It should become SARAS’s **Internet Vision Layer**.
+It should become RAVEN’s **Internet Vision Layer**.
 
 ### Missing:
 - direct integration with orchestration
@@ -479,7 +479,7 @@ An `InternetReachLayer` that:
 ## 4.1 The final system should have these 8 layers
 
 ### Layer 1 — Presence Layer
-How SARAS appears:
+How RAVEN appears:
 - voice
 - text
 - dashboard
@@ -488,7 +488,7 @@ How SARAS appears:
 - personality visualization
 
 ### Layer 2 — Channel Layer
-Where SARAS lives:
+Where RAVEN lives:
 - Telegram
 - Discord
 - Slack
@@ -506,7 +506,7 @@ How the system boots and manages modules:
 - config manager
 
 ### Layer 4 — Cognition Layer
-How SARAS thinks:
+How RAVEN thinks:
 - reflex engine
 - deep reasoning engine
 - specialist swarm
@@ -515,7 +515,7 @@ How SARAS thinks:
 - prediction engine
 
 ### Layer 5 — World Awareness Layer
-How SARAS sees reality:
+How RAVEN sees reality:
 - AgentReach
 - web/search/news ingestion
 - sensors
@@ -526,7 +526,7 @@ How SARAS sees reality:
 - social feeds
 
 ### Layer 6 — Memory Layer
-How SARAS remembers:
+How RAVEN remembers:
 - short-term session memory
 - long-term semantic memory
 - episodic memory
@@ -536,7 +536,7 @@ How SARAS remembers:
 - relationship memory
 
 ### Layer 7 — Action Layer
-How SARAS does things:
+How RAVEN does things:
 - tool calls
 - shell/file/git
 - messaging
@@ -547,7 +547,7 @@ How SARAS does things:
 - automation workflows
 
 ### Layer 8 — Evaluation + Safety Layer
-How SARAS stays reliable:
+How RAVEN stays reliable:
 - observability
 - traces
 - confidence
@@ -743,7 +743,7 @@ Store:
 - actual outcomes later
 - calibration score
 
-This is critical so SARAS can learn whether its predictions were good.
+This is critical so RAVEN can learn whether its predictions were good.
 
 ---
 
@@ -788,7 +788,7 @@ Live panels for:
 - system state
 
 ### D. Personality Presentation Layer
-Visual identity of SARAS:
+Visual identity of RAVEN:
 - status color
 - tone indicator
 - speech style card
@@ -803,7 +803,7 @@ This is one of the most important sections.
 
 ## 7.1 Prediction philosophy
 
-SARAS should not “pretend to know the future.”
+RAVEN should not “pretend to know the future.”
 
 It should produce:
 
@@ -978,7 +978,7 @@ Example format:
 
 ## 8.1 Personality is not just a prompt
 
-SARAS needs a full personality stack:
+RAVEN needs a full personality stack:
 
 ### Layer A — Identity
 Core character:
@@ -1020,13 +1020,13 @@ Examples:
 ### Layer E — Voice Consistency
 Text and voice must align.
 
-If SARAS sounds calm and clever in text, voice output must match that identity.
+If RAVEN sounds calm and clever in text, voice output must match that identity.
 
 ---
 
 ## 8.2 Personality traits target
 
-SARAS should feel like:
+RAVEN should feel like:
 
 - intelligent without showing off
 - helpful without being servile
@@ -1120,7 +1120,7 @@ It provides:
 ## 10.2 Integration goals
 
 ### Goal 1
-Turn AgentReach into a first-class SARAS subsystem
+Turn AgentReach into a first-class RAVEN subsystem
 
 ### Goal 2
 Feed findings into:
@@ -1141,7 +1141,7 @@ Maintain source health registry:
 ## 10.3 Internet intelligence workflow
 
 1. User asks or watcher triggers research
-2. SARAS chooses best source route
+2. RAVEN chooses best source route
 3. AgentReach fetches/read/searches
 4. extraction pipeline normalizes content
 5. memory/graph ingestion stores facts/entities
@@ -1271,7 +1271,7 @@ A JARVIS-style system is powerful. That means trust architecture matters.
 
 ## 12.3 Explainability goals
 
-For major outputs SARAS should be able to say:
+For major outputs RAVEN should be able to say:
 - what data it used
 - what assumptions it made
 - what method it used
@@ -1285,7 +1285,7 @@ For major outputs SARAS should be able to say:
 ---
 
 ## Phase 1 — Kernel Hardening and Modular Foundation
-**Goal:** turn SARAS into a stable modular OS core
+**Goal:** turn RAVEN into a stable modular OS core
 
 ### Deliverables
 - ModuleKernel
@@ -1306,7 +1306,7 @@ For major outputs SARAS should be able to say:
 ---
 
 ## Phase 2 — Personality Core and Presence UI
-**Goal:** make SARAS feel like a real companion
+**Goal:** make RAVEN feel like a real companion
 
 ### Deliverables
 - PersonalityCore
@@ -1320,7 +1320,7 @@ For major outputs SARAS should be able to say:
 - personality-aware text and UI
 
 ### Success criteria
-- SARAS feels consistent across channels
+- RAVEN feels consistent across channels
 - UI reflects identity and current state
 - style adapts to user while preserving core character
 
@@ -1339,14 +1339,14 @@ For major outputs SARAS should be able to say:
 - memory pruning/summarization
 
 ### Success criteria
-- SARAS remembers meaningful long-term patterns
-- SARAS can describe the user’s routines/preferences accurately
+- RAVEN remembers meaningful long-term patterns
+- RAVEN can describe the user’s routines/preferences accurately
 - project continuity survives sessions and restarts
 
 ---
 
 ## Phase 4 — AgentReach Internet Vision Layer
-**Goal:** make SARAS truly see the outside world
+**Goal:** make RAVEN truly see the outside world
 
 ### Deliverables
 - AgentReach subsystem integration
@@ -1357,14 +1357,14 @@ For major outputs SARAS should be able to say:
 - internet watchlists
 
 ### Success criteria
-- SARAS can use internet sources systematically, not ad hoc
+- RAVEN can use internet sources systematically, not ad hoc
 - findings feed memory and briefing pipelines
 - source failures degrade gracefully
 
 ---
 
 ## Phase 5 — Executive Loop and Proactive Assistance
-**Goal:** make SARAS an operator, not only a responder
+**Goal:** make RAVEN an operator, not only a responder
 
 ### Deliverables
 - daily briefing engine
@@ -1376,8 +1376,8 @@ For major outputs SARAS should be able to say:
 - proactive but bounded notification policy
 
 ### Success criteria
-- SARAS gives useful briefings automatically
-- SARAS surfaces risks before the user asks
+- RAVEN gives useful briefings automatically
+- RAVEN surfaces risks before the user asks
 - proactive behavior improves value without becoming spammy
 
 ---
@@ -1418,7 +1418,7 @@ For major outputs SARAS should be able to say:
 ---
 
 ## Phase 8 — Home Guardian + Environment Fusion
-**Goal:** make SARAS physically aware
+**Goal:** make RAVEN physically aware
 
 ### Deliverables
 - sensor fusion layer
@@ -1429,9 +1429,9 @@ For major outputs SARAS should be able to say:
 - guardian mode UI
 
 ### Success criteria
-- SARAS can summarize current environment
-- SARAS can detect unusual situations
-- SARAS can predict likely near-term risks
+- RAVEN can summarize current environment
+- RAVEN can detect unusual situations
+- RAVEN can predict likely near-term risks
 
 ---
 
@@ -1449,7 +1449,7 @@ For major outputs SARAS should be able to say:
 
 ### Success criteria
 - system feels alive, present, and coherent
-- users can monitor what SARAS is doing and thinking
+- users can monitor what RAVEN is doing and thinking
 - presence adds trust and delight
 
 ---
@@ -1540,7 +1540,7 @@ For major outputs SARAS should be able to say:
 
 # 16. Final Product Standard
 
-SARAS is “done” only when it can do all of the following well:
+RAVEN is “done” only when it can do all of the following well:
 
 1. Hold a natural, consistent personality over months
 2. Remember the user, their projects, preferences, and rhythms
@@ -1557,7 +1557,7 @@ SARAS is “done” only when it can do all of the following well:
 
 # 17. Final Doctrine
 
-## The doctrine for SARAS
+## The doctrine for RAVEN
 
 **OpenClaw gives reach.**  
 **NeMo gives discipline.**  
@@ -1566,7 +1566,7 @@ SARAS is “done” only when it can do all of the following well:
 **MiroFish gives predictive imagination.**  
 **AgentReach gives eyes on the internet.**
 
-SARAS must combine them into something better:
+RAVEN must combine them into something better:
 
 > a modular personal intelligence system with memory, personality, foresight, and presence.
 
@@ -1604,4 +1604,4 @@ This order gives the fastest path to a system that is:
 
 # 19. One-Sentence Mission Statement
 
-**Build SARAS as a low-compute, modular, predictive, personality-rich personal intelligence OS that sees the world, understands the user, anticipates outcomes, and feels like a real JARVIS / FRIDAY-class companion.**
+**Build RAVEN as a low-compute, modular, predictive, personality-rich personal intelligence OS that sees the world, understands the user, anticipates outcomes, and feels like a real JARVIS / FRIDAY-class companion.**

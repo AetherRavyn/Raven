@@ -1,16 +1,114 @@
-# Python-generated files
+# ═══════════════════════════════════════════════════════════════════════
+# Raven — .gitignore
+# ═══════════════════════════════════════════════════════════════════════
+
+# ── Python ──────────────────────────────────────────────────────────
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+*.so
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
+*.egg
+*.whl
+pip-wheel-metadata/
+.eggs/
 
-# Virtual environments
-.venv
+# ── Virtual environments ─────────────────────────────────────────────
+.venv/
+venv/
+env/
 
-# Environment variables
+# ── Environment & secrets ───────────────────────────────────────────
 .env
-.helix/
-target/
+.env.*
+!.env.example
+.env.local
+.env.production
+
+# ── IDE / Editor ────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Logs ────────────────────────────────────────────────────────────
 *.log
+logs/
+nohup.out
+
+# ── Databases (runtime data) ────────────────────────────────────────
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ── HelixDB ─────────────────────────────────────────────────────────
+.helix/
+
+# ── Workspace (user data — never committed) ─────────────────────────
+workspace/
+!workspace/SOUL.md.example
+
+# ── Memory (runtime data) ───────────────────────────────────────────
+memory/
+
+# ── Node.js ─────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ── Testing ─────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.tox/
+.nox/
+
+# ── Build artifacts ─────────────────────────────────────────────────
+*.tar.gz
+*.zip
+*.rar
+*.deb
+*.rpm
+*.AppImage
+
+# ── Training data (user-generated) ──────────────────────────────────
+training_data/
+*.jsonl
+
+# ── Runtime state ───────────────────────────────────────────────────
+checkpoints/
+monitoring/*.db
+monitoring/*.db-*
+
+# ── Desktop app build ───────────────────────────────────────────────
+desktop/node_modules/
+desktop/dist/
+desktop/target/
+
+# ── Companion shell ─────────────────────────────────────────────────
+companion-shell/node_modules/
+companion-shell/dist/
+companion-shell/src-tauri/target/
+
+# ── Scripts output ──────────────────────────────────────────────────
+scripts/output/
+
+# ── Root-level scratch/test files ───────────────────────────────────
+test_*.py
+!tests/
+*.md.bak
+*.tmp
+*.bak

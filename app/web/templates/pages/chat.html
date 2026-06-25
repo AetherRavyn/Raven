@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %}CHAT — RAVEN{% endblock %}
+{% block head_extra %}
+<style>
+.fade-in { animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.msg-enter { animation: msgIn 0.25s ease-out; }
+@keyframes msgIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+</style>
+{% endblock %}
+{% block main %}
+<section class="space-y-3 h-full flex flex-col" x-data="chatApp()">
+  <!-- Header -->
+  <div class="flex items-center justify-between shrink-0">
+    <div class="flex items-baseline gap-3">
+      <h1 class="text-zinc-100 text-sm tracking-wider uppercase">Chat</h1>
+      <p class="text-zinc-600 text-[10px]">
+        Voice: <span id="voice-name" class="text-accent-500">…</span>
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-zinc-600 text-[10px]" x-text="messages.length + ' messages'"></span>
+      <button type="button" @click="clearChat()" class="text-[10px] text-zinc-500 hover:text-err-500 border border-ink-600 rounded px-2 py-0.5">Clear</button>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="flex-1 border border-ink-600 bg-ink-800 rounded p-3 flex flex-col min-h-0 overflow-hidden">
+    <div id="chat-log" class="flex-1 space-y-2 overflow-y-auto mb-3 pr-1" x-ref="chatLog">
+      <template x-for="(msg, idx) in messages" :key="msg.id">
+        <div class="msg-enter flex gap-2" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+          <!-- AI avatar -->
+          <div x-show="msg.role === 'assistant'" class="w-6 h-6 rounded bg-accent-500/20 text-accent-500 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">S</div>
+          
+          <div class="max-w-[80%] space-y-1">
+            <!-- Message bubble -->
+            <div class="rounded px-3 py-2 text-[12px] leading-relaxed"
+                 :class="msg.role === 'user' ? 'bg-accent-600/20 text-zinc-200' : 'bg-ink-700 text-zinc-300'">
+              <div class="whitespace-pre-wrap break-words" x-text="msg.content"></div>
+              <div x-show="msg.latency" class="mt-1 text-[9px] text-zinc-600 text-right" x-text="msg.latency"></div>
+            </div>
+
+            <!-- Feedback buttons (only on assistant messages) -->
+            <div x-show="msg.role === 'assistant'" class="flex items-center gap-1 px-1">
+              <button type="button" @click="rateMessage(msg, 1.0)"
+                      class="text-[11px] px-1.5 py-0.5 rounded transition-colors"
+                      :class="msg.feedback === 1.0 ? 'bg-emerald-900/40 text-emerald-400' : 'text-zinc-600 hover:text-zinc-400'"
+                      title="Good response">👍</button>
+              <button type="button" @click="rateMessage(msg, -1.0)"
+                      class="text-[11px] px-1.5 py-0.5 rounded transition-colors"
+                      :class="msg.feedback === -1.0 ? 'bg-rose-900/40 text-rose-400' : 'text-zinc-600 hover:text-zinc-400'"
+                      title="Bad response">👎</button>
+              <button type="button" @click="showCorrectionInput(msg)"
+                      class="text-[10px] px-1.5 py-0.5 rounded text-zinc-600 hover:text-warn-500 transition-colors"
+                      title="Correct this response">✏️</button>
+              <span x-show="msg.feedback_sent" class="text-[9px] text-emerald-600">saved</span>
+            </div>
+
+            <!-- Correction input -->
+            <div x-show="msg.showCorrection" class="flex gap-1" x-cloak>
+              <input type="text" x-model="msg.correctionText"
+                     placeholder="What should have been said…"
+                     class="flex-1 bg-ink-900 border border-ink-600 rounded px-2 py-1 text-[11px] text-zinc-200" />
+              <button type="button" @click="submitCorrection(msg)"
+                      class="text-[10px] px-2 py-1 rounded bg-warn-500/20 text-warn-500 border border-warn-500/30">Send</button>
+            </div>
+          </div>
+
+          <!-- User avatar -->
+          <div x-show="msg.role === 'user'" class="w-6 h-6 rounded bg-zinc-700 text-zinc-400 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">U</div>
+        </div>
+      </template>
+      <div x-show="!messages.length" class="text-zinc-600 text-[11px] text-center py-8">
+        Send a message to start the conversation.
+      </div>
+
+      <!-- Loading indicator -->
+      <div x-show="loading" class="flex items-center gap-2 text-zinc-500 text-[11px] msg-enter">
+        <span class="w-2 h-2 rounded-full bg-accent-500 animate-pulse"></span>
+        Thinking…
+      </div>
+    </div>
+
+    <!-- Input -->
+    <form @submit.prevent="sendMessage()" class="flex gap-2 shrink-0">
+      <input type="text" x-model="inputText" ref="inputField"
+             placeholder="Say something to the assistant…"
+             class="flex-1 bg-ink-900 border border-ink-600 rounded px-2 py-1.5 text-[12px] focus:outline-none focus:border-accent-500 text-zinc-200" />
+      <button type="submit" :disabled="!inputText.trim() || loading"
+              class="bg-accent-500 text-ink-900 px-3 py-1 rounded text-[12px] font-semibold disabled:opacity-50 transition-opacity">
+        Send
+      </button>
+      <button type="button" id="mic-button" title="Hold to talk (v33)"
+              class="bg-ink-700 border border-ink-600 hover:bg-ink-600 text-zinc-100 px-3 py-1 rounded text-[12px]">
+        🎙
+      </button>
+    </form>
+  </div>
+</section>
+<script>
+function chatApp() {
+  return {
+    messages: [],
+    inputText: '',
+    loading: false,
+    sessionId: null,
+
+    init() {
+      this.loadSession();
+      this.$refs.inputField?.focus();
+    },
+
+    loadSession() {
+      const stored = sessionStorage.getItem('raven_chat_session');
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          this.messages = data.messages || [];
+          this.sessionId = data.sessionId || null;
+        } catch (e) { /* ignore */ }
+      }
+    },
+
+    saveSession() {
+      try {
+        sessionStorage.setItem('raven_chat_session', JSON.stringify({
+          messages: this.messages.slice(-100),
+          sessionId: this.sessionId,
+        }));
+      } catch (e) { /* ignore */ }
+    },
+
+    async sendMessage() {
+      const text = this.inputText.trim();
+      if (!text || this.loading) return;
+
+      this.messages.push({
+        id: 'user_' + Date.now(),
+        role: 'user',
+        content: text,
+      });
+      this.inputText = '';
+      this.loading = true;
+      this.saveSession();
+
+      // Auto-scroll
+      this.$nextTick(() => this.scrollToBottom());
+
+      try {
+        const r = await fetch('/api/chat/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'text=' + encodeURIComponent(text),
+        });
+        const j = await r.json();
+
+        if (j.ok) {
+          const msgId = 'ai_' + Date.now();
+          this.messages.push({
+            id: msgId,
+            role: 'assistant',
+            content: j.response || j.text || '(no response)',
+            latency: j.latency_ms ? (j.latency_ms / 1000).toFixed(1) + 's' : '',
+            feedback: 0,
+            feedback_sent: false,
+            showCorrection: false,
+            correctionText: '',
+            apiId: j.interaction_id || msgId,
+          });
+          this.sessionId = j.session_id || this.sessionId;
+          this.saveSession();
+        } else {
+          this.messages.push({
+            id: 'err_' + Date.now(),
+            role: 'assistant',
+            content: 'Error: ' + (j.error || 'unknown'),
+            feedback: 0,
+            feedback_sent: false,
+            showCorrection: false,
+            correctionText: '',
+          });
+        }
+      } catch (e) {
+        this.messages.push({
+          id: 'err_' + Date.now(),
+          role: 'assistant',
+          content: 'Network error: ' + e.message,
+          feedback: 0,
+          feedback_sent: false,
+          showCorrection: false,
+          correctionText: '',
+        });
+      } finally {
+        this.loading = false;
+        this.$nextTick(() => this.scrollToBottom());
+      }
+    },
+
+    async rateMessage(msg, rating) {
+      if (msg.feedback_sent) return;
+      msg.feedback = rating;
+      msg.feedback_sent = true;
+
+      try {
+        await fetch('/api/feedback?' + new URLSearchParams({
+          user_id: 'default',
+          item_type: 'response',
+          item_id: msg.apiId || msg.id,
+          reward: rating,
+          reason: rating > 0 ? 'thumbs_up' : 'thumbs_down',
+        }), { method: 'POST' });
+      } catch (e) {
+        msg.feedback_sent = false;
+      }
+      this.saveSession();
+    },
+
+    showCorrectionInput(msg) {
+      msg.showCorrection = !msg.showCorrection;
+      if (!msg.showCorrection) msg.correctionText = '';
+    },
+
+    async submitCorrection(msg) {
+      const text = msg.correctionText?.trim();
+      if (!text) return;
+
+      try {
+        await fetch('/api/feedback?' + new URLSearchParams({
+          user_id: 'default',
+          item_type: 'correction',
+          item_id: msg.apiId || msg.id,
+          reward: -0.5,
+          reason: text,
+        }), { method: 'POST' });
+        msg.showCorrection = false;
+        msg.correctionText = '';
+        msg.feedback_sent = true;
+
+        // Show acknowledgment
+        this.messages.push({
+          id: 'note_' + Date.now(),
+          role: 'assistant',
+          content: '✓ Correction noted — I\'ll learn from this.',
+          feedback: 0,
+          feedback_sent: true,
+          showCorrection: false,
+          correctionText: '',
+        });
+        this.$nextTick(() => this.scrollToBottom());
+      } catch (e) {
+        /* ignore */
+      }
+      this.saveSession();
+    },
+
+    clearChat() {
+      this.messages = [];
+      this.sessionId = null;
+      sessionStorage.removeItem('raven_chat_session');
+    },
+
+    scrollToBottom() {
+      const el = this.$refs.chatLog;
+      if (el) el.scrollTop = el.scrollHeight;
+    },
+  };
+}
+</script>
+<script src="/static/voice.js" defer></script>
+{% endblock %}

@@ -79,8 +79,14 @@ from app.core.proactive_core.follow_up import (
     InMemoryCommitmentStore,
 )
 from app.core.proactive_core.persistence import (
+    SQLiteRateLimitStore,
+)
+from app.core.proactive_core.silence import (
+    AnnoyanceTracker,
     InMemoryRateLimitStore,
     RateLimitStore,
+    SilenceConfig,
+    SilenceEngine,
 )
 from app.core.proactive_core.quiet_hours import (
     CalendarProvider,
@@ -156,6 +162,7 @@ __all__ = [
     "RateLimitStore",
     "SignalKind",
     "SilenceConfig",
+    "SQLiteRateLimitStore",
     "SilenceEngine",
     "TaskSummary",
     "Urgency",

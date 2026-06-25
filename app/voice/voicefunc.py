@@ -1,4 +1,3 @@
-import asyncio
 from pathlib import Path
 import json
 import wave
@@ -42,10 +41,10 @@ class Voice_GEN:
             if recognizer.AcceptWaveform(data):
                 result=json.loads(recognizer.Result())
                 print(result)
-        
+
         final_result=json.loads(recognizer.FinalResult())
-        return final_result 
-        
-            
-        
-        
+        return final_result
+
+
+
+

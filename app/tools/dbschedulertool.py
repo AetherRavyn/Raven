@@ -1,28 +1,27 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from app.tools.base import BaseTool, ToolParameter, ToolSchema
 
 
 class DatabaseQueryTool(BaseTool):
-    """Execute read-only SQL queries on PostgreSQL or Supabase.
+    """Execute read-only SQL queries on the local SQLite database.
     Returns results as JSON. Use with caution - intended for data exploration."""
 
     def __init__(self, **cfg: Any):
-        self._connection_string = cfg.get("connection_string") or os.environ.get(
-            "DATABASE_URL"
-        )
+        from app.settings.config import Config
+
+        self._db_path = cfg.get("db_path") or Config.GRAPH_DB_PATH
 
     def get_name(self) -> str:
         return "db_query"
 
     def get_description(self) -> str:
         return (
-            "Execute read-only SQL queries on PostgreSQL/Supabase. "
+            "Execute read-only SQL queries on the local SQLite database. "
             "Only SELECT queries are allowed for safety. "
             "Returns results as JSON array. Use for data exploration."
         )
@@ -70,17 +69,19 @@ class DatabaseQueryTool(BaseTool):
             return self._error(f"Query failed: {e}")
 
     async def _execute_query(self, query: str) -> Dict[str, Any]:
-        import asyncpg
+        import sqlite3
 
-        if not self._connection_string:
-            return self._error("DATABASE_URL not configured")
+        db_path = Path(self._db_path)
+        if not db_path.exists():
+            return self._error(f"Database not found: {db_path}")
 
         try:
-            conn = await asyncpg.connect(self._connection_string)
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
             try:
-                rows = await conn.fetch(query)
-                # Convert to dicts
-                results = [dict(r) for r in rows]
+                cursor = conn.execute(query)
+                rows = cursor.fetchall()
+                results = [dict(row) for row in rows]
                 return {
                     "success": True,
                     "query": query,
@@ -88,9 +89,7 @@ class DatabaseQueryTool(BaseTool):
                     "results": results,
                 }
             finally:
-                await conn.close()
-        except ImportError:
-            return self._error("asyncpg not installed")
+                conn.close()
         except Exception as e:
             return self._error(f"Database error: {e}")
 

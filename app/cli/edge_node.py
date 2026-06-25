@@ -91,9 +91,11 @@ def run_edge_node(name, server, capabilities, location, sensors):
                         f"Received task {task_id}. Executing payload:\n{payload}"
                     )
 
-                    # Execute payload
+                    # Execute payload (isolated system — no shell=True)
+                    import shlex
+                    cmd_parts = shlex.split(payload)
                     process = subprocess.run(
-                        payload, shell=True, capture_output=True, text=True
+                        cmd_parts, capture_output=True, text=True, timeout=60
                     )
 
                     success = process.returncode == 0

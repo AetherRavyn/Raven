@@ -1,0 +1,35 @@
+schema_version: "1.0"
+module_id: skill.security_audit
+display_name: Security Audit
+name: Security Audit
+version: 1.0.0
+category: skill
+description: >
+  Comprehensive security audit for codebases, infrastructure, and networks.
+  Scans for vulnerabilities, checks dependencies, reviews configurations.
+tags: [security, audit, vulnerabilities, scanning, hardening]
+capabilities: [vulnerability-scan, dependency-check, config-review, threat-analysis]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+maturity: production
+origin: bundled
+
+triggers:
+  - pattern: "security.*audit"
+    confidence: 0.95
+  - pattern: "check.*vulnerabilit"
+    confidence: 0.85
+  - pattern: "scan.*security"
+    confidence: 0.85
+
+dependencies:
+  - name: virustotal_scanner
+    status: available
+    required: false
+  - name: file_operations
+    status: available
+    required: true
+  - name: exec_tool
+    status: available
+    required: false

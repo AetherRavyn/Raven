@@ -20,7 +20,7 @@ class RedditTool(BaseTool):
         self._client_secret = cfg.get("client_secret") or os.environ.get(
             "REDDIT_CLIENT_SECRET"
         )
-        self._user_agent = cfg.get("user_agent", "SARAS/1.0")
+        self._user_agent = cfg.get("user_agent", "RAVEN/1.0")
         self._username = cfg.get("username") or os.environ.get("REDDIT_USERNAME")
         self._password = cfg.get("password") or os.environ.get("REDDIT_PASSWORD")
         self.MAX_RESULTS = min(int(cfg.get("max_results", 10)), 25)

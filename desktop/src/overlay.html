@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AetherRavyn HUD</title>
+  <link rel="stylesheet" href="styles/overlay.css" />
+</head>
+<body>
+<div class="hud">
+  <div class="hud-header">
+    <span class="hud-logo">🦅</span>
+    <span class="hud-title">AetherRavyn</span>
+    <span class="hud-status" id="hud-status">●</span>
+  </div>
+
+  <div class="hud-section">
+    <div class="hud-section-title">📋 Active Goal</div>
+    <div class="hud-goal" id="hud-goal">
+      <div class="hud-goal-title">No active goals</div>
+      <div class="hud-progress-bar"><div class="hud-progress-fill" id="hud-progress" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="hud-section">
+    <div class="hud-section-title">🧠 Working Memory</div>
+    <ul class="hud-memory-list" id="hud-memory">
+      <li class="hud-memory-item">Waiting for context...</li>
+    </ul>
+  </div>
+
+  <div class="hud-section">
+    <div class="hud-section-title">💬 Last Response</div>
+    <div class="hud-last-response" id="hud-response">
+      Ready to assist.
+    </div>
+  </div>
+
+  <div class="hud-footer">
+    <span id="hud-cpu">CPU --</span>
+    <span class="hud-divider">·</span>
+    <span id="hud-ram">RAM --</span>
+    <span class="hud-divider">·</span>
+    <span id="hud-tools">-- tools</span>
+  </div>
+</div>
+
+<script src="js/overlay.js"></script>
+</body>
+</html>

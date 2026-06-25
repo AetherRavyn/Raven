@@ -1,0 +1,36 @@
+schema_version: "1.0"
+module_id: skill.incident_response
+display_name: Incident Response
+name: Incident Response
+version: 1.0.0
+category: skill
+description: >
+  Real-time incident handling — diagnose, contain, fix, and post-mortem.
+  Coordinates SecurityAgent and SysadminAgent for rapid resolution.
+tags: [incident, response, security, monitoring, alert, emergency]
+capabilities: [diagnosis, containment, remediation, post-mortem]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+maturity: production
+origin: bundled
+
+triggers:
+  - pattern: "incident"
+    confidence: 0.85
+  - pattern: "system.*down"
+    confidence: 0.90
+  - pattern: "(?:server|service|app).*(?:crashed|failing|unresponsive)"
+    confidence: 0.85
+  - context: "monitoring alert received"
+
+dependencies:
+  - name: system_stats
+    status: available
+    required: true
+  - name: docker_ops
+    status: available
+    required: false
+  - name: network_tool
+    status: available
+    required: false

@@ -1,4 +1,4 @@
-"""OpenTelemetry tracing setup for SARAS (A5).
+"""OpenTelemetry tracing setup for RAVEN (A5).
 
 This module provides a single :func:`init_tracing` entry point that
 wires up an OTel tracer provider, a resource describing the
@@ -16,11 +16,11 @@ Design notes
 - **Idempotent**: calling :func:`init_tracing` twice is safe; the
   second call returns the existing provider.
 - **Env-driven**: every deployment knob has a sensible default and
-  can be overridden via ``SARAS_OTEL_*`` env vars.  No code change
+  can be overridden via ``RAVEN_OTEL_*`` env vars.  No code change
   is needed to point at a different collector.
 - **Auto-instrumentation**: ``init_tracing`` can install httpx
   instrumentation so every outbound HTTP call becomes a span.
-  Disable with ``SARAS_OTEL_INSTRUMENT_HTTPX=false``.
+  Disable with ``RAVEN_OTEL_INSTRUMENT_HTTPX=false``.
 
 The module also exports a tiny :func:`traced` decorator and a
 context-manager :func:`span` helper for ad-hoc instrumentation.
@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 class TracingConfig:
     """Resolved tracing configuration."""
 
-    service_name: str = "saras"
+    service_name: str = "raven"
     service_version: str = "0.1.0"
     deployment_env: str = "dev"
     # OTLP/HTTP endpoint.  Empty string disables export.
@@ -58,7 +58,7 @@ class TracingConfig:
     # in dev); ``0.0`` = trace nothing.
     sample_ratio: float = 1.0
     # Whether to install httpx auto-instrumentation.  Safe on
-    # by default because SARAS uses httpx internally; turn off
+    # by default because RAVEN uses httpx internally; turn off
     # if a particular deployment's httpx usage is sensitive.
     instrument_httpx: bool = True
     # In-memory exporter (tests only).  When True the OTLP
@@ -68,13 +68,13 @@ class TracingConfig:
     @classmethod
     def from_env(cls) -> "TracingConfig":
         return cls(
-            service_name=os.environ.get("SARAS_OTEL_SERVICE_NAME", "saras"),
-            service_version=os.environ.get("SARAS_OTEL_VERSION", "0.1.0"),
-            deployment_env=os.environ.get("SARAS_OTEL_ENV", "dev"),
-            otlp_endpoint=os.environ.get("SARAS_OTEL_EXPORTER_OTLP_ENDPOINT", ""),
-            sample_ratio=_env_float("SARAS_OTEL_SAMPLE_RATIO", 1.0),
-            instrument_httpx=_env_bool("SARAS_OTEL_INSTRUMENT_HTTPX", True),
-            in_memory=_env_bool("SARAS_OTEL_IN_MEMORY", False),
+            service_name=os.environ.get("RAVEN_OTEL_SERVICE_NAME", "raven"),
+            service_version=os.environ.get("RAVEN_OTEL_VERSION", "0.1.0"),
+            deployment_env=os.environ.get("RAVEN_OTEL_ENV", "dev"),
+            otlp_endpoint=os.environ.get("RAVEN_OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+            sample_ratio=_env_float("RAVEN_OTEL_SAMPLE_RATIO", 1.0),
+            instrument_httpx=_env_bool("RAVEN_OTEL_INSTRUMENT_HTTPX", True),
+            in_memory=_env_bool("RAVEN_OTEL_IN_MEMORY", False),
         )
 
 
@@ -262,7 +262,7 @@ def span(
     the span as an ``exception`` event (OTel convention) and
     re-raised so the caller can handle them.
     """
-    tracer = get_tracer("saras.span")
+    tracer = get_tracer("raven.span")
     cm = tracer.start_as_current_span(name, attributes=attributes or {})
     span_obj: Any = None
     try:

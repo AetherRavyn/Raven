@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}LOGS — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">LOGS</h1>
+  <p class="text-zinc-500 text-[11px]">Audit timeline + event stream (read-only · v31)</p>
+  <div class="border border-ink-600 bg-ink-800 rounded">
+    <div class="px-3 py-2 border-b border-ink-600 text-[11px] text-zinc-500">
+      last {{ events|length }} event(s) from <code>/api/sentinel/events</code>
+    </div>
+    <pre id="event-log" class="p-3 text-[11px] text-zinc-300 max-h-[60vh] overflow-y-auto whitespace-pre-wrap">{% for ev in events %}{{ ev | tojson(indent=2) }}
+{% endfor %}{% if not events %}[no events]{% endif %}</pre>
+  </div>
+</section>
+{% endblock %}

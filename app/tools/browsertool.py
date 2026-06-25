@@ -1,7 +1,7 @@
 # app/tools/browsertool.py
 """Full Browser Automation Tool — Playwright-based.
 
-Enables SARAS to interact with web applications like a real user:
+Enables RAVEN to interact with web applications like a real user:
   - Navigate to URLs
   - Click elements by text, selector, or coordinates
   - Fill forms by label or selector  
@@ -364,20 +364,44 @@ class BrowserOperationTool(BaseTool):
             except Exception as e:
                 return {"success": False, "error": str(e)[:500]}
 
+    _STORAGE_DIR = "workspace/browser_state"
+
     async def _launch(self, headless: bool = True) -> Dict[str, Any]:
         if self._browser:
             return {"success": True, "status": "already_running"}
         self._pw = await async_playwright().start()
-        self._browser = await self._pw.chromium.launch(headless=headless)
-        self._context = await self._browser.new_context(
-            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
-            viewport={"width": 1920, "height": 1080},
-        )
-        self._page = await self._context.new_page()
+
+        # Load persistent storage (cookies, localStorage) if available
+        storage_path = os.path.join(self._STORAGE_DIR, "storage_state.json")
+        if os.path.exists(storage_path):
+            self._context = await self._pw.chromium.launch_persistent_context(
+                storage_path.replace("storage_state.json", "user_data"),
+                headless=headless,
+                user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
+                viewport={"width": 1920, "height": 1080},
+            )
+            self._page = self._context.pages[0] if self._context.pages else await self._context.new_page()
+        else:
+            self._browser = await self._pw.chromium.launch(headless=headless)
+            self._context = await self._browser.new_context(
+                user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
+                viewport={"width": 1920, "height": 1080},
+            )
+            self._page = await self._context.new_page()
         self._page.set_default_timeout(15000)
-        return {"success": True, "status": "launched", "headless": headless}
+        return {"success": True, "status": "launched", "headless": headless, "persistent": os.path.exists(storage_path)}
 
     async def _close(self) -> Dict[str, Any]:
+        # Save session state before closing
+        if self._context:
+            try:
+                os.makedirs(self._STORAGE_DIR, exist_ok=True)
+                storage_path = os.path.join(self._STORAGE_DIR, "storage_state.json")
+                state = await self._context.storage_state()
+                with open(storage_path, "w") as f:
+                    json.dump(state, f)
+            except Exception:
+                pass
         if self._browser:
             await self._browser.close()
         if self._pw:

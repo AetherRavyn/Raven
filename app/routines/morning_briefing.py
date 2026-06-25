@@ -149,8 +149,8 @@ System Context:
             result = await resilient(
                 messages=messages,
                 preferred_models=[
-                    "google/gemini-2.5-flash:free",
-                    "qwen/qwen3-coder:free",
+                    "big-pickle",
+                    "deepseek-v4-flash-free",
                 ],
                 free_only_guard=True,
             )
@@ -245,7 +245,7 @@ def register_morning_briefing(
     :mod:`app.core.scheduling`), the routine is registered via
     the new :class:`CronTrigger` and routed through the
     scheduler's fire callback.  When it's the legacy
-    :class:`SarasScheduler`, falls back to the previous
+    :class:`RavenScheduler`, falls back to the previous
     APScheduler-based registration.
     """
     from app.core.scheduling import (

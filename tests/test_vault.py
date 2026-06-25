@@ -94,7 +94,18 @@ class TestBasic:
 
 
 class TestEncryption:
-    def test_no_plaintext_on_disk(self, tmp_path: Path) -> None:
+    def test_no_plaintext_on_disk(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The vault's key resolution consults the OS keyring before
+        # honouring the explicit ``key_file`` arg.  When the test
+        # host already has a stored key (e.g. a prior run), the
+        # ``key_file`` we pass is silently ignored and the new key
+        # never gets written.  Force the keyring path to be a
+        # no-op so the test's ``key_file`` is authoritative.
+        monkeypatch.setattr(
+            "keyring.get_password", lambda service, account: None
+        )
         vault = SecretVault(
             vault_file=tmp_path / "v.json",
             key_file=tmp_path / "k.key",
@@ -244,9 +255,15 @@ class TestRotation:
         assert meta is not None
         assert meta["rotation_count"] == 1
 
-    def test_rotate_creates_new_key_file(self, tmp_path: Path) -> None:
+    def test_rotate_creates_new_key_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         # NOT ephemeral: we want the rotated key persisted so a second
-        # vault can read it back.
+        # vault can read it back.  Disable the keyring so the
+        # ``key_file`` we pass is the authoritative source.
+        monkeypatch.setattr(
+            "keyring.get_password", lambda service, account: None
+        )
         v = SecretVault(
             vault_file=tmp_path / "v.json",
             key_file=tmp_path / "k.key",
@@ -258,7 +275,14 @@ class TestRotation:
         new_key = (tmp_path / "k.key").read_text()
         assert old_key != new_key
 
-    def test_rotate_persists_to_disk(self, tmp_path: Path) -> None:
+    def test_rotate_persists_to_disk(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Disable the keyring so the test's explicit ``key_file`` is
+        # authoritative across both vault instances.
+        monkeypatch.setattr(
+            "keyring.get_password", lambda service, account: None
+        )
         v1 = SecretVault(
             vault_file=tmp_path / "v.json",
             key_file=tmp_path / "k.key",
@@ -323,4 +347,4 @@ class TestResolveSecret:
 def test_default_paths_exist() -> None:
     assert str(DEFAULT_VAULT_FILE).endswith("vault.json")
     assert str(DEFAULT_KEY_FILE).endswith("vault.key")
-    assert ENV_KEY_VAR == "SARAS_VAULT_KEY"
+    assert ENV_KEY_VAR == "RAVEN_VAULT_KEY"

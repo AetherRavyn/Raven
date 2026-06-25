@@ -220,3 +220,106 @@ class ToolCircuitBreaker:
             "threshold": self._failure_threshold,
             "cooldown_seconds": self._cooldown_seconds,
         }
+
+
+# ── Self-Correction ──────────────────────────────────────────────
+
+
+class SelfCorrector:
+    """FRIDAY-style self-correction: when a tool fails, try alternative strategies.
+
+    Each strategy is a callable that modifies the tool call parameters.
+    The corrector tries strategies in order until one succeeds.
+    """
+
+    def __init__(self) -> None:
+        self._strategies: list[tuple[str, Callable]] = []
+
+    def add_strategy(self, name: str, modifier: Callable) -> None:
+        """Register a correction strategy.
+
+        The modifier takes (tool_name, kwargs, error) and returns
+        modified kwargs. Return None to skip this strategy.
+        """
+        self._strategies.append((name, modifier))
+
+    async def correct(
+        self,
+        tool_fn: Callable,
+        tool_name: str,
+        kwargs: Dict[str, Any],
+        error: Exception,
+    ) -> Any | None:
+        """Try each strategy until one succeeds.
+
+        Returns the successful result, or None if all strategies fail.
+        """
+        for strategy_name, modifier in self._strategies:
+            try:
+                modified = modifier(tool_name, kwargs, error)
+                if modified is None:
+                    continue
+                logger.info("Self-correction: trying strategy '%s' for %s", strategy_name, tool_name)
+                result = await tool_fn(**modified)
+                if result and isinstance(result, dict) and result.get("success"):
+                    logger.info("Self-correction succeeded with strategy '%s'", strategy_name)
+                    return result
+            except Exception:
+                continue
+        return None
+
+
+# Default self-correction strategies
+def _relax_parameters(tool_name: str, kwargs: Dict[str, Any], error: Exception) -> Dict[str, Any] | None:
+    """If tool failed due to strict params, try relaxing them."""
+    error_str = str(error).lower()
+    if "invalid" in error_str or "required" in error_str or "missing" in error_str:
+        # Remove optional parameters that might be causing issues
+        relaxed = {k: v for k, v in kwargs.items() if v is not None}
+        return relaxed if relaxed != kwargs else None
+    return None
+
+
+def _simplify_query(tool_name: str, kwargs: Dict[str, Any], error: Exception) -> Dict[str, Any] | None:
+    """If search/query failed, try a simpler query."""
+    error_str = str(error).lower()
+    if "no results" in error_str or "empty" in error_str or "not found" in error_str:
+        query = kwargs.get("query", "")
+        if query and len(query.split()) > 3:
+            # Take first 3 words
+            return {**kwargs, "query": " ".join(query.split()[:3])}
+    return None
+
+
+def _add_timeout(tool_name: str, kwargs: Dict[str, Any], error: Exception) -> Dict[str, Any] | None:
+    """If tool timed out, try with a shorter timeout or limit."""
+    error_str = str(error).lower()
+    if "timeout" in error_str or "timed out" in error_str:
+        # Reduce any 'limit' or 'max' parameters
+        modified = dict(kwargs)
+        for key in ("limit", "max_results", "top_k", "max_chars"):
+            if key in modified and isinstance(modified[key], (int, float)):
+                modified[key] = max(1, int(modified[key] * 0.5))
+        return modified if modified != kwargs else None
+    return None
+
+
+def _switch_provider(tool_name: str, kwargs: Dict[str, Any], error: Exception) -> Dict[str, Any] | None:
+    """If LLM provider failed, suggest switching (can't auto-switch but logs the suggestion)."""
+    error_str = str(error).lower()
+    if "rate" in error_str or "429" in error_str or "overloaded" in error_str:
+        logger.warning("Provider rate-limited — consider switching to another provider")
+    return None
+
+
+# Default corrector instance
+_default_corrector = SelfCorrector()
+_default_corrector.add_strategy("relax_params", _relax_parameters)
+_default_corrector.add_strategy("simplify_query", _simplify_query)
+_default_corrector.add_strategy("add_timeout", _add_timeout)
+_default_corrector.add_strategy("switch_provider", _switch_provider)
+
+
+def get_self_corrector() -> SelfCorrector:
+    """Return the default self-corrector instance."""
+    return _default_corrector

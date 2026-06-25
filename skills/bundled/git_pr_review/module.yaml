@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.git_pr_review
+display_name: Git PR Review
+version: "1.0.0"
+category: skill
+description: "Review pull requests: analyze diff, check for issues, suggest improvements."
+tags: [git, github, code-review, pull-request, development]
+capabilities: [git_tool, file_tool, exec_tool, web_search]
+trust_level: system
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.92
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "review.*pr|review.*pull request|check.*diff"
+    confidence: 0.88

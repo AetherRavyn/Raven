@@ -25,7 +25,7 @@ read -p "Press Enter after dependencies are installed..."
 echo ""
 echo "STEP 2: Create Python Virtual Environment"
 echo "=========================================="
-cd /home/saras/monitoring
+cd /home/raven/monitoring
 python3 -m venv venv
 source venv/bin/activate
 echo "✅ Virtual environment created and activated"
@@ -54,26 +54,26 @@ echo "STEP 4: Setup PostgreSQL"
 echo "=========================================="
 echo "Create database user and database:"
 echo ""
-echo "  sudo -u postgres postgres -c \"CREATE USER saras WITH PASSWORD 'YOUR_SECURE_PASSWORD'\""
-echo "  sudo -u postgres psql -c \"CREATE DATABASE saras OWNER saras\""
+echo "  sudo -u postgres postgres -c \"CREATE USER raven WITH PASSWORD 'YOUR_SECURE_PASSWORD'\""
+echo "  sudo -u postgres psql -c \"CREATE DATABASE raven OWNER raven\""
 echo ""
 read -p "Press Enter after PostgreSQL is configured..."
 
 echo ""
 echo "STEP 5: Create System Directories"
 echo "=========================================="
-sudo mkdir -p /var/lib/saras/anomalies
-sudo mkdir -p /var/log/saras
-sudo chown -R saras:saras /var/lib/saras
-sudo chown -R saras:saras /var/log/saras
-sudo chmod 755 /var/lib/saras/anomalies
-sudo chmod 755 /var/log/saras
+sudo mkdir -p /var/lib/raven/anomalies
+sudo mkdir -p /var/log/raven
+sudo chown -R raven:raven /var/lib/raven
+sudo chown -R raven:raven /var/log/raven
+sudo chmod 755 /var/lib/raven/anomalies
+sudo chmod 755 /var/log/raven
 echo "✅ Directories created"
 echo ""
 
 echo "STEP 6: Install Systemd Service"
 echo "=========================================="
-sudo cp /home/saras/monitoring/anomaly-handler.service /etc/systemd/system/
+sudo cp /home/raven/monitoring/anomaly-handler.service /etc/systemd/system/
 echo "✅ Service file installed to /etc/systemd/system/anomaly-handler.service"
 echo ""
 echo "IMPORTANT: Edit the service file to configure environment variables:"
@@ -152,7 +152,7 @@ echo "2. Test MQTT connection:"
 echo "   mosquitto_sub -h localhost -t 'frigate/events' | head"
 echo ""
 echo "3. Check database:"
-echo "   psql -h localhost -U saras -d saras"
+echo "   psql -h localhost -U raven -d raven"
 echo "   SELECT * FROM anomalies LIMIT 5;"
 echo ""
 echo "4. Configure alerts:"

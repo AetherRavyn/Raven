@@ -215,7 +215,7 @@ class ClipStorage:
 
 
 class StorageService:
-    """Microservice wrapper for ClipStorage using Redis MessageBus."""
+    """Microservice wrapper for ClipStorage using MessageBus."""
 
     def __init__(self, bus, config: Dict = None):
         self.bus = bus
@@ -258,7 +258,7 @@ class StorageService:
                 # Save image to disk if we have a frame
                 image_path = None
                 if frame is not None:
-                    # e.g., /var/lib/saras/clips/event_{event_id}.jpg
+                    # e.g., /var/lib/raven/clips/event_{event_id}.jpg
                     image_filename = f"event_{event_id}.jpg"
                     image_file_path = self.storage_manager.output_dir / image_filename
                     image.save(image_file_path, format="JPEG", quality=85)

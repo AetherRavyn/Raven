@@ -1,8 +1,8 @@
 database:
   sqlite:
-    db_path: "sqlite:///saras.db"
+    db_path: "sqlite:///raven.db"
 
   neo4j:
     uri: "neo4j+s://a15d32b4.databases.neo4j.io"
     user: "a15d32b4"
-    password: "Q2wKBLvZBkGhwXWx_ZCbSxGcq16-bovvWVDdzT-HDRM"
+    password: "" # Set via environment variable NEO4J_PASSWORD

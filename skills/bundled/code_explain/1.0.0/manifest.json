@@ -1,0 +1,33 @@
+{
+  "author": "RAVEN team",
+  "description": "Read and explain code files, functions, or entire repositories with clear annotations.",
+  "eval_records": [],
+  "inputs": [
+    {
+      "default": null,
+      "description": "",
+      "name": "query",
+      "required": false,
+      "type": "string"
+    }
+  ],
+  "name": "code_explain",
+  "outputs": [],
+  "permissions": [
+    "filesystem.read",
+    "process.spawn"
+  ],
+  "promotion_threshold": 20,
+  "risk_level": "low",
+  "schema_version": "1.0",
+  "source": "bundled",
+  "tags": [
+    "code",
+    "explain",
+    "documentation",
+    "analysis",
+    "development"
+  ],
+  "trust": "workspace",
+  "version": "1.0.0"
+}
