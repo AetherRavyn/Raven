@@ -1,4 +1,3 @@
-# app/mcp/manager.py
 """MCP dynamic tool discovery — load tools from configured MCP servers.
 
 MCPManager connects to one or more MCP servers via stdio transport,
@@ -6,16 +5,12 @@ lists their tools, and wraps each one in a MCPToolAdapter (BaseTool)
 so they can be registered with AgentRuntime.register_tool().
 
 Usage:
-    manager = MCPManager(servers_config=[
-        {
-            "name": "filesystem",
-            "command": "npx",
-            "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"],
-        }
-    ])
-    await manager.connect_all()
-    for tool in manager.get_mcp_tools_as_base_tools():
+    manager = MCPManager()
+    await manager.connect("filesystem", "npx", ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"])
+    for tool in manager.get_tools():
         runtime.register_tool(tool)
+    ...
+    await manager.disconnect("filesystem")
 """
 
 from __future__ import annotations
@@ -38,16 +33,16 @@ class MCPToolAdapter(BaseTool):
 
     def __init__(
         self,
-        session: Any,  # mcp.ClientSession
-        tool: Any,  # mcp tool descriptor (has .name, .description, .inputSchema)
+        session: Any,
+        tool: Any,
+        server_name: str = "",
     ) -> None:
         self._session = session
         self._tool = tool
+        self._server_name = server_name
         self._name = tool.name
         self._description = tool.description or ""
         self._schema = self._build_schema(tool)
-
-    # ── BaseTool interface ──────────────────────────────────────────────────
 
     def get_name(self) -> str:
         return self._name
@@ -59,11 +54,9 @@ class MCPToolAdapter(BaseTool):
         return self._schema
 
     async def execute(self, **kwargs: Any) -> Dict[str, Any]:
-        # Strip the injected _request kwarg (not meaningful for MCP calls)
         kwargs.pop("_request", None)
         try:
             result = await self._session.call_tool(self._name, arguments=kwargs)
-            # MCP result is a list of content blocks; concatenate text parts
             text_parts = []
             for block in result.content or []:
                 if hasattr(block, "text"):
@@ -75,21 +68,15 @@ class MCPToolAdapter(BaseTool):
             logger.error("MCPToolAdapter.execute %s error: %s", self._name, exc)
             return {"success": False, "error": str(exc)}
 
-    # ── Helpers ─────────────────────────────────────────────────────────────
-
     @staticmethod
     def _build_schema(tool: Any) -> ToolSchema:
         params: list[ToolParameter] = []
         input_schema: dict = {}
-
-        # inputSchema may be a dict or a Pydantic model
         if hasattr(tool, "inputSchema") and tool.inputSchema:
             raw = tool.inputSchema
             input_schema = raw if isinstance(raw, dict) else raw.model_dump()
-
         properties = input_schema.get("properties") or {}
         required_names = set(input_schema.get("required") or [])
-
         for prop_name, prop_def in properties.items():
             params.append(
                 ToolParameter(
@@ -100,7 +87,6 @@ class MCPToolAdapter(BaseTool):
                     enum=prop_def.get("enum") or [],
                 )
             )
-
         return ToolSchema(
             name=tool.name,
             description=tool.description or "",
@@ -114,89 +100,149 @@ class MCPToolAdapter(BaseTool):
 class MCPManager:
     """Connects to multiple MCP servers and exposes their tools as BaseTools.
 
-    Args:
-        servers_config: list of dicts with keys:
-            - ``name``    (str)  human label
-            - ``command`` (str)  executable, e.g. "npx" or "python"
-            - ``args``    (list) arguments to the command
-            - ``env``     (dict, optional) extra environment variables
+    Manages the full lifecycle: connect → get_tools → disconnect.
+    Each connection runs in an asyncio task that keeps the subprocess alive.
     """
 
-    def __init__(self, servers_config: list[dict]) -> None:
-        self._servers = servers_config
-        # name → (session, list[tool])
-        self._connected: dict[str, tuple[Any, list[Any]]] = {}
-        self._lock = asyncio.Lock()
+    def __init__(self) -> None:
+        # server_name → connection state
+        self._connections: dict[str, dict[str, Any]] = {}
 
-    async def connect_all(self) -> None:
-        """Connect to all configured servers concurrently."""
-        tasks = [self._connect_server(cfg) for cfg in self._servers]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        for cfg, result in zip(self._servers, results):
-            if isinstance(result, Exception):
-                logger.error(
-                    "MCPManager: failed to connect to server '%s': %s",
-                    cfg.get("name", "?"),
-                    result,
-                )
+    async def connect(
+        self,
+        name: str,
+        command: str,
+        args: list[str] | None = None,
+        env: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """Connect to an MCP server and discover its tools.
 
-    async def _connect_server(self, config: dict) -> None:
-        """Connect to a single MCP server and register its tools."""
+        Args:
+            name: Human label for this server.
+            command: Executable (e.g. ``npx``, ``python``, ``uvx``).
+            args: CLI arguments.
+            env: Extra environment variables.
+
+        Returns:
+            dict with ``success``, ``name``, ``tool_count``, and list of ``tools``.
+        """
+        if name in self._connections:
+            return {"success": False, "error": f"Server '{name}' is already connected"}
+
         try:
-            from mcp import ClientSession, StdioServerParameters  # noqa: PLC0415
-            from mcp.client.stdio import stdio_client  # noqa: PLC0415
+            from mcp import ClientSession, StdioServerParameters
+            from mcp.client.stdio import stdio_client
         except ImportError as exc:
-            logger.warning(
-                "mcp package not installed — MCPManager unavailable: %s", exc
-            )
-            return
+            return {"success": False, "error": f"mcp package not installed: {exc}"}
 
-        name = config.get("name", config.get("command", "unknown"))
         params = StdioServerParameters(
-            command=config["command"],
-            args=config.get("args", []),
-            env=config.get("env"),
+            command=command,
+            args=args or [],
+            env=env,
         )
 
         try:
-            async with stdio_client(params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    tools_result = await session.list_tools()
-                    tools = list(tools_result.tools or [])
-                    logger.info(
-                        "MCPManager: connected to '%s', discovered %d tool(s): %s",
-                        name,
-                        len(tools),
-                        [t.name for t in tools],
-                    )
-                    async with self._lock:
-                        self._connected[name] = (session, tools)
-                    # Keep the context alive until explicitly disconnected
-                    await asyncio.Future()  # suspended until cancelled
-        except asyncio.CancelledError:
-            logger.debug("MCPManager: connection to '%s' cancelled", name)
+            read, write = await stdio_client(params).__aenter__()
+            session = await ClientSession(read, write).__aenter__()
+            await session.initialize()
+            tools_result = await session.list_tools()
+            tools = list(tools_result.tools or [])
         except Exception as exc:
-            logger.error("MCPManager: error with server '%s': %s", name, exc)
-            raise
+            return {"success": False, "error": f"Failed to connect to '{name}': {exc}"}
 
-    def get_mcp_tools_as_base_tools(self) -> list[BaseTool]:
-        """Return all discovered MCP tools as MCPToolAdapter instances.
+        # Store the connection
+        self._connections[name] = {
+            "session": session,
+            "tools": tools,
+            "read": read,
+            "write": write,
+            "command": command,
+            "args": args or [],
+            "env": env or {},
+        }
 
-        Call this after ``connect_all()`` has been awaited.
+        tool_names = [t.name for t in tools]
+        logger.info(
+            "MCP: connected to '%s' (%s), discovered %d tool(s): %s",
+            name,
+            command,
+            len(tools),
+            tool_names,
+        )
+
+        return {
+            "success": True,
+            "name": name,
+            "tool_count": len(tools),
+            "tools": tool_names,
+        }
+
+    async def disconnect(self, name: str) -> dict[str, Any]:
+        """Disconnect from an MCP server and clean up resources."""
+        conn = self._connections.pop(name, None)
+        if conn is None:
+            return {"success": False, "error": f"Server '{name}' is not connected"}
+
+        try:
+            session = conn["session"]
+            read = conn["read"]
+            write = conn["write"]
+            await session.__aexit__(None, None, None)
+            await write.close()
+            logger.info("MCP: disconnected from '%s'", name)
+        except Exception as exc:
+            logger.error("MCP: error disconnecting '%s': %s", name, exc)
+
+        return {"success": True, "message": f"Disconnected from '{name}'"}
+
+    async def disconnect_all(self) -> None:
+        """Disconnect from all MCP servers."""
+        for name in list(self._connections.keys()):
+            await self.disconnect(name)
+
+    def get_tools(self, server_name: str | None = None) -> list[BaseTool]:
+        """Return MCPToolAdapter instances for connected servers.
+
+        Args:
+            server_name: If set, only return tools from that server.
+
+        Returns:
+            List of ``MCPToolAdapter`` instances.
         """
         adapters: list[BaseTool] = []
-        for _server_name, (session, tools) in self._connected.items():
-            for tool in tools:
-                adapters.append(MCPToolAdapter(session=session, tool=tool))
+        for srv_name, conn in self._connections.items():
+            if server_name is not None and srv_name != server_name:
+                continue
+            for tool in conn["tools"]:
+                adapters.append(MCPToolAdapter(
+                    session=conn["session"],
+                    tool=tool,
+                    server_name=srv_name,
+                ))
         return adapters
 
-    def tool_names(self) -> list[str]:
-        """Return a flat list of all discovered tool names."""
-        names: list[str] = []
-        for _, (_, tools) in self._connected.items():
-            names.extend(t.name for t in tools)
-        return names
+    def list_servers(self) -> list[dict[str, Any]]:
+        """Return status for all connected servers."""
+        return [
+            {
+                "name": name,
+                "command": conn["command"],
+                "tool_count": len(conn["tools"]),
+                "tools": [t.name for t in conn["tools"]],
+            }
+            for name, conn in self._connections.items()
+        ]
 
-    def server_names(self) -> list[str]:
-        return list(self._connected.keys())
+    def is_connected(self, name: str) -> bool:
+        return name in self._connections
+
+
+# Global singleton
+_mcp_manager: MCPManager | None = None
+
+
+def get_mcp_manager() -> MCPManager:
+    global _mcp_manager
+    if _mcp_manager is None:
+        _mcp_manager = MCPManager()
+    return _mcp_manager

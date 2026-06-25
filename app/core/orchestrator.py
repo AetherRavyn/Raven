@@ -113,6 +113,7 @@ from app.tools.elevatedtool import ElevatedModeTool
 from app.tools.exectool import ExecTool
 from app.tools.docker_exec_tool import DockerExecTool
 from app.tools.pathchtool import ApplyPatchTool
+from app.tools.skill_manage import SkillManagementTool
 from app.tools.writetool import WriteTodosTool
 
 logger = logging.getLogger(__name__)
@@ -261,6 +262,7 @@ class MessageOrchestrator:
             DockerExecTool(),
             ApplyPatchTool(),
             WriteTodosTool(),
+            SkillManagementTool(),
         ]
 
         # Load skill plugin tools — make skills executable, not just advisory
@@ -1720,3 +1722,24 @@ class MessageOrchestrator:
             learner.learn_from_conversation(request.text)
         except Exception as exc:
             logger.debug("ScheduleLearner learn_from_conversation failed: %s", exc)
+
+        # Phase 1c — Self-improvement review cycle (Hermes Agent pattern).
+        # Records every turn and generates improvement suggestions.
+        # Failure must be silent — never crashes the loop.
+        try:
+            from app.core.self_review import get_self_reviewer
+
+            reviewer = get_self_reviewer()
+            _tool_calls_for_review = getattr(turn_result, "tool_calls", None)
+            if _tool_calls_for_review is None:
+                _tool_calls_for_review = (turn_result or {}).get("tool_calls", [])
+            await reviewer.review_turn(
+                user_message=request.text,
+                response=(turn_result or {}).get("response", ""),
+                tool_calls=_tool_calls_for_review,
+                success=(turn_result or {}).get("success", True),
+                latency_ms=(turn_result or {}).get("latency_ms", 0.0),
+                session_id=(turn_result or {}).get("session_id"),
+            )
+        except Exception as exc:
+            logger.debug("Self-review cycle failed: %s", exc)
