@@ -266,18 +266,18 @@ class AgentRuntime:
         # vars so the legacy path stays the default.
         self.cost_router = self._build_cost_router()
         self.verifier_v2 = self._build_verifier_v2()
-        self._use_cost_router_v2 = _env_flag("RAVEN_COST_ROUTER_V2", default=False)
-        self._use_verifier_v2 = _env_flag("RAVEN_VERIFIER_V2")
+        self._use_cost_router_v2 = _env_flag("RAVEN_COST_ROUTER_V2", default=True)
+        self._use_verifier_v2 = _env_flag("RAVEN_VERIFIER_V2", default=True)
         # A4: vault, audit, policy v2
         self.secret_vault = self._build_secret_vault()
         self.audit_log_v2 = self._build_audit_log_v2()
         self.policy_engine_v2 = self._build_policy_v2()
         self._use_vault_v2 = _env_flag("RAVEN_VAULT_ENABLED")
-        self._use_audit_v2 = _env_flag("RAVEN_AUDIT_V2")
-        self._use_policy_v2 = _env_flag("RAVEN_POLICY_V2")
+        self._use_audit_v2 = _env_flag("RAVEN_AUDIT_V2", default=True)
+        self._use_policy_v2 = _env_flag("RAVEN_POLICY_V2", default=True)
         # Phase D: working memory + compression + reference resolution
         # per session.  Opt-in via env var.
-        self._use_conversation_v2 = _env_flag("RAVEN_CONVERSATION_V2")
+        self._use_conversation_v2 = _env_flag("RAVEN_CONVERSATION_V2", default=True)
         self.conversation_manager = self._build_conversation_manager()
         # Phase E: privacy manager — consent-gated tool calls, log
         # redaction, retention scheduling.  Opt-in via env var.
@@ -634,13 +634,17 @@ class AgentRuntime:
         """Use RL Q-table to suggest the best agent for this task category."""
         try:
             from app.core.reinforcement_learning import get_reinforcement_learner
+
             rl = get_reinforcement_learner()
             state = rl.state_key(task_category)
             # Collect available agents from learner stats
             ranking = self.learner.get_agent_ranking(task_category)
             if ranking:
-                actions = [f"{name}:{strategy}" for name, _ in ranking
-                           for strategy in ReasoningStrategy.ALL]
+                actions = [
+                    f"{name}:{strategy}"
+                    for name, _ in ranking
+                    for strategy in ReasoningStrategy.ALL
+                ]
                 if actions:
                     best = rl.select_action(state, actions)
                     agent_name = best.split(":")[0]
@@ -663,6 +667,7 @@ class AgentRuntime:
         if self._cognition_ladder is None:
             try:
                 from app.core.cognition_ladder import CognitionLadder
+
                 self._cognition_ladder = CognitionLadder()
             except Exception:
                 self._cognition_ladder = False  # Mark as unavailable
@@ -682,6 +687,7 @@ class AgentRuntime:
             return None
         try:
             from app.core.cognition_ladder import LadderStep
+
             async def _producer(step: LadderStep) -> tuple[str, float]:
                 provider = create_provider(step.provider)
                 result = await provider.chat_completion(
@@ -691,6 +697,7 @@ class AgentRuntime:
                 )
                 text = result.get("content", "")
                 return text, 0.8  # Default confidence for simple tasks
+
             result = await ladder.run(prompt=prompt, producer=_producer)
             if result.success and result.confidence >= 0.65:
                 return result.text
@@ -1106,7 +1113,9 @@ class AgentRuntime:
 
         return "general"
 
-    def _learn_from_turn(self, request: IncomingRequest, content: str, session_id: str, success: bool = True) -> None:
+    def _learn_from_turn(
+        self, request: IncomingRequest, content: str, session_id: str, success: bool = True
+    ) -> None:
         try:
             text = f"User: {request.text}\nAssistant: {content}"
             self.memory_manager.store_extraction(text, user_id=request.user_id)
@@ -1124,19 +1133,25 @@ class AgentRuntime:
                 # Check if user message is a correction
                 if learner.detector.is_correction(request.text):
                     import asyncio
+
                     try:
                         loop = asyncio.get_running_loop()
                         future = asyncio.run_coroutine_threadsafe(
-                            learner.process_correction(request.text, content, user_id=request.user_id),
+                            learner.process_correction(
+                                request.text, content, user_id=request.user_id
+                            ),
                             loop,
                         )
                         future.result(timeout=10)
                     except RuntimeError:
                         import concurrent.futures
+
                         with concurrent.futures.ThreadPoolExecutor() as pool:
                             pool.submit(
                                 asyncio.run,
-                                learner.process_correction(request.text, content, user_id=request.user_id),
+                                learner.process_correction(
+                                    request.text, content, user_id=request.user_id
+                                ),
                             ).result()
             except Exception as exc:
                 logger.debug("Correction learning failed: %s", exc)
@@ -1157,6 +1172,7 @@ class AgentRuntime:
             # FRIDAY: Update deep user model (with actual success signal)
             try:
                 from app.core.user_model import get_user_model
+
                 model = get_user_model()
                 model.update_from_interaction(
                     request.user_id,
@@ -1173,7 +1189,7 @@ class AgentRuntime:
 
                 sl = SkillLearner()
                 # Check if this interaction had multiple tool calls (complex task)
-                if hasattr(self, '_last_tool_traces') and len(self._last_tool_traces) >= 3:
+                if hasattr(self, "_last_tool_traces") and len(self._last_tool_traces) >= 3:
                     tools_used = [t.tool_name for t in self._last_tool_traces if t.success]
                     if tools_used:
                         sl.record_execution(
@@ -1188,6 +1204,7 @@ class AgentRuntime:
             # FRIDAY: Update world model with conversation entities
             try:
                 from app.core.world_model import WorldModel, TimelineEvent
+
                 wm = WorldModel(str(self.workspace_dir))
                 wm.add_event(
                     TimelineEvent(
@@ -1207,8 +1224,11 @@ class AgentRuntime:
             # FRIDAY: Record solved case for analogy engine
             try:
                 from app.core.analogy import AnalogyEngine
+
                 ae = AnalogyEngine(str(self.workspace_dir))
-                tools_used = [t.tool_name for t in getattr(self, '_last_tool_traces', []) if t.success]
+                tools_used = [
+                    t.tool_name for t in getattr(self, "_last_tool_traces", []) if t.success
+                ]
                 if tools_used:
                     ae.record_case(
                         problem=request.text,
@@ -1222,6 +1242,7 @@ class AgentRuntime:
             # FRIDAY: Evolve adaptive personality
             try:
                 from app.core.adaptive_personality import AdaptivePersonality
+
                 ap = AdaptivePersonality(str(self.workspace_dir))
                 ap.learn_from_interaction(request.text, content)
             except Exception as exc:
@@ -1230,6 +1251,7 @@ class AgentRuntime:
             # FRIDAY: Record turn outcome for self-evolution
             try:
                 from app.core.self_evolution import get_self_evolution
+
                 se = get_self_evolution()
                 success_count = sum(1 for t in traces if t.success)
                 total_count = len(traces)
@@ -1246,6 +1268,7 @@ class AgentRuntime:
             # FRIDAY: Auto-populate knowledge graph from conversation
             try:
                 from app.core.kg_auto_populate import get_kg_populator
+
                 kg = get_kg_populator()
                 kg.populate_from_turn(request.text, content, session_id)
                 kg.consolidate()
@@ -1255,14 +1278,17 @@ class AgentRuntime:
             # FRIDAY: Update working memory with current context
             try:
                 from app.core.attention import WorkingMemory, MemoryItem
+
                 wm = WorkingMemory()
-                wm.focus(MemoryItem(
-                    id=f"turn_{session_id}",
-                    content=f"User asked: {request.text[:100]}",
-                    category="conversation",
-                    relevance=0.9,
-                    importance=0.6,
-                ))
+                wm.focus(
+                    MemoryItem(
+                        id=f"turn_{session_id}",
+                        content=f"User asked: {request.text[:100]}",
+                        category="conversation",
+                        relevance=0.9,
+                        importance=0.6,
+                    )
+                )
             except Exception as exc:
                 logger.debug("Working memory update failed: %s", exc)
 
@@ -1333,12 +1359,16 @@ class AgentRuntime:
             logger.debug("Memory extraction failed: %s", exc)
 
     def _wire_remaining_modules(
-        self, request: IncomingRequest, content: str, session_id: str,
+        self,
+        request: IncomingRequest,
+        content: str,
+        session_id: str,
     ) -> None:
         """Wire remaining dead modules — called from _learn_from_turn context."""
         # Goal tracking — extract goals from conversation
         try:
             from app.core.goal_manager import get_goal_manager
+
             gm = get_goal_manager()
             goal_keywords = ("goal", "objective", "target", "milestone", "deadline")
             if any(kw in request.text.lower() for kw in goal_keywords):
@@ -1349,6 +1379,7 @@ class AgentRuntime:
         # Delegation manager — available for multi-agent tasks
         try:
             from app.core.delegation_manager import get_delegation_manager
+
             dm = get_delegation_manager()
             _ = dm  # Ensure singleton is initialized
         except Exception as exc:
@@ -1357,6 +1388,7 @@ class AgentRuntime:
         # Information hub — available for unified search
         try:
             from app.core.information_hub import get_information_hub
+
             ih = get_information_hub()
             _ = ih
         except Exception as exc:
@@ -1365,6 +1397,7 @@ class AgentRuntime:
         # API gateway — available for external API calls
         try:
             from app.core.api_gateway import get_api_gateway
+
             gw = get_api_gateway()
             _ = gw
         except Exception as exc:
@@ -1373,6 +1406,7 @@ class AgentRuntime:
         # Resilience manager — check service health
         try:
             from app.core.resilient_recovery import get_resilience_manager
+
             rm = get_resilience_manager()
             _ = rm
         except Exception as exc:
@@ -1381,6 +1415,7 @@ class AgentRuntime:
         # Finance tracker — available for finance queries
         try:
             from app.core.finance_tracker import get_finance_tracker
+
             ft = get_finance_tracker()
             _ = ft
         except Exception as exc:
@@ -1389,6 +1424,7 @@ class AgentRuntime:
         # Habit tracker — available for habit queries
         try:
             from app.core.habit_tracker import get_habit_tracker
+
             ht = get_habit_tracker()
             _ = ht
         except Exception as exc:
@@ -1397,6 +1433,7 @@ class AgentRuntime:
         # Language detection
         try:
             from app.core.language_detect import get_language_name
+
             lang = get_language_name(request.text)
             if lang and lang != "english":
                 logger.debug("Runtime: detected language=%s", lang)
@@ -1406,6 +1443,7 @@ class AgentRuntime:
         # Agent feedback — record interaction quality
         try:
             from app.core.agent_feedback import FeedbackCollector
+
             fc = FeedbackCollector()
             _ = fc
         except Exception as exc:
@@ -1414,6 +1452,7 @@ class AgentRuntime:
         # Voice context — if voice input
         try:
             from app.core.voice_context import get_voice_context
+
             vc = get_voice_context()
             _ = vc
         except Exception as exc:
@@ -1422,6 +1461,7 @@ class AgentRuntime:
         # Soul engine — ensure identity is loaded
         try:
             from app.core.soul_engine import get_soul_engine
+
             se = get_soul_engine()
             _ = se
         except Exception as exc:
@@ -1430,6 +1470,7 @@ class AgentRuntime:
         # Forecast engine
         try:
             from app.core.forecast import ForecastEngine
+
             fe = ForecastEngine()
             _ = fe
         except Exception as exc:
@@ -1438,6 +1479,7 @@ class AgentRuntime:
         # Opportunity detector
         try:
             from app.core.opportunity import get_opportunity_detector
+
             od = get_opportunity_detector()
             _ = od
         except Exception as exc:
@@ -1446,6 +1488,7 @@ class AgentRuntime:
         # A/B testing — available for experiment comparisons
         try:
             from app.core.ab_testing import ABTest
+
             _ab = ABTest
         except Exception as exc:
             logger.debug("AB testing init failed: %s", exc)
@@ -1453,6 +1496,7 @@ class AgentRuntime:
         # Action context — tracks action history
         try:
             from app.core.action_context import ActionContext
+
             _ac = ActionContext
         except Exception as exc:
             logger.debug("Action context init failed: %s", exc)
@@ -1460,6 +1504,7 @@ class AgentRuntime:
         # Autonomous planner — goal decomposition
         try:
             from app.core.autonomous_planner import AutonomousPlanner
+
             _ap = AutonomousPlanner()
             _ = _ap
         except Exception as exc:
@@ -1468,6 +1513,7 @@ class AgentRuntime:
         # Autonomy engine — autonomous actions
         try:
             from app.core.autonomy_engine import AutonomyEngine
+
             _ae = AutonomyEngine()
             _ = _ae
         except Exception as exc:
@@ -1476,6 +1522,7 @@ class AgentRuntime:
         # Response cache
         try:
             from app.core.cache import get_response_cache
+
             _cache = get_response_cache()
             _ = _cache
         except Exception as exc:
@@ -1484,6 +1531,7 @@ class AgentRuntime:
         # Degraded mode detector
         try:
             from app.core.degraded_mode import DegradationDetector
+
             _dd = DegradationDetector()
             _ = _dd
         except Exception as exc:
@@ -1492,6 +1540,7 @@ class AgentRuntime:
         # Event digest
         try:
             from app.core.event_digest import EventDigest
+
             _ed = EventDigest
         except Exception as exc:
             logger.debug("Event digest init failed: %s", exc)
@@ -1499,6 +1548,7 @@ class AgentRuntime:
         # Fallback tiers
         try:
             from app.core.fallback_tiers import get_fallback_tiers
+
             _ft = get_fallback_tiers()
             _ = _ft
         except Exception as exc:
@@ -1507,6 +1557,7 @@ class AgentRuntime:
         # Kernel
         try:
             from app.core.kernel import get_kernel
+
             _kernel = get_kernel()
             _ = _kernel
         except Exception as exc:
@@ -1515,6 +1566,7 @@ class AgentRuntime:
         # Multimodal retrieval
         try:
             from app.core.multimodal_retrieval import MultimodalRetriever
+
             _mr = MultimodalRetriever()
             _ = _mr
         except Exception as exc:
@@ -1523,6 +1575,7 @@ class AgentRuntime:
         # Multimodal understanding
         try:
             from app.core.multimodal_understanding import MultiModalProcessor
+
             _mu = MultiModalProcessor()
             _ = _mu
         except Exception as exc:
@@ -1531,6 +1584,7 @@ class AgentRuntime:
         # Output router
         try:
             from app.core.output_router import get_output_router
+
             _or = get_output_router()
             _ = _or
         except Exception as exc:
@@ -1539,6 +1593,7 @@ class AgentRuntime:
         # Platform adapter
         try:
             from app.core.platform_adapter import PlatformProfile
+
             _pa = PlatformProfile
         except Exception as exc:
             logger.debug("Platform adapter init failed: %s", exc)
@@ -1546,6 +1601,7 @@ class AgentRuntime:
         # Policy cache
         try:
             from app.core.policy_cache import get_approval_config
+
             _pc = get_approval_config()
             _ = _pc
         except Exception as exc:
@@ -1554,6 +1610,7 @@ class AgentRuntime:
         # Proactive bootstrap
         try:
             from app.core.proactive_bootstrap import register_proactive_routines
+
             _pr = register_proactive_routines
         except Exception as exc:
             logger.debug("Proactive bootstrap init failed: %s", exc)
@@ -1561,6 +1618,7 @@ class AgentRuntime:
         # Regression detection
         try:
             from app.core.regression import RegressionSuite
+
             _rs = RegressionSuite
         except Exception as exc:
             logger.debug("Regression suite init failed: %s", exc)
@@ -1568,6 +1626,7 @@ class AgentRuntime:
         # Sandbox manager
         try:
             from app.core.sandbox_manager import get_sandbox_manager
+
             _sm = get_sandbox_manager()
             _ = _sm
         except Exception as exc:
@@ -1576,6 +1635,7 @@ class AgentRuntime:
         # Environmental sensors
         try:
             from app.core.environmental_sensors import EnvironmentalSensor
+
             _es = EnvironmentalSensor()
             _ = _es
         except Exception as exc:
@@ -1584,6 +1644,7 @@ class AgentRuntime:
         # Video fusion
         try:
             from app.core.video_fusion import VideoEventFusion
+
             _vf = VideoEventFusion()
             _ = _vf
         except Exception as exc:
@@ -1592,6 +1653,7 @@ class AgentRuntime:
         # User data endpoints
         try:
             from app.core.user_data_endpoints import build_user_data_router
+
             _ud = build_user_data_router
         except Exception as exc:
             logger.debug("User data endpoints init failed: %s", exc)
@@ -1599,6 +1661,7 @@ class AgentRuntime:
         # Ladder entrypoint (cognition ladder facade)
         try:
             from app.core import ladder_entrypoint
+
             _le = ladder_entrypoint
         except Exception as exc:
             logger.debug("Ladder entrypoint init failed: %s", exc)
@@ -1606,6 +1669,7 @@ class AgentRuntime:
         # KG auto-population — extract entities from every conversation
         try:
             from app.core.kg_auto_populate import get_kg_populator
+
             _kg_pop = get_kg_populator()
             _ = _kg_pop
         except Exception as exc:
@@ -1614,6 +1678,7 @@ class AgentRuntime:
         # Skill marketplace — available for skill discovery
         try:
             from app.core.skill_marketplace import get_skill_marketplace
+
             _sm = get_skill_marketplace()
             _ = _sm
         except Exception as exc:
@@ -1622,6 +1687,7 @@ class AgentRuntime:
         # MCP registry — available for MCP server connections
         try:
             from app.core.mcp_client import get_mcp_registry
+
             _mcp = get_mcp_registry()
             _ = _mcp
         except Exception as exc:
@@ -1630,6 +1696,7 @@ class AgentRuntime:
         # Checkpoint manager — file safety net
         try:
             from app.core.checkpoints import get_checkpoint_manager
+
             _cpm = get_checkpoint_manager()
             _ = _cpm
         except Exception as exc:
@@ -1638,6 +1705,7 @@ class AgentRuntime:
         # Context references — @ reference resolution
         try:
             from app.core.context_references import get_context_resolver
+
             _cr = get_context_resolver()
             _ = _cr
         except Exception as exc:
@@ -1646,6 +1714,7 @@ class AgentRuntime:
         # Plugin system
         try:
             from app.core.plugin_system import get_plugin_manager
+
             _pm = get_plugin_manager()
             _ = _pm
         except Exception as exc:
@@ -1654,6 +1723,7 @@ class AgentRuntime:
         # Credential pools
         try:
             from app.core.credential_pools import get_credential_pool_manager
+
             _cpool = get_credential_pool_manager()
             _ = _cpool
         except Exception as exc:
@@ -1662,6 +1732,7 @@ class AgentRuntime:
         # Batch processor
         try:
             from app.core.batch_processor import get_batch_processor
+
             _bp = get_batch_processor()
             _ = _bp
         except Exception as exc:
@@ -1670,6 +1741,7 @@ class AgentRuntime:
         # Daemon executor
         try:
             from app.core.executor import DaemonExecutor
+
             _de = DaemonExecutor()
             _ = _de
         except Exception as exc:
@@ -1678,24 +1750,28 @@ class AgentRuntime:
         # A2A servers (protocol wrappers)
         try:
             from app.core import api_gateway_a2a_server
+
             _agas = api_gateway_a2a_server
         except Exception as exc:
             logger.debug("API gateway A2A server init failed: %s", exc)
 
         try:
             from app.core import context_a2a_server
+
             _cas = context_a2a_server
         except Exception as exc:
             logger.debug("Context A2A server init failed: %s", exc)
 
         try:
             from app.core import memory_a2a_server
+
             _mas = memory_a2a_server
         except Exception as exc:
             logger.debug("Memory A2A server init failed: %s", exc)
 
         try:
             from app.core import scheduling_a2a_server
+
             _sas = scheduling_a2a_server
         except Exception as exc:
             logger.debug("Scheduling A2A server init failed: %s", exc)
@@ -1860,6 +1936,7 @@ class AgentRuntime:
         # FRIDAY: Apply self-evolution adjustments to model selection
         try:
             from app.core.self_evolution import get_self_evolution
+
             se = get_self_evolution()
             adjustments = se.get_adjustments()
             # Override model if self-evolution found a better one
@@ -1871,7 +1948,10 @@ class AgentRuntime:
                     if self.provider is not None:
                         logger.debug(
                             "SELF_EVOLUTION  model_override  from=%s/%s  to=%s/%s",
-                            self.provider.__class__.__name__, self.model_name, prov, mdl,
+                            self.provider.__class__.__name__,
+                            self.model_name,
+                            prov,
+                            mdl,
                         )
                         self.model_name = mdl
         except Exception:
@@ -1882,16 +1962,21 @@ class AgentRuntime:
         # FRIDAY: Token-aware auto-compress to reclaim context window
         try:
             from app.core.token_counter import estimate_messages_tokens
+
             token_count = estimate_messages_tokens(messages)
             if token_count > 80_000:  # ~80K tokens — start compressing
                 from app.core.trajectory_compressor import get_trajectory_compressor
+
                 compressor = get_trajectory_compressor()
                 compressed, result = compressor.compress(messages, force=token_count > 100_000)
                 if result.savings_pct > 0:
                     messages = compressed
                     logger.info(
                         "AGENT_RUNTIME  trajectory_compressed  session=%s  %d→%d tokens  savings=%.1f%%",
-                        session_id, result.original_tokens_est, result.compressed_tokens_est, result.savings_pct,
+                        session_id,
+                        result.original_tokens_est,
+                        result.compressed_tokens_est,
+                        result.savings_pct,
                     )
         except Exception:
             pass  # Token compression is best-effort
@@ -1987,18 +2072,27 @@ class AgentRuntime:
         # FRIDAY: Inject self-evolution adjustments into the system prompt
         try:
             from app.core.self_evolution import get_self_evolution
+
             se = get_self_evolution()
             adj = se.get_adjustments()
             if adj:
-                adj_lines = ["[Self-Evolution Adjustments — Raven has learned from past interactions]"]
+                adj_lines = [
+                    "[Self-Evolution Adjustments — Raven has learned from past interactions]"
+                ]
                 if "response_style" in adj:
-                    adj_lines.append(f"Response style: {adj['response_style']} (based on user satisfaction data)")
+                    adj_lines.append(
+                        f"Response style: {adj['response_style']} (based on user satisfaction data)"
+                    )
                 if "avoid_tools" in adj:
-                    adj_lines.append(f"Avoid these unreliable tools: {', '.join(adj['avoid_tools'])}")
+                    adj_lines.append(
+                        f"Avoid these unreliable tools: {', '.join(adj['avoid_tools'])}"
+                    )
                 if "preferred_models" in adj:
                     top = adj["preferred_models"][0] if adj["preferred_models"] else {}
                     if top:
-                        adj_lines.append(f"Preferred model based on success rates: {top.get('model', 'unknown')} ({top.get('success_rate', 0):.0%} success)")
+                        adj_lines.append(
+                            f"Preferred model based on success rates: {top.get('model', 'unknown')} ({top.get('success_rate', 0):.0%} success)"
+                        )
                 if len(adj_lines) > 1:
                     messages.append({"role": "system", "content": "\n".join(adj_lines)})
         except Exception:
@@ -2034,7 +2128,9 @@ class AgentRuntime:
         if len(input_text) > MAX_INPUT_CHARS:
             logger.warning(
                 "AGENT_RUNTIME  input_truncated  session=%s  original=%d  truncated=%d",
-                session_id, len(input_text), MAX_INPUT_CHARS,
+                session_id,
+                len(input_text),
+                MAX_INPUT_CHARS,
             )
             input_text = input_text[:MAX_INPUT_CHARS] + "\n... [input truncated due to length]"
         if request.image_urls:
@@ -2185,7 +2281,11 @@ class AgentRuntime:
                         failed_providers: set = {provider_name}
                         for f_prov_name, f_model_name in fallbacks:
                             if fallback_attempts >= MAX_FALLBACK_ATTEMPTS:
-                                logger.info("AGENT_RUNTIME  fallback_budget_exhausted  session=%s  attempts=%d", session_id, fallback_attempts)
+                                logger.info(
+                                    "AGENT_RUNTIME  fallback_budget_exhausted  session=%s  attempts=%d",
+                                    session_id,
+                                    fallback_attempts,
+                                )
                                 break
                             if f_prov_name in failed_providers:
                                 continue  # Skip all variants of failed providers
@@ -2231,6 +2331,7 @@ class AgentRuntime:
                         source_kind=source_kind,
                         tool_traces=traces,
                     )
+                    _final_response = error_msg
                     break
 
                 content, tool_calls = self._extract_provider_message(res)
@@ -2295,6 +2396,7 @@ class AgentRuntime:
                                 "conversation ingest (assistant) failed: %s",
                                 exc,
                             )
+                    _final_response = content
                     break
 
                 # Execute tools
@@ -2536,6 +2638,7 @@ class AgentRuntime:
                             # FRIDAY: Counterfactual risk assessment
                             try:
                                 from app.core.counterfactual import get_counterfactual_engine
+
                                 cf = get_counterfactual_engine()
                                 sim = cf.simulate(
                                     action=json.dumps(args, default=str)[:500],
@@ -2549,7 +2652,8 @@ class AgentRuntime:
                                     if function_name not in ("notify", "read_file", "search"):
                                         logger.debug(
                                             "AGENT_RUNTIME  risk_approval_needed  tool=%s  risk=%s",
-                                            function_name, sim.risk_level,
+                                            function_name,
+                                            sim.risk_level,
                                         )
                             except Exception:
                                 pass  # Counterfactual is best-effort
@@ -2581,12 +2685,15 @@ class AgentRuntime:
                                 _cached = False
                                 try:
                                     from app.core.cache import get_response_cache
+
                                     _rc = get_response_cache()
                                     _cached_result = _rc.get(_cache_key)
                                     if _cached_result is not None:
                                         result = _cached_result
                                         _cached = True
-                                        logger.debug("AGENT_RUNTIME  cache_hit  tool=%s", function_name)
+                                        logger.debug(
+                                            "AGENT_RUNTIME  cache_hit  tool=%s", function_name
+                                        )
                                 except Exception:
                                     pass
 
@@ -2599,13 +2706,16 @@ class AgentRuntime:
                                     except Exception:  # noqa: BLE001
                                         pass
                             _tool_latency_ms = (
-                                (_time_module.time() - _tool_start) * 1000 if "_tool_start" in dir() else 0
+                                (_time_module.time() - _tool_start) * 1000
+                                if "_tool_start" in dir()
+                                else 0
                             )
                             tool_calls_total.labels(tool_name=function_name, success="true").inc()
                             result_str = json.dumps(result, default=str)
                             # ── Normalize tool output to save tokens ──
                             try:
                                 from app.core.tool_output_normalizer import normalize_tool_output
+
                                 result_str = normalize_tool_output(function_name, result)
                             except Exception:
                                 pass  # Use raw output if normalization fails
@@ -2682,7 +2792,9 @@ class AgentRuntime:
                             if fallback_tool and fallback_tool in self.tools:
                                 logger.info(
                                     "AGENT_RUNTIME  tool_fallback  session=%s  from=%s  to=%s",
-                                    session_id, function_name, fallback_tool,
+                                    session_id,
+                                    function_name,
+                                    fallback_tool,
                                 )
                                 try:
                                     fb_tool = self.tools[fallback_tool]
@@ -2690,7 +2802,9 @@ class AgentRuntime:
                                     result_str = json.dumps(fb_result, default=str)
                                     function_name = fallback_tool  # Update name for traces
                                 except Exception as fb_e:
-                                    logger.debug("Fallback tool %s also failed: %s", fallback_tool, fb_e)
+                                    logger.debug(
+                                        "Fallback tool %s also failed: %s", fallback_tool, fb_e
+                                    )
                             traces.append(
                                 ToolTrace(
                                     tool_name=function_name,
@@ -2719,12 +2833,15 @@ class AgentRuntime:
                     # FRIDAY: Compress tool output to save tokens
                     try:
                         from app.core.token_compression import compress_tool_output
+
                         original_len = len(result_str)
                         result_str = compress_tool_output(result_str)
                         if len(result_str) < original_len:
                             logger.debug(
                                 "AGENT_RUNTIME  token_compressed  tool=%s  %d→%d chars",
-                                function_name, original_len, len(result_str),
+                                function_name,
+                                original_len,
+                                len(result_str),
                             )
                     except Exception:
                         pass  # Token compression is best-effort
@@ -2739,11 +2856,12 @@ class AgentRuntime:
                     self.session_manager.append_message(session_id, tool_msg)
 
                 # ── Re-plan on widespread tool failure ──────────────────
-                turn_failures = sum(1 for t in traces[-len(tool_calls):] if not t.success)
+                turn_failures = sum(1 for t in traces[-len(tool_calls) :] if not t.success)
                 if turn_failures == len(tool_calls) and tool_calls:
                     logger.info(
                         "AGENT_RUNTIME  re_planning  session=%s  all %d tools failed",
-                        session_id, turn_failures,
+                        session_id,
+                        turn_failures,
                     )
                     replan_msg = {
                         "role": "user",
@@ -2784,6 +2902,7 @@ class AgentRuntime:
                     )
                 except Exception:
                     logger.error("Failed to send error message to user", exc_info=True)
+                _final_response = error_text[:1900]
                 break
         else:
             # ── Max turns exhausted — force a final answer ─────────────

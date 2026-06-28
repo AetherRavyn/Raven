@@ -39,6 +39,7 @@ class PlanState(str, Enum):
 @dataclass(slots=True)
 class PlanStep:
     """A step in an autonomous plan."""
+
     step_id: str
     action: str
     description: str
@@ -57,6 +58,7 @@ class PlanStep:
 @dataclass(slots=True)
 class Plan:
     """An autonomous plan for achieving a goal."""
+
     plan_id: str
     goal: str
     description: str
@@ -75,9 +77,55 @@ class AutonomousPlanner:
     and handles failures with rollback.
     """
 
-    def __init__(self, workspace_dir: str = "workspace") -> None:
+    # Maps planner-style tool names to runtime registry keys.
+    _TOOL_ALIASES: dict[str, str] = {
+        "websearch": "web_ops",
+        "web_search": "web_ops",
+        "search": "web_ops",
+        "web_fetch": "web_fetch_ops",
+        "file_operations": "file_operations",
+        "file": "file_operations",
+        "git": "git_ops",
+        "git_ops": "git_ops",
+        "shell": "sandbox_exec",
+        "sandbox_exec": "sandbox_exec",
+        "knowledge_graph": "knowledge_graph",
+        "kg": "knowledge_graph",
+        "code_exec": "sandbox_exec",
+        "python": "sandbox_exec",
+        "browser": "browser_ops",
+        "camera": "camera_snapshot",
+        "weather": "weather",
+        "reminder": "reminder",
+        "network": "network",
+    }
+
+    def __init__(
+        self,
+        workspace_dir: str = "workspace",
+        tool_registry: dict[str, Any] | None = None,
+    ) -> None:
         self._dir = Path(workspace_dir) / "plans"
         self._dir.mkdir(parents=True, exist_ok=True)
+        self._tool_registry: dict[str, Any] = tool_registry or {}
+
+    def set_tool_registry(self, registry: dict[str, Any]) -> None:
+        """Set or replace the tool registry for real execution."""
+        self._tool_registry = registry
+
+    def _resolve_tool(self, name: str | None) -> tuple[Any, str] | None:
+        """Resolve a planner tool name to (tool_instance, registry_key)."""
+        if not name:
+            return None
+        key = self._TOOL_ALIASES.get(name, name)
+        tool = self._tool_registry.get(key)
+        if tool is not None:
+            return tool, key
+        # Fallback: try the raw name
+        tool = self._tool_registry.get(name)
+        if tool is not None:
+            return tool, name
+        return None
 
     def decompose_goal(self, goal: str, context: dict[str, Any] | None = None) -> Plan:
         """Decompose a high-level goal into executable steps.
@@ -113,52 +161,125 @@ class AutonomousPlanner:
 
         # Common goal patterns
         if "project" in goal_lower or "setup" in goal_lower:
-            steps.extend([
-                PlanStep(step_id="s1", action="research", description="Research the project requirements",
-                        tool="websearch", verification="Found relevant information"),
-                PlanStep(step_id="s2", action="plan", description="Create project plan and structure",
-                        depends_on=["s1"], verification="Plan document created"),
-                PlanStep(step_id="s3", action="implement", description="Implement core components",
-                        depends_on=["s2"], verification="Core files exist"),
-                PlanStep(step_id="s4", action="test", description="Test and verify implementation",
-                        depends_on=["s3"], verification="Tests pass"),
-                PlanStep(step_id="s5", action="deploy", description="Deploy or document the project",
-                        depends_on=["s4"], verification="Deployment complete"),
-            ])
+            steps.extend(
+                [
+                    PlanStep(
+                        step_id="s1",
+                        action="research",
+                        description="Research the project requirements",
+                        tool="websearch",
+                        verification="Found relevant information",
+                    ),
+                    PlanStep(
+                        step_id="s2",
+                        action="plan",
+                        description="Create project plan and structure",
+                        depends_on=["s1"],
+                        verification="Plan document created",
+                    ),
+                    PlanStep(
+                        step_id="s3",
+                        action="implement",
+                        description="Implement core components",
+                        depends_on=["s2"],
+                        verification="Core files exist",
+                    ),
+                    PlanStep(
+                        step_id="s4",
+                        action="test",
+                        description="Test and verify implementation",
+                        depends_on=["s3"],
+                        verification="Tests pass",
+                    ),
+                    PlanStep(
+                        step_id="s5",
+                        action="deploy",
+                        description="Deploy or document the project",
+                        depends_on=["s4"],
+                        verification="Deployment complete",
+                    ),
+                ]
+            )
 
         elif "research" in goal_lower or "investigate" in goal_lower:
-            steps.extend([
-                PlanStep(step_id="s1", action="search", description="Search for relevant information",
-                        tool="websearch", verification="Found sources"),
-                PlanStep(step_id="s2", action="analyze", description="Analyze and synthesize findings",
-                        depends_on=["s1"], verification="Analysis complete"),
-                PlanStep(step_id="s3", action="report", description="Generate comprehensive report",
-                        depends_on=["s2"], verification="Report generated"),
-            ])
+            steps.extend(
+                [
+                    PlanStep(
+                        step_id="s1",
+                        action="search",
+                        description="Search for relevant information",
+                        tool="websearch",
+                        verification="Found sources",
+                    ),
+                    PlanStep(
+                        step_id="s2",
+                        action="analyze",
+                        description="Analyze and synthesize findings",
+                        depends_on=["s1"],
+                        verification="Analysis complete",
+                    ),
+                    PlanStep(
+                        step_id="s3",
+                        action="report",
+                        description="Generate comprehensive report",
+                        depends_on=["s2"],
+                        verification="Report generated",
+                    ),
+                ]
+            )
 
         elif "fix" in goal_lower or "debug" in goal_lower:
-            steps.extend([
-                PlanStep(step_id="s1", action="diagnose", description="Identify the root cause",
-                        tool="websearch", verification="Root cause identified"),
-                PlanStep(step_id="s2", action="fix", description="Implement the fix",
-                        depends_on=["s1"], verification="Fix implemented"),
-                PlanStep(step_id="s3", action="verify", description="Verify the fix works",
-                        depends_on=["s2"], verification="Tests pass"),
-            ])
+            steps.extend(
+                [
+                    PlanStep(
+                        step_id="s1",
+                        action="diagnose",
+                        description="Identify the root cause",
+                        tool="websearch",
+                        verification="Root cause identified",
+                    ),
+                    PlanStep(
+                        step_id="s2",
+                        action="fix",
+                        description="Implement the fix",
+                        depends_on=["s1"],
+                        verification="Fix implemented",
+                    ),
+                    PlanStep(
+                        step_id="s3",
+                        action="verify",
+                        description="Verify the fix works",
+                        depends_on=["s2"],
+                        verification="Tests pass",
+                    ),
+                ]
+            )
 
         else:
             # Generic plan
-            steps.extend([
-                PlanStep(step_id="s1", action="understand", description="Understand the requirements"),
-                PlanStep(step_id="s2", action="execute", description="Execute the main task",
-                        depends_on=["s1"]),
-                PlanStep(step_id="s3", action="verify", description="Verify the result",
-                        depends_on=["s2"]),
-            ])
+            steps.extend(
+                [
+                    PlanStep(
+                        step_id="s1", action="understand", description="Understand the requirements"
+                    ),
+                    PlanStep(
+                        step_id="s2",
+                        action="execute",
+                        description="Execute the main task",
+                        depends_on=["s1"],
+                    ),
+                    PlanStep(
+                        step_id="s3",
+                        action="verify",
+                        description="Verify the result",
+                        depends_on=["s2"],
+                    ),
+                ]
+            )
 
         return steps
 
-    def execute_plan(self, plan: Plan) -> Plan:
+    async def execute_plan(self, plan: Plan) -> Plan:
         """Execute a plan step by step with verification."""
         plan.state = PlanState.EXECUTING
         self._save_plan(plan)
@@ -180,10 +301,25 @@ class AutonomousPlanner:
             self._log(plan, f"Executing step: {step.description}")
 
             try:
-                # In a real implementation, this would call the tool
-                # For now, we simulate execution
-                step.status = "completed"
-                step.result = {"success": True}
+                resolved = self._resolve_tool(step.tool)
+                if resolved is not None:
+                    tool, key = resolved
+                    import inspect
+
+                    args = dict(step.params)
+                    if inspect.iscoroutinefunction(tool.execute):
+                        result = await tool.execute(**args)
+                    else:
+                        result = tool.execute(**args)
+                    step.result = (
+                        result
+                        if isinstance(result, dict)
+                        else {"output": str(result), "success": True}
+                    )
+                    step.status = "completed" if result.get("success", True) else "failed"
+                else:
+                    step.status = "completed"
+                    step.result = {"success": True}
                 self._log(plan, f"Step completed: {step.description}")
 
             except Exception as exc:
@@ -192,7 +328,10 @@ class AutonomousPlanner:
                 step.retry_count += 1
 
                 if step.retry_count < step.max_retries:
-                    self._log(plan, f"Step failed, retrying ({step.retry_count}/{step.max_retries}): {exc}")
+                    self._log(
+                        plan,
+                        f"Step failed, retrying ({step.retry_count}/{step.max_retries}): {exc}",
+                    )
                     step.status = "pending"  # Will retry on next iteration
                 else:
                     self._log(plan, f"Step failed permanently: {exc}")
@@ -228,14 +367,17 @@ class AutonomousPlanner:
 
     def _log(self, plan: Plan, message: str) -> None:
         """Add an entry to the plan's execution log."""
-        plan.execution_log.append({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "message": message,
-        })
+        plan.execution_log.append(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "message": message,
+            }
+        )
 
     def _save_plan(self, plan: Plan) -> None:
         """Save a plan to disk."""
         from dataclasses import asdict
+
         path = self._dir / f"{plan.plan_id}.json"
         path.write_text(
             json.dumps(asdict(plan), indent=2, ensure_ascii=False, default=str),

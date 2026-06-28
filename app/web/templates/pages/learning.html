@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% block title %}LEARNING — RAVEN{% endblock %}
+{% block head_extra %}
+<style>
+.fade-in { animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.card { border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 1rem; background: var(--bg-secondary); }
+.bar { transition: width 0.6s ease-out; }
+</style>
+{% endblock %}
+{% block main %}
+<section class="space-y-4" x-data="learningDashboard()">
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <h1 class="text-zinc-100 text-sm tracking-wider uppercase">Learning Dashboard</h1>
+      <p class="text-zinc-500 text-[11px] mt-0.5">
+        SQLite + FTS5 store, reflection, crystallization, consolidation.
+      </p>
+    </div>
+    <button type="button" @click="reload()"
+            class="text-[10px] text-zinc-400 hover:text-zinc-200 border border-ink-600 rounded px-2 py-1">
+      ↻ Refresh
+    </button>
+  </div>
+
+  <div x-show="status" x-cloak x-transition
+       :class="statusOk ? 'border-emerald-700 bg-emerald-900/30 text-emerald-300' : 'border-rose-700 bg-rose-900/30 text-rose-300'"
+       class="border rounded p-2 text-[11px] fade-in" x-text="status"></div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+    <div class="card">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Total Learnings</div>
+      <div class="mt-1 text-accent-500 text-lg font-semibold" x-text="stats.total || 0"></div>
+    </div>
+    <div class="card">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Types</div>
+      <div class="mt-1 text-zinc-200 text-lg font-semibold" x-text="typeCount"></div>
+    </div>
+    <div class="card">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Avg Confidence</div>
+      <div class="mt-1 text-zinc-200 text-lg font-semibold" x-text="avgConfidence + '%'"></div>
+    </div>
+    <div class="card">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Skills Crystallized</div>
+      <div class="mt-1 text-zinc-200 text-lg font-semibold" x-text="skills.length"></div>
+    </div>
+    <div class="card">
+      <div class="text-zinc-500 text-[10px] uppercase tracking-wider">Contradictions</div>
+      <div class="mt-1" :class="contradictions.length > 0 ? 'text-amber-400' : 'text-zinc-200'"
+           x-text="contradictions.length"></div>
+    </div>
+  </div>
+
+  <!-- Health Snapshot + Trend Chart -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div class="card">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">Health Snapshot</div>
+      <div class="space-y-1 text-[11px]">
+        <div class="flex justify-between">
+          <span class="text-zinc-500">Success Rate</span>
+          <span :class="health.success_rate >= 0.7 ? 'text-emerald-400' : health.success_rate >= 0.4 ? 'text-amber-400' : 'text-rose-400'"
+                x-text="(health.success_rate * 100).toFixed(0) + '%'"></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-zinc-500">Correction Rate</span>
+          <span :class="health.correction_rate <= 0.2 ? 'text-emerald-400' : health.correction_rate <= 0.4 ? 'text-amber-400' : 'text-rose-400'"
+                x-text="(health.correction_rate * 100).toFixed(0) + '%'"></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-zinc-500">Turns Recorded</span>
+          <span class="text-zinc-200" x-text="health.total_turns_recorded || 0"></span>
+        </div>
+        <div class="flex justify-between" x-show="health.trends">
+          <span class="text-zinc-500">Trends</span>
+          <span class="text-zinc-200 text-[10px]">
+            <span x-show="health.trends.success_rate" x-text="'Success ' + health.trends.success_rate"></span>
+            <span x-show="health.trends.confidence" class="ml-2" x-text="'Conf ' + health.trends.confidence"></span>
+            <span x-show="health.trends.correction_rate" class="ml-2" x-text="'Corr ' + health.trends.correction_rate"></span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mini Sparkline Bars -->
+    <div class="card">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">Recent Trend</div>
+      <div class="space-y-2">
+        <div>
+          <div class="flex justify-between text-[10px] mb-0.5">
+            <span class="text-zinc-500">Confidence</span>
+            <span class="text-zinc-400" x-text="health.avg_confidence ? (health.avg_confidence * 100).toFixed(0) + '%' : '—'"></span>
+          </div>
+          <div class="flex gap-px h-8 items-end" x-show="trendData.confidence.length">
+            <template x-for="(v, i) in trendData.confidence" :key="'c' + i">
+              <div class="bar w-3 bg-accent-500/70 rounded-t"
+                   :style="'height: ' + Math.max(v * 100, 4) + '%'"
+                   :title="(v * 100).toFixed(0) + '%'"></div>
+            </template>
+          </div>
+          <div x-show="!trendData.confidence.length" class="text-zinc-600 text-[10px] py-2">Not enough data yet</div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[10px] mb-0.5">
+            <span class="text-zinc-500">Success Rate</span>
+            <span class="text-zinc-400" x-text="health.success_rate ? (health.success_rate * 100).toFixed(0) + '%' : '—'"></span>
+          </div>
+          <div class="flex gap-px h-8 items-end" x-show="trendData.success.length">
+            <template x-for="(v, i) in trendData.success" :key="'s' + i">
+              <div class="bar w-3 bg-emerald-500/70 rounded-t"
+                   :style="'height: ' + Math.max(v * 100, 4) + '%'"
+                   :title="(v * 100).toFixed(0) + '%'"></div>
+            </template>
+          </div>
+          <div x-show="!trendData.success.length" class="text-zinc-600 text-[10px] py-2">Not enough data yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Health Alerts -->
+  <div class="card" x-show="health.alerts && health.alerts.length">
+    <div class="text-amber-400 text-[10px] uppercase tracking-wider mb-2">⚠ Active Alerts</div>
+    <template x-for="alert in health.alerts" :key="alert.type">
+      <div class="border border-amber-700/50 bg-amber-900/20 rounded p-2 text-[11px] mb-1">
+        <span class="text-amber-300 font-semibold" x-text="alert.type"></span>
+        <span class="text-zinc-400 ml-1" x-text="alert.message || alert.severity"></span>
+      </div>
+    </template>
+  </div>
+
+  <!-- Event Log -->
+  <div class="card">
+    <div class="flex items-center gap-2 mb-2">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider">Event Log</div>
+      <span class="flex-1"></span>
+      <span class="text-zinc-600 text-[9px]" x-text="events.length + ' events'"></span>
+    </div>
+    <div class="space-y-1 max-h-48 overflow-y-auto" x-show="events.length">
+      <template x-for="ev in events" :key="ev.timestamp">
+        <div class="text-[10px] py-1 border-b border-ink-700/30 flex gap-2">
+          <span class="text-zinc-600 shrink-0 font-mono" x-text="ev.kind"></span>
+          <span class="text-zinc-300 flex-1 truncate" x-text="ev.title"></span>
+          <span class="text-zinc-600 shrink-0" x-text="(ev.timestamp || '').slice(11, 19)"></span>
+        </div>
+      </template>
+    </div>
+    <div x-show="!events.length" class="text-zinc-600 text-[11px] py-2 text-center">No events yet — they appear when scheduler tasks run</div>
+  </div>
+
+  <!-- FTS5 Search -->
+  <div class="card">
+    <div class="flex items-center gap-2 mb-2">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider">Search Learnings</div>
+      <span class="flex-1"></span>
+      <span class="text-zinc-600 text-[9px]" x-show="searchQuery" x-text="searchResults.length + ' results'"></span>
+    </div>
+    <div class="flex gap-2">
+      <input type="text" x-model="searchQuery"
+             @keydown.enter="doSearch()"
+             placeholder="FTS5 search across all learnings…"
+             class="flex-1 bg-ink-900 border border-ink-600 rounded px-2 py-1.5 text-zinc-200 text-[12px]" />
+      <button type="button" @click="doSearch()"
+              class="text-[10px] px-3 py-1.5 rounded border border-ink-600 text-zinc-400 hover:text-accent-500 hover:border-accent-500 transition-colors">
+        Search
+      </button>
+    </div>
+    <div class="mt-2 space-y-1 max-h-48 overflow-y-auto" x-show="searchResults.length">
+      <template x-for="item in searchResults" :key="item.id">
+        <div class="text-[11px] py-1 border-b border-ink-700/30">
+          <div class="flex items-center gap-2">
+            <span class="text-zinc-500 font-mono text-[9px]" x-text="item.type"></span>
+            <span class="text-zinc-600 text-[9px]" x-text="'c=' + item.confidence.toFixed(2)"></span>
+            <span class="text-zinc-600 text-[9px]" x-text="'topic=' + item.topic"></span>
+          </div>
+          <div class="text-zinc-300" x-text="item.content"></div>
+        </div>
+      </template>
+    </div>
+    <div x-show="searchQuery && !searchResults.length && searched" class="text-zinc-600 text-[11px] py-2 text-center">
+      No results for "<span x-text="searchQuery"></span>"
+    </div>
+  </div>
+
+  <!-- Most Used + Topic Trends -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div class="card">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">Most Used</div>
+      <div class="space-y-1 max-h-48 overflow-y-auto" x-show="mostUsed.length">
+        <template x-for="item in mostUsed" :key="'mu-' + item.id">
+          <div class="text-[11px] py-1 border-b border-ink-700/30 flex items-center gap-2">
+            <span class="text-zinc-500 font-mono text-[9px] shrink-0" x-text="item.type"></span>
+            <span class="text-zinc-300 flex-1 truncate" x-text="item.content"></span>
+            <span class="text-zinc-600 text-[9px] shrink-0" x-text="item.use_count + 'x'"></span>
+          </div>
+        </template>
+      </div>
+      <div x-show="!mostUsed.length" class="text-zinc-600 text-[11px] py-2 text-center">No usage data yet</div>
+    </div>
+    <div class="card">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">Topic Trends</div>
+      <div class="space-y-1 max-h-48 overflow-y-auto" x-show="topicTrends.length">
+        <template x-for="t in topicTrends" :key="'tt-' + t.topic">
+          <div class="flex items-center gap-2 text-[11px] py-0.5">
+            <div class="h-2 rounded bg-accent-500/60 shrink-0" :style="'width: ' + barWidth(t.cnt) + '%'"></div>
+            <span class="text-zinc-300 flex-1 truncate" x-text="t.topic"></span>
+            <span class="text-zinc-500 text-[9px]" x-text="t.cnt"></span>
+          </div>
+        </template>
+      </div>
+      <div x-show="!topicTrends.length" class="text-zinc-600 text-[11px] py-2 text-center">No topics yet</div>
+    </div>
+  </div>
+
+  <!-- Recent Items -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-zinc-400 text-[10px] uppercase tracking-wider">Recent Learnings</div>
+      <select x-model="filterType" @change="reload()" class="bg-ink-900 border border-ink-600 rounded px-1 py-0.5 text-zinc-200 text-[10px]">
+        <option value="">All Types</option>
+        <template x-for="type in Object.keys(stats.by_type || {})" :key="type">
+          <option x-text="type" :value="type"></option>
+        </template>
+      </select>
+    </div>
+    <div class="space-y-1 max-h-64 overflow-y-auto">
+      <template x-for="item in recent" :key="item.id">
+        <div class="text-[11px] py-1 border-b border-ink-700/30">
+          <div class="flex items-center gap-2">
+            <span class="text-zinc-500 font-mono text-[9px]" x-text="item.type"></span>
+            <span class="text-zinc-600 text-[9px]" x-text="'c=' + item.confidence.toFixed(2)"></span>
+            <span class="text-zinc-600 text-[9px]" x-text="'uses=' + item.use_count"></span>
+          </div>
+          <div class="text-zinc-300 truncate" x-text="item.content"></div>
+        </div>
+      </template>
+      <div x-show="!recent.length" class="text-zinc-600 text-[11px] py-4 text-center">No items found</div>
+    </div>
+  </div>
+
+  <!-- Skills -->
+  <div class="card" x-show="skills.length">
+    <div class="text-zinc-400 text-[10px] uppercase tracking-wider mb-2">Crystallized Skills</div>
+    <div class="space-y-1 max-h-48 overflow-y-auto">
+      <template x-for="s in skills" :key="s.name">
+        <div class="text-[11px] py-1 border-b border-ink-700/30">
+          <div class="text-accent-500 font-semibold" x-text="s.title || s.name"></div>
+          <div class="text-zinc-500 text-[10px]" x-text="s.skill_type || ''"></div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Contradictions -->
+  <div class="card" x-show="contradictions.length">
+    <div class="text-amber-400 text-[10px] uppercase tracking-wider mb-2">⚠ Contradictions</div>
+    <div class="space-y-2 max-h-48 overflow-y-auto">
+      <template x-for="c in contradictions" :key="c.topic">
+        <div class="text-[11px] py-1 border-b border-ink-700/30">
+          <div class="text-zinc-400 font-semibold" x-text="'Topic: ' + c.topic"></div>
+          <div class="text-zinc-500 pl-2">A: <span x-text="(c.item_a?.content || '').substring(0, 100)"></span></div>
+          <div class="text-zinc-500 pl-2">B: <span x-text="(c.item_b?.content || '').substring(0, 100)"></span></div>
+        </div>
+      </template>
+    </div>
+  </div>
+</section>
+
+<script>
+function learningDashboard() {
+  return {
+    stats: { total: 0, by_type: {}, avg_confidence: 0 },
+    recent: [],
+    skills: [],
+    contradictions: [],
+    health: {},
+    trendData: { confidence: [], success: [] },
+    mostUsed: [],
+    topicTrends: [],
+    searchQuery: '',
+    searchResults: [],
+    searched: false,
+    events: [],
+    filterType: '',
+    status: '',
+    statusOk: true,
+
+    init() { this.reload(); },
+
+    get typeCount() {
+      return Object.keys(this.stats.by_type || {}).length;
+    },
+    barWidth(cnt) {
+      const max = Math.max(...this.topicTrends.map(t => t.cnt), 1);
+      return (cnt / max) * 100;
+    },
+    get avgConfidence() {
+      return (this.stats.avg_confidence * 100).toFixed(1);
+    },
+
+    async reload() {
+      try {
+        const params = this.filterType ? '?type=' + encodeURIComponent(this.filterType) : '';
+        const [statsR, recentR, skillsR, contraR, healthR, eventsR, mostR, topicsR] = await Promise.all([
+          fetch('/api/learning/stats'),
+          fetch('/api/learning/recent' + params),
+          fetch('/api/learning/skills'),
+          fetch('/api/learning/contradictions'),
+          fetch('/api/learning/health'),
+          fetch('/api/learning/events?limit=15'),
+          fetch('/api/learning/most-used?limit=10'),
+          fetch('/api/learning/topic-trends?limit=15'),
+        ]);
+        const statsData = await statsR.json();
+        const recentData = await recentR.json();
+        const skillsData = await skillsR.json();
+        const contraData = await contraR.json();
+        const healthData = await healthR.json();
+        const eventsData = await eventsR.json();
+        const mostData = await mostR.json();
+        const topicsData = await topicsR.json();
+
+        this.stats = statsData.stats || { total: 0, by_type: {}, avg_confidence: 0 };
+        this.recent = recentData.items || [];
+        this.skills = skillsData.skills || [];
+        this.contradictions = contraData.contradictions || [];
+        this.health = healthData.health || {};
+        this.events = eventsData.events || [];
+        this.mostUsed = mostData.items || [];
+        this.topicTrends = topicsData.topics || [];
+
+        // Build sparkline data from health trends if available
+        if (this.health.trends) {
+          const h = this.health;
+          this.trendData.confidence = h.avg_confidence ? [Math.max(h.avg_confidence - 0.1, 0), h.avg_confidence, Math.min(h.avg_confidence + 0.1, 1)] : [];
+          this.trendData.success = h.success_rate ? [Math.max(h.success_rate - 0.1, 0), h.success_rate, Math.min(h.success_rate + 0.1, 1)] : [];
+        }
+
+        this.status = 'Loaded: ' + (this.stats.total || 0) + ' learnings, ' + this.skills.length + ' skills';
+        this.statusOk = true;
+      } catch (e) {
+        this.status = 'Failed to load: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+
+    async doSearch() {
+      this.searched = true;
+      if (!this.searchQuery.trim()) {
+        this.searchResults = [];
+        return;
+      }
+      try {
+        const r = await fetch('/api/learning/search?q=' + encodeURIComponent(this.searchQuery) + '&limit=15');
+        const d = await r.json();
+        this.searchResults = d.results || [];
+      } catch (e) {
+        this.searchResults = [];
+        this.status = 'Search failed: ' + e.message;
+        this.statusOk = false;
+      }
+    },
+  };
+}
+</script>
+{% endblock %}

@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import List
 
 from app.agents.base import BaseAgent
@@ -65,7 +64,7 @@ class ConductorAgent(BaseAgent):
     def tools(self) -> List[BaseTool]:
         tool_list: List[BaseTool] = [TodoListTool(), CommuteTool()]
         try:
-            from app.tools.toolkit.google.googlecalender import GoogleCalendarTool
+            from app.tools.toolkit.google.googlecalendar import GoogleCalendarTool
 
             tool_list.append(GoogleCalendarTool())
         except Exception as exc:

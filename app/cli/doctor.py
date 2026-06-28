@@ -1,4 +1,4 @@
-"""Doctor — ``ravyn doctor`` system diagnostics.
+"""Doctor — ``raven doctor`` system diagnostics.
 
 Checks all services, API keys, channels, model connectivity, skills,
 and system health. Reports issues with actionable fixes.
@@ -12,7 +12,6 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ def _section(title: str) -> None:
 
 def run_doctor() -> None:
     """Run full system diagnostics."""
-    print(f"\n{_BOLD}🦅 AetherRavyn Doctor{_RESET}")
+    print(f"\n{_BOLD}🦅 Raven Doctor{_RESET}")
     print(f"{_DIM}Running diagnostics...{_RESET}")
 
     issues = 0
@@ -88,6 +87,12 @@ def run_doctor() -> None:
         ("fastapi", "fastapi", False),
         ("aiohttp", "aiohttp", True),
         ("apscheduler", "apscheduler", True),
+        ("nbformat", "nbformat", False),
+        ("jupyter_client", "jupyter-client", False),
+        ("PIL", "pillow", False),
+        ("pytesseract", "pytesseract", False),
+        ("huggingface_hub", "huggingface-hub", False),
+        ("googleapiclient", "google-api-python-client", False),
     ]
     for module_name, package_name, required in deps:
         try:
@@ -132,7 +137,7 @@ def run_doctor() -> None:
             print(f"  {_DIM}  {label}: not set{_RESET}")
 
     if configured_providers == 0:
-        _fail("No LLM providers configured! Run: ravyn onboard")
+        _fail("No LLM providers configured! Run: raven onboard")
         issues += 1
 
     # ── Messaging Channels ──────────────────────────────────────
@@ -179,8 +184,12 @@ def run_doctor() -> None:
     _section("Skills System")
     skills_dir = project_root / "skills"
     if skills_dir.exists():
-        bundled = list((skills_dir / "bundled").iterdir()) if (skills_dir / "bundled").exists() else []
-        learned = list((skills_dir / "learned").iterdir()) if (skills_dir / "learned").exists() else []
+        bundled = (
+            list((skills_dir / "bundled").iterdir()) if (skills_dir / "bundled").exists() else []
+        )
+        learned = (
+            list((skills_dir / "learned").iterdir()) if (skills_dir / "learned").exists() else []
+        )
         bundled_count = sum(1 for d in bundled if d.is_dir())
         learned_count = sum(1 for d in learned if d.is_dir())
         _ok(f"Bundled skills: {bundled_count}")
@@ -201,6 +210,26 @@ def run_doctor() -> None:
             issues += 1
         else:
             print(f"  {_DIM}  {tool_name}: not found{_RESET}")
+
+    # Tool-specific binaries (optional)
+    tool_bins = [("tesseract", "OCR"), ("llama-cli", "llama.cpp"), ("main", "llama.cpp (alt)")]
+    for binary, label in tool_bins:
+        if shutil.which(binary):
+            _ok(f"{label}: {binary} found")
+        else:
+            print(f"  {_DIM}  {label}: {binary} not found{_RESET}")
+
+    # Integration API keys (new tools)
+    integration_keys = [
+        ("LINEAR_API_KEY", "Linear"),
+        ("AIRTABLE_API_KEY", "Airtable"),
+    ]
+    for key, label in integration_keys:
+        val = os.environ.get(key, "")
+        if val:
+            _ok(f"{label}: configured")
+        else:
+            print(f"  {_DIM}  {label}: not configured (optional){_RESET}")
 
     # ── Disk Space ──────────────────────────────────────────────
 
@@ -228,4 +257,4 @@ def run_doctor() -> None:
         print(f"\n  {_YELLOW}{_BOLD}{warnings} warning(s), no critical issues.{_RESET}\n")
     else:
         print(f"\n  {_RED}{_BOLD}{issues} issue(s), {warnings} warning(s).{_RESET}")
-        print(f"  Run {_BOLD}ravyn onboard{_RESET} to fix configuration issues.\n")
+        print(f"  Run {_BOLD}raven onboard{_RESET} to fix configuration issues.\n")

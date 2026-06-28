@@ -91,23 +91,15 @@ def _get_whisper_cpp_model() -> Any:
         try:
             from app.settings.config import Config  # noqa: PLC0415
 
-            model_path = getattr(
-                Config, "WHISPER_CPP_MODEL", None
-            )
-            language = getattr(
-                Config, "WHISPER_CPP_LANGUAGE", "en"
-            )
-            threads = int(
-                getattr(Config, "WHISPER_CPP_THREADS", 2)
-            )
+            model_path = getattr(Config, "WHISPER_CPP_MODEL", None)
+            language = getattr(Config, "WHISPER_CPP_LANGUAGE", "en")
+            threads = int(getattr(Config, "WHISPER_CPP_THREADS", 2))
         except Exception:  # noqa: BLE001
             model_path = None
             language = "en"
             threads = 2
 
-        offline = os.getenv("WHISPER_CPP_OFFLINE", "").lower() in {
-            "1", "true", "yes", "on"
-        }
+        offline = os.getenv("WHISPER_CPP_OFFLINE", "").lower() in {"1", "true", "yes", "on"}
         if model_path and not os.path.exists(model_path):
             if offline:
                 raise FileNotFoundError(
@@ -116,8 +108,8 @@ def _get_whisper_cpp_model() -> Any:
                     "(WHISPER_CPP_OFFLINE=1)."
                 )
             logger.debug(
-                "WHISPER_CPP_MODEL=%s missing; pywhispercpp "
-                "will download on first use", model_path,
+                "WHISPER_CPP_MODEL=%s missing; pywhispercpp will download on first use",
+                model_path,
             )
 
         try:
@@ -128,13 +120,15 @@ def _get_whisper_cpp_model() -> Any:
             )
             logger.info(
                 "whisper.cpp loaded: model=%s language=%s threads=%d",
-                model_path or "tiny", language, threads,
+                model_path or "tiny",
+                language,
+                threads,
             )
             return _whisper_cpp_model
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "whisper.cpp failed to load: %s — using Vosk "
-                "fallback", exc,
+                "whisper.cpp failed to load: %s — using Vosk fallback",
+                exc,
             )
             return None
 
@@ -157,9 +151,28 @@ async def transcribe_audio(audio_path: str) -> str:
     never raises.
     """
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
-        None, _transcribe_sync, audio_path
-    )
+    return await loop.run_in_executor(None, _transcribe_sync, audio_path)
+
+
+async def transcribe_bytes(audio_bytes: bytes, suffix: str = ".wav") -> str:
+    """Transcribe raw audio bytes by writing to a temp file.
+
+    Returns empty string on failure — never raises.
+    """
+    import tempfile
+    import os
+
+    fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    try:
+        with open(tmp_path, "wb") as f:
+            f.write(audio_bytes)
+        return await transcribe_audio(tmp_path)
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 # ── Blocking implementations ──────────────────────────────────────────
@@ -207,19 +220,19 @@ def _transcribe_whisper_cpp(audio_path: str, model: Any) -> str:
         segments = model.transcribe(audio_path)
         if not segments:
             return ""
-        text = " ".join(
-            seg.text.strip() for seg in segments if seg.text
-        )
+        text = " ".join(seg.text.strip() for seg in segments if seg.text)
         if text:
             logger.debug(
                 "whisper.cpp transcribed len=%d from %s",
-                len(text), os.path.basename(audio_path),
+                len(text),
+                os.path.basename(audio_path),
             )
         return text.strip()
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "whisper.cpp transcription error for %s: %s",
-            audio_path, exc,
+            audio_path,
+            exc,
         )
         return ""
 
@@ -236,11 +249,7 @@ def _transcribe_vosk(audio_path: str) -> str:
         from vosk import KaldiRecognizer, Model  # type: ignore
 
         audio = AudioSegment.from_file(audio_path)
-        audio = (
-            audio.set_channels(1)
-            .set_frame_rate(16_000)
-            .set_sample_width(2)
-        )
+        audio = audio.set_channels(1).set_frame_rate(16_000).set_sample_width(2)
 
         fd, wav_path = tempfile.mkstemp(suffix=".wav")
         os.close(fd)
@@ -248,9 +257,7 @@ def _transcribe_vosk(audio_path: str) -> str:
             audio.export(wav_path, format="wav")
             vosk_model = Model(str(_VOSK_MODEL_PATH))
             with wave.open(wav_path, "rb") as wf:
-                rec = KaldiRecognizer(
-                    vosk_model, wf.getframerate()
-                )
+                rec = KaldiRecognizer(vosk_model, wf.getframerate())
                 results: list[str] = []
                 while True:
                     data = wf.readframes(4000)
@@ -268,6 +275,7 @@ def _transcribe_vosk(audio_path: str) -> str:
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "vosk transcription error for %s: %s",
-            audio_path, exc,
+            audio_path,
+            exc,
         )
         return ""

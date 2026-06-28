@@ -15,8 +15,6 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 from typing import Any, Dict
 
@@ -185,7 +183,6 @@ class MCPManager:
 
         try:
             session = conn["session"]
-            read = conn["read"]
             write = conn["write"]
             await session.__aexit__(None, None, None)
             await write.close()
@@ -214,11 +211,13 @@ class MCPManager:
             if server_name is not None and srv_name != server_name:
                 continue
             for tool in conn["tools"]:
-                adapters.append(MCPToolAdapter(
-                    session=conn["session"],
-                    tool=tool,
-                    server_name=srv_name,
-                ))
+                adapters.append(
+                    MCPToolAdapter(
+                        session=conn["session"],
+                        tool=tool,
+                        server_name=srv_name,
+                    )
+                )
         return adapters
 
     def list_servers(self) -> list[dict[str, Any]]:

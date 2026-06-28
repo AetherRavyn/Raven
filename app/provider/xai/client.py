@@ -41,9 +41,7 @@ class XAIGrpcClient:
         try:
             import grpc  # type: ignore
         except ImportError as e:
-            raise ImportError(
-                "grpcio is required for XAIGrpcClient. Install `grpcio`."
-            ) from e
+            raise ImportError("grpcio is required for XAIGrpcClient. Install `grpcio`.") from e
 
         # Try common generated module locations.
         chat_pb2 = None
@@ -128,9 +126,7 @@ class XAIGrpcClient:
 
             part_type = str(part.get("type", "text")).strip().lower()
             if part_type == "image_url":
-                image_url = (
-                    part.get("image_url") or part.get("url") or part.get("image") or ""
-                )
+                image_url = part.get("image_url") or part.get("url") or part.get("image") or ""
                 detail = self._detail_value(part.get("detail"))
                 out.append(
                     self._proto.Content(

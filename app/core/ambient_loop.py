@@ -57,6 +57,7 @@ _MULTIMODAL_INTERVAL = 600  # Multimodal processing every 10 min
 _EVENT_DIGEST_INTERVAL = 600  # Event digest every 10 min
 _SELF_EVOLUTION_INTERVAL = 3600  # Self-evolution assessment hourly
 _NOTIFICATION_RETRY_INTERVAL = 300  # Retry pending notifications every 5 min
+_CURIOSITY_INTERVAL = 1800  # Curiosity-driven exploration every 30 min
 
 
 class AmbientLoop:
@@ -98,6 +99,7 @@ class AmbientLoop:
         self._last_event_digest = 0.0
         self._last_self_evolution = 0.0
         self._last_notification_retry = 0.0
+        self._last_curiosity_check = 0.0
         self._last_nudge_check = 0.0
         self._last_working_memory_decay = 0.0
         self._last_companion_discovery = 0.0
@@ -302,6 +304,11 @@ class AmbientLoop:
             self._last_notification_retry = now
             await self._tick_notification_retry()
 
+        # ── 6z. Curiosity-driven exploration ──────────────────────
+        if now - self._last_curiosity_check >= _CURIOSITY_INTERVAL:
+            self._last_curiosity_check = now
+            await self._tick_curiosity()
+
         # ── 7. Broadcast heartbeat to dashboard ───────────────────────
         await self._broadcast_heartbeat()
 
@@ -311,6 +318,7 @@ class AmbientLoop:
         """Flush buffered sentinel events to users."""
         try:
             from app.core.sentinel_bridge import get_sentinel_bridge
+
             bridge = get_sentinel_bridge()
             digest = await bridge.flush_digest()
             if digest:
@@ -350,7 +358,7 @@ class AmbientLoop:
                 )
 
             # Check for unregistered tools
-            if self._orchestrator and hasattr(self._orchestrator, '_agent_runtime'):
+            if self._orchestrator and hasattr(self._orchestrator, "_agent_runtime"):
                 registered = list(self._orchestrator._agent_runtime.tools.keys())
                 discovered = tracker.discover_unregistered_tools(registered)
                 if discovered:
@@ -369,6 +377,7 @@ class AmbientLoop:
         """Periodically train the RL agent on accumulated experience."""
         try:
             from app.core.reinforcement_learning import get_reinforcement_learner
+
             rl = get_reinforcement_learner()
             trained = rl.replay(batch_size=64)
             if trained:
@@ -399,10 +408,7 @@ class AmbientLoop:
                             all_steps_done = False
                             # Check if dependencies are met
                             deps_met = all(
-                                any(
-                                    s.step_id == dep and s.status == "done"
-                                    for s in wf.steps
-                                )
+                                any(s.step_id == dep and s.status == "done" for s in wf.steps)
                                 for dep in step.depends_on
                             )
                             if deps_met:
@@ -413,12 +419,11 @@ class AmbientLoop:
                                     )
                                     if not condition_met:
                                         # Skip this step (mark as skipped)
-                                        engine.advance_step(
-                                            run["run_id"], step.step_id, "skipped"
-                                        )
+                                        engine.advance_step(run["run_id"], step.step_id, "skipped")
                                         logger.info(
                                             "AmbientLoop: skipped workflow '%s' step '%s' (condition not met)",
-                                            wf.name, step.title,
+                                            wf.name,
+                                            step.title,
                                         )
                                         continue
 
@@ -441,8 +446,11 @@ class AmbientLoop:
                         next_wf = engine.check_chain(run)
                         if next_wf:
                             engine.start_run(next_wf, context=run.get("context", {}))
-                            logger.info("AmbientLoop: chained workflow '%s' → '%s'",
-                                       run.get("workflow_id"), next_wf)
+                            logger.info(
+                                "AmbientLoop: chained workflow '%s' → '%s'",
+                                run.get("workflow_id"),
+                                next_wf,
+                            )
 
         except Exception as exc:
             logger.debug("AmbientLoop: workflow tick skipped — %s", exc)
@@ -462,6 +470,7 @@ class AmbientLoop:
             # Feed sensor events from MQTT listener
             try:
                 from app.sensors.mqtt_listener import get_recent_readings
+
                 readings = get_recent_readings()
                 for reading in readings:
                     event = Event(
@@ -479,10 +488,14 @@ class AmbientLoop:
                 if hasattr(self, "_last_health_check"):
                     # Check if any services are down
                     from app.core.health import HealthMonitor
+
                     monitor = HealthMonitor()
                     health = await monitor.check_all()
                     for name, service_health in health.items():
-                        if hasattr(service_health, 'status') and service_health.status.value == "down":
+                        if (
+                            hasattr(service_health, "status")
+                            and service_health.status.value == "down"
+                        ):
                             event = Event(
                                 event_type=f"system_anomaly_{name}",
                                 source="health_monitor",
@@ -513,8 +526,12 @@ class AmbientLoop:
             alerts = await self._live_feeds.check_all()
             for alert in alerts:
                 if alert.urgency >= 0.6:
-                    logger.info("LiveFeed alert: [%s] %s — %s",
-                               alert.feed_type, alert.title, alert.summary[:80])
+                    logger.info(
+                        "LiveFeed alert: [%s] %s — %s",
+                        alert.feed_type,
+                        alert.title,
+                        alert.summary[:80],
+                    )
         except Exception as exc:
             logger.debug("AmbientLoop: live feeds skipped — %s", exc)
 
@@ -523,15 +540,17 @@ class AmbientLoop:
     async def _broadcast_heartbeat(self) -> None:
         """Send periodic heartbeat to all dashboard WebSocket subscribers."""
         try:
-            from app.web.server import broadcast_event
+            from app.api.server import broadcast_event
 
             uptime = time.time() - self._start_time
-            await broadcast_event({
-                "event": "ambient_heartbeat",
-                "tick": self._tick_count,
-                "uptime_seconds": int(uptime),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            await broadcast_event(
+                {
+                    "event": "ambient_heartbeat",
+                    "tick": self._tick_count,
+                    "uptime_seconds": int(uptime),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
         except Exception:
             pass  # Dashboard may not be running
 
@@ -584,14 +603,17 @@ class AmbientLoop:
 
                 # Broadcast to dashboard
                 try:
-                    from app.web.server import broadcast_event
-                    await broadcast_event({
-                        "event": "health_alert",
-                        "severity": "HIGH",
-                        "down_services": summary["down_services"],
-                        "summary": summary,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
+                    from app.api.server import broadcast_event
+
+                    await broadcast_event(
+                        {
+                            "event": "health_alert",
+                            "severity": "HIGH",
+                            "down_services": summary["down_services"],
+                            "summary": summary,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
                 except Exception:
                     pass
             else:
@@ -635,9 +657,7 @@ class AmbientLoop:
             user_id = "default"
             context = engine.get_context(user_id)
             if context is None:
-                logger.debug(
-                    "AmbientLoop: memory update skipped — no context available"
-                )
+                logger.debug("AmbientLoop: memory update skipped — no context available")
                 return
 
             updater = AutoMemoryUpdater()
@@ -669,6 +689,7 @@ class AmbientLoop:
         context: dict[str, Any] = {}
         try:
             from app.core.context_awareness import get_context_awareness
+
             awareness = get_context_awareness()
             # Get context for default user
             engine_ctx = awareness._get_engine()
@@ -694,14 +715,16 @@ class AmbientLoop:
                     priority="high" if insight.urgency >= 0.7 else "normal",
                 )
                 decision = engine.evaluate(candidate)
-                self._recent_decisions.append({
-                    "channel": decision.candidate.channel,
-                    "topic": decision.candidate.topic,
-                    "emit": decision.emit,
-                    "reason": decision.reason,
-                    "gates": dict(decision.gates),
-                    "decided_at": decision.decided_at,
-                })
+                self._recent_decisions.append(
+                    {
+                        "channel": decision.candidate.channel,
+                        "topic": decision.candidate.topic,
+                        "emit": decision.emit,
+                        "reason": decision.reason,
+                        "gates": dict(decision.gates),
+                        "decided_at": decision.decided_at,
+                    }
+                )
                 if decision.emit:
                     await self._dispatch_emitted(decision.candidate)
 
@@ -714,8 +737,7 @@ class AmbientLoop:
         """
         if self._botsignal is None:
             logger.info(
-                "AmbientLoop: proactive emit (no sink wired) — "
-                "channel=%s topic=%s body=%s",
+                "AmbientLoop: proactive emit (no sink wired) — channel=%s topic=%s body=%s",
                 candidate.channel,
                 candidate.topic,
                 candidate.body,
@@ -826,7 +848,8 @@ class AmbientLoop:
             from app.core.learning_tracker import get_learning_tracker
         except Exception as exc:  # noqa: BLE001 - optional
             logger.debug(
-                "AmbientLoop: learning_tracker missing — %s", exc,
+                "AmbientLoop: learning_tracker missing — %s",
+                exc,
             )
             return
         try:
@@ -839,9 +862,7 @@ class AmbientLoop:
                 "overall_success_rate": summary.overall_success_rate,
                 "velocity_30d": summary.velocity_30d,
                 "top_failure": (
-                    summary.failure_modes[0].to_dict()
-                    if summary.failure_modes
-                    else None
+                    summary.failure_modes[0].to_dict() if summary.failure_modes else None
                 ),
             }
             self._recent_learning_summaries.append(entry)
@@ -855,7 +876,8 @@ class AmbientLoop:
             )
         except Exception as exc:  # noqa: BLE001 - audit outage
             logger.warning(
-                "AmbientLoop: learning summary failed — %s", exc,
+                "AmbientLoop: learning summary failed — %s",
+                exc,
             )
 
     @property
@@ -886,7 +908,8 @@ class AmbientLoop:
             from app.core.home_orchestrator import get_home_orchestrator
         except Exception as exc:  # noqa: BLE001 - optional
             logger.debug(
-                "AmbientLoop: home_orchestrator missing — %s", exc,
+                "AmbientLoop: home_orchestrator missing — %s",
+                exc,
             )
             return
         try:
@@ -921,7 +944,8 @@ class AmbientLoop:
             )
         except Exception as exc:  # noqa: BLE001 - outage
             logger.warning(
-                "AmbientLoop: presence refresh failed — %s", exc,
+                "AmbientLoop: presence refresh failed — %s",
+                exc,
             )
 
     @property
@@ -962,17 +986,9 @@ class AmbientLoop:
             # Snapshot which jobs are enabled *before* the tick
             # so we can diff which ones actually fired (last_run
             # timestamps advance on fire).
-            before = {
-                j.get("job_id"): j
-                for j in engine.get_jobs()
-                if j.get("enabled", False)
-            }
+            before = {j.get("job_id"): j for j in engine.get_jobs() if j.get("enabled", False)}
             await engine.tick_all()
-            after = {
-                j.get("job_id"): j
-                for j in engine.get_jobs()
-                if j.get("enabled", False)
-            }
+            after = {j.get("job_id"): j for j in engine.get_jobs() if j.get("enabled", False)}
             for jid, before_job in before.items():
                 after_job = after.get(jid)
                 if after_job is None:
@@ -986,18 +1002,13 @@ class AmbientLoop:
                             "job_id": jid,
                             "name": after_job.get("name"),
                             "schedule_type": after_job.get("schedule_type"),
-                            "action_type": (
-                                after_job.get("action", {}).get("type")
-                            ),
+                            "action_type": (after_job.get("action", {}).get("type")),
                         }
                     )
             logger.debug(
                 "AmbientLoop: cron tick — %d fire(s) recorded",
                 sum(
-                    1
-                    for jid in before
-                    if jid in after
-                    and self._job_fired(before[jid], after[jid])
+                    1 for jid in before if jid in after and self._job_fired(before[jid], after[jid])
                 ),
             )
         except Exception as exc:  # noqa: BLE001 - cron outage
@@ -1008,15 +1019,9 @@ class AmbientLoop:
         """Return True if the job's run timestamp advanced."""
         schedule = after.get("schedule_type")
         if schedule == "daily_at":
-            return (
-                after.get("last_run_day", -1)
-                != before.get("last_run_day", -1)
-            )
+            return after.get("last_run_day", -1) != before.get("last_run_day", -1)
         if schedule == "interval_minutes":
-            return (
-                after.get("last_run_ts", 0.0)
-                > before.get("last_run_ts", 0.0)
-            )
+            return after.get("last_run_ts", 0.0) > before.get("last_run_ts", 0.0)
         return False
 
     @property
@@ -1066,6 +1071,7 @@ class AmbientLoop:
         """Apply relevance decay to working memory items."""
         try:
             from app.core.attention import WorkingMemory
+
             wm = WorkingMemory()
             removed = wm.apply_decay()
             if removed:
@@ -1077,13 +1083,16 @@ class AmbientLoop:
         """Discover and register companion AIs via A2A protocol."""
         try:
             from app.core.companion_ai import get_companion_manager
+
             manager = get_companion_manager()
             # Discover companions from the A2A module registry
             from raven_protocol import get_registry
+
             registry = get_registry()
             for card in registry.list_cards():
                 if card.name not in [c.name for c in manager.list_companions()]:
                     from app.core.companion_ai import CompanionAI
+
                     companion = CompanionAI(
                         name=card.name,
                         description=card.description,
@@ -1125,13 +1134,22 @@ class AmbientLoop:
 
             if all_examples:
                 import time as _time
+
                 out_path = f"workspace/training_data/auto_{int(_time.time())}.jsonl"
                 from pathlib import Path as _Path
+
                 _Path(out_path).parent.mkdir(parents=True, exist_ok=True)
                 import json as _json
+
                 with open(out_path, "w", encoding="utf-8") as f:
                     for ex in all_examples:
-                        f.write(_json.dumps({"instruction": ex.get("content", ""), "output": ""}, ensure_ascii=False) + "\n")
+                        f.write(
+                            _json.dumps(
+                                {"instruction": ex.get("content", ""), "output": ""},
+                                ensure_ascii=False,
+                            )
+                            + "\n"
+                        )
                 logger.debug("AmbientLoop: auto-exported %d training examples", len(all_examples))
         except Exception as exc:
             logger.debug("AmbientLoop: training data export skipped — %s", exc)
@@ -1147,6 +1165,7 @@ class AmbientLoop:
         """
         try:
             from app.core.agency import get_swarm_manager
+
             swarm = get_swarm_manager()
             agents = getattr(swarm, "_agents", {})
             for name, agent in agents.items():
@@ -1167,9 +1186,14 @@ class AmbientLoop:
         """Advance active goals — check progress and advance subtasks."""
         try:
             from app.core.goal_manager import get_goal_manager
+
             gm = get_goal_manager()
             goals = gm.list_goals() if hasattr(gm, "list_goals") else []
-            active = [g for g in goals if hasattr(g, "status") and str(getattr(g, "status", "")) == "GoalStatus.ACTIVE"]
+            active = [
+                g
+                for g in goals
+                if hasattr(g, "status") and str(getattr(g, "status", "")) == "GoalStatus.ACTIVE"
+            ]
             if active:
                 logger.debug("AmbientLoop: %d active goals tracked", len(active))
         except Exception as exc:
@@ -1181,6 +1205,7 @@ class AmbientLoop:
         """Check service health and apply fallbacks if needed."""
         try:
             from app.core.resilient_recovery import get_resilience_manager
+
             rm = get_resilience_manager()
             if hasattr(rm, "check_all"):
                 rm.check_all()
@@ -1194,6 +1219,7 @@ class AmbientLoop:
         """Generate schedule suggestions from learned patterns."""
         try:
             from app.core.predictive_scheduler import PredictiveScheduler
+
             ps = PredictiveScheduler()
             if hasattr(ps, "suggest_schedule"):
                 suggestions = ps.suggest_schedule()
@@ -1208,6 +1234,7 @@ class AmbientLoop:
         """Update predictive forecasts."""
         try:
             from app.core.forecast import ForecastEngine
+
             fe = ForecastEngine()
             if hasattr(fe, "update"):
                 fe.update()
@@ -1221,6 +1248,7 @@ class AmbientLoop:
         """Scan environment for new patterns and evidence."""
         try:
             from app.core.perception import PerceptionEngine
+
             pe = PerceptionEngine()
             if hasattr(pe, "scan"):
                 pe.scan()
@@ -1232,6 +1260,7 @@ class AmbientLoop:
         """Check A2A module server health."""
         try:
             from app.core.agent_a2a_server import AgentA2AServer
+
             _s = AgentA2AServer()
             logger.debug("AmbientLoop: A2A server check done")
         except Exception as exc:
@@ -1241,6 +1270,7 @@ class AmbientLoop:
         """Run evaluation harness."""
         try:
             from app.core.eval import EvaluationHarness
+
             eh = EvaluationHarness()
             if hasattr(eh, "run"):
                 eh.run()
@@ -1252,6 +1282,7 @@ class AmbientLoop:
         """Check for regressions."""
         try:
             from app.core.regression import RegressionSuite
+
             rs = RegressionSuite()
             if hasattr(rs, "check"):
                 rs.check()
@@ -1263,6 +1294,7 @@ class AmbientLoop:
         """Check for service degradation."""
         try:
             from app.core.degraded_mode import DegradationDetector
+
             dd = DegradationDetector()
             if hasattr(dd, "check"):
                 dd.check()
@@ -1274,6 +1306,7 @@ class AmbientLoop:
         """Poll environmental sensors."""
         try:
             from app.core.environmental_sensors import EnvironmentalSensor
+
             es = EnvironmentalSensor()
             if hasattr(es, "read_sensors"):
                 es.read_sensors()
@@ -1286,6 +1319,7 @@ class AmbientLoop:
         try:
             from app.core.multimodal_retrieval import MultimodalRetriever
             from app.core.multimodal_understanding import MultiModalProcessor
+
             _mr = MultimodalRetriever()
             _mp = MultiModalProcessor()
             logger.debug("AmbientLoop: multimodal processing done")
@@ -1296,6 +1330,7 @@ class AmbientLoop:
         """Aggregate events into digest."""
         try:
             from app.core.event_digest import EventDigest
+
             ed = EventDigest()
             if hasattr(ed, "flush"):
                 ed.flush()
@@ -1307,6 +1342,7 @@ class AmbientLoop:
         """Run self-evolution: compute adjustments, auto-generate goals, log report."""
         try:
             from app.core.self_evolution import get_self_evolution
+
             se = get_self_evolution()
             adjustments = se.compute_adjustments()
             assessment = se.assess()
@@ -1317,19 +1353,25 @@ class AmbientLoop:
                 len(adjustments),
             )
             # Auto-generate goals when metrics show improvement areas
-            if assessment.get("avg_tool_success", 1.0) < 0.7 and assessment.get("tools_tracked", 0) > 3:
+            if (
+                assessment.get("avg_tool_success", 1.0) < 0.7
+                and assessment.get("tools_tracked", 0) > 3
+            ):
                 active = se.get_active_goals()
                 has_goal = any("tool reliability" in g.title.lower() for g in active)
                 if not has_goal:
                     from app.core.self_evolution import EvolutionGoal
-                    se.add_goal(EvolutionGoal(
-                        goal_id="improve_tool_reliability",
-                        title="Improve tool reliability to 80%",
-                        description="Average tool success rate is below target",
-                        category="tool_usage",
-                        target_metric="avg_tool_success",
-                        target_value=0.8,
-                    ))
+
+                    se.add_goal(
+                        EvolutionGoal(
+                            goal_id="improve_tool_reliability",
+                            title="Improve tool reliability to 80%",
+                            description="Average tool success rate is below target",
+                            category="tool_usage",
+                            target_metric="avg_tool_success",
+                            target_value=0.8,
+                        )
+                    )
             # Record overall system health metric
             sat = assessment.get("avg_satisfaction", 0)
             if sat > 0:
@@ -1341,13 +1383,85 @@ class AmbientLoop:
         """Retry delivering pending notifications (botsignal fallback → email fallback)."""
         try:
             from app.core.notification_manager import get_notification_manager
+
             nm = get_notification_manager()
             pending = nm.get_pending_count()
             if pending > 0:
                 delivered = nm.retry_delivery()
-                logger.debug("AmbientLoop: notification retry — %d pending, %d delivered", pending, delivered)
+                logger.debug(
+                    "AmbientLoop: notification retry — %d pending, %d delivered", pending, delivered
+                )
         except Exception as exc:
             logger.debug("AmbientLoop: notification retry skipped — %s", exc)
+
+    # ── Curiosity-Driven Exploration ─────────────────────────────────
+
+    async def _tick_curiosity(self) -> None:
+        """Identify and fill knowledge gaps via curiosity-driven exploration.
+
+        Scans the knowledge graph for sparse entities and thin domains,
+        picks the highest-importance gap, and either promotes it to a
+        GoalManager goal or explores it directly via web search.
+        """
+        try:
+            from app.core.curiosity import get_curiosity_module
+            from app.core.goal_manager import GoalManager
+            from app.core.knowledge_manager import get_knowledge_manager
+        except Exception as exc:
+            logger.debug("AmbientLoop: curiosity modules missing — %s", exc)
+            return
+
+        try:
+            curiosity = get_curiosity_module()
+            kg = get_knowledge_manager()
+
+            # Wire dependencies that weren't available at singleton init
+            goal_manager = GoalManager()
+            curiosity._goal_manager = goal_manager
+            curiosity._kg_manager = kg
+
+            # Identify gaps
+            gaps = await curiosity.identify_gaps()
+            if not gaps:
+                logger.debug("AmbientLoop: curiosity — no gaps found")
+                return
+
+            # Pick the most important gap
+            best = gaps[0]
+            logger.info(
+                "AmbientLoop: curiosity — gap found: %s (importance=%.2f, source=%s)",
+                best.domain,
+                best.importance,
+                best.source,
+            )
+
+            # If high importance, create a goal for systematic pursuit
+            if best.importance >= 0.7:
+                goal_id = await curiosity.promote_to_goal(best)
+                if goal_id:
+                    logger.info(
+                        "AmbientLoop: curiosity — promoted '%s' to goal %s",
+                        best.domain,
+                        goal_id,
+                    )
+
+            # Explore directly
+            result = await curiosity.execute_exploration(best)
+            if result.success:
+                logger.info(
+                    "AmbientLoop: curiosity — explored '%s': %d facts written",
+                    best.domain,
+                    result.facts_written,
+                )
+            else:
+                logger.debug(
+                    "AmbientLoop: curiosity — exploration of '%s' failed: %s",
+                    best.domain,
+                    result.summary,
+                )
+
+        except Exception as exc:
+            logger.debug("AmbientLoop: curiosity tick skipped — %s", exc)
 
 
 # ── Module singleton ───────────────────────────────────────────────────
@@ -1360,4 +1474,3 @@ def get_ambient_loop() -> AmbientLoop:
     if _LOOP is None:
         _LOOP = AmbientLoop()
     return _LOOP
-

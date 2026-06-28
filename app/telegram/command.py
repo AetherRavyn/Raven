@@ -127,12 +127,12 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     logger.error(f"Exception while handling an update: {context.error}")
 
 
-async def handle_voice_message(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """Transcribe a received voice/audio note and pass it to the orchestrator."""
-    from app.voice.transcribe import transcribe_audio
+async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Transcribe a received voice/audio note and pass it to the orchestrator.
 
+    If the user has an active voice session, the audio is fed through the
+    voice bridge for real-time processing instead.
+    """
     orchestrator = context.application.bot_data.get(ORCHESTRATOR_KEY)
     botsignal: BotSignal | None = context.application.bot_data.get("botsignal")
     user = update.effective_user
@@ -153,6 +153,26 @@ async def handle_voice_message(
     os.close(fd)
     try:
         await tg_file.download_to_drive(tmp_path)
+
+        # Check for active voice session — if so, feed through bridge
+        user_id_str = str(user.id)
+        try:
+            from app.voice.voice_bridge import get_voice_session_manager
+
+            mgr = get_voice_session_manager()
+            session = mgr.get_active_session("telegram", user_id_str)
+            if session:
+                with open(tmp_path, "rb") as fh:
+                    audio_data = fh.read()
+                text = await mgr.feed_audio(session.session_id, audio_data)
+                if text:
+                    await mgr.process_transcription(session.session_id, text)
+                return
+        except (ImportError, RuntimeError):
+            pass
+
+        from app.voice.transcribe import transcribe_audio
+
         text = await transcribe_audio(tmp_path)
     finally:
         os.unlink(tmp_path)
@@ -189,3 +209,31 @@ async def handle_voice_message(
         conversation_id=str(chat.id),
     )
     await orchestrator.handle(request)
+
+
+async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /voice — start or end a voice session."""
+    from app.voice.voice_bridge import get_voice_session_manager
+
+    orchestrator = context.application.bot_data.get(ORCHESTRATOR_KEY)
+    botsignal: BotSignal | None = context.application.bot_data.get("botsignal")
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat or not orchestrator or not botsignal:
+        return
+
+    mgr = get_voice_session_manager(orchestrator, botsignal)
+    user_id_str = str(user.id)
+    chat_id_str = str(chat.id)
+
+    existing = mgr.get_active_session("telegram", user_id_str)
+    if existing:
+        await mgr.end_session(existing.session_id)
+        await update.message.reply_text("🔇 Voice session ended.")
+        return
+
+    await mgr.start_session("telegram", user_id_str, chat_id_str)
+    await update.message.reply_text(
+        "🎤 Voice session started! Send me voice messages and I'll respond in real-time. "
+        "Send /voice again to end the session."
+    )

@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.google_drive
+display_name: Google Drive File Manager
+version: "1.0.0"
+category: skill
+description: "List, upload, download, search, and organize files in Google Drive."
+tags: [google, drive, cloud-storage, files]
+capabilities: [google_drive]
+trust_level: user_config
+enabled_by_default: false
+stability: stable
+origin: bundled
+confidence: 0.90
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "google.*drive|drive.*file|upload.*drive|download.*drive"
+    confidence: 0.85

@@ -14,19 +14,19 @@ This module is intentionally **self-contained**:
 - All exceptions are caught and logged; the supervisor must not
   die because a child misbehaved.
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
 import multiprocessing as mp
-import os
 import time
 import traceback
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from typing import Any, Awaitable, Callable, Optional
+from contextlib import suppress
+from typing import Any, Awaitable, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +112,8 @@ class SidecarSpec:
 class _SidecarRuntime:
     spec: SidecarSpec
     state: SidecarState = SidecarState.PENDING
-    proc: Optional[mp.Process] = None
-    health_q: Optional[mp.Queue] = None
+    proc: mp.Process | None = None
+    health_q: mp.Queue | None = None
     last_health: HealthSnapshot = field(default_factory=HealthSnapshot)
     last_health_at: float = 0.0
     restarts_in_window: list[float] = field(default_factory=list)
@@ -249,18 +249,14 @@ class Supervisor:
                 SidecarState.RESTARTING,
                 SidecarState.FAILED,
             ):
-                logger.warning(
-                    "Sidecar %s exited (code=%s)", rt.spec.name, rt.exit_code
-                )
+                logger.warning("Sidecar %s exited (code=%s)", rt.spec.name, rt.exit_code)
                 rt.state = SidecarState.RESTARTING
 
     def _maybe_restart(self, rt: _SidecarRuntime, now: float) -> None:
         if rt.state != SidecarState.RESTARTING:
             return
         # Restrict to 10 restarts per rolling hour.
-        rt.restarts_in_window = [
-            t for t in rt.restarts_in_window if now - t < 3600.0
-        ]
+        rt.restarts_in_window = [t for t in rt.restarts_in_window if now - t < 3600.0]
         if len(rt.restarts_in_window) >= MAX_RESTARTS_PER_HOUR:
             logger.error(
                 "Sidecar %s exceeded %d restarts/hour — leaving FAILED",
@@ -323,9 +319,7 @@ class Supervisor:
 # ── Child entrypoint ─────────────────────────────────────────────────
 
 
-def _sidecar_entrypoint(
-    spec: SidecarSpec, health_q: "mp.Queue[str]"
-) -> None:
+def _sidecar_entrypoint(spec: SidecarSpec, health_q: "mp.Queue[str]") -> None:
     """Run inside the child process.
 
     Each sidecar must:
@@ -343,17 +337,13 @@ def _sidecar_entrypoint(
         # Surface the failure to the parent via the health queue so
         # the supervisor's next tick sees a non-`ok` status.
         try:
-            health_q.put_nowait(
-                HealthSnapshot(status="error", note=f"crashed: {exc}").to_line()
-            )
+            health_q.put_nowait(HealthSnapshot(status="error", note=f"crashed: {exc}").to_line())
         except Exception:
             pass
         traceback.print_exc()
 
 
-async def _sidecar_main(
-    spec: SidecarSpec, health_q: "mp.Queue[str]"
-) -> None:
+async def _sidecar_main(spec: SidecarSpec, health_q: "mp.Queue[str]") -> None:
     """Async runner for a single sidecar.
 
     It calls `spec.target(*args, **kwargs)`. The target is responsible
@@ -367,13 +357,11 @@ async def _sidecar_main(
         await spec.target(health_q, *spec.args, **spec.kwargs)
     finally:
         ping_task.cancel()
-        with contextlib_suppress(Exception):
+        with suppress(Exception):
             await ping_task
 
 
-async def _sidecar_health_pinger(
-    spec: SidecarSpec, health_q: "mp.Queue[str]"
-) -> None:
+async def _sidecar_health_pinger(spec: SidecarSpec, health_q: "mp.Queue[str]") -> None:
     """Push a health line every 5 s for the lifetime of the sidecar."""
     try:
         import psutil  # type: ignore
@@ -406,18 +394,6 @@ async def _sidecar_health_pinger(
             # catch silence as the next fallback signal.
             pass
         await asyncio.sleep(HEALTH_PING_INTERVAL_S)
-
-
-# Tiny shim so we don't need to import contextlib at module top.
-class contextlib_suppress:
-    def __init__(self, *exc: type[BaseException]) -> None:
-        self.excs = exc
-
-    def __enter__(self) -> None:
-        return None
-
-    def __exit__(self, exc_type, exc, tb) -> bool:
-        return exc_type is not None and issubclass(exc_type, self.excs)
 
 
 # ── Module singleton ────────────────────────────────────────────────

@@ -39,7 +39,7 @@ class CalendarWatcher:
         """Lazy-load the calendar tool."""
         if self._calendar_tool is None:
             try:
-                from app.tools.toolkit.google.googlecalender import GoogleCalendarTool
+                from app.tools.toolkit.google.googlecalendar import GoogleCalendarTool
 
                 self._calendar_tool = GoogleCalendarTool()
             except Exception as exc:
@@ -123,7 +123,9 @@ class CalendarWatcher:
                         elif "+" in start_str or start_str.count("-") > 2:
                             event_start = datetime.fromisoformat(start_str)
                         else:
-                            event_start = datetime.fromisoformat(start_str).replace(tzinfo=timezone.utc)
+                            event_start = datetime.fromisoformat(start_str).replace(
+                                tzinfo=timezone.utc
+                            )
                     else:
                         # All-day event — skip time-based alerts
                         continue
@@ -232,10 +234,7 @@ class CalendarWatcher:
                     )
 
                 # Clean up old notified events (keep only today's)
-                _notified_events = {
-                    k for k in _notified_events
-                    if not k.startswith("daily:")
-                }
+                _notified_events = {k for k in _notified_events if not k.startswith("daily:")}
 
         except Exception as exc:
             logger.error("CalendarWatcher: error during check — %s", exc)
@@ -361,16 +360,19 @@ def register_calendar_watcher_v2(
 
     if not isinstance(scheduler, Scheduler):
         raise TypeError(
-            "register_calendar_watcher_v2 requires a v2 Scheduler; "
-            f"got {type(scheduler).__name__}"
+            f"register_calendar_watcher_v2 requires a v2 Scheduler; got {type(scheduler).__name__}"
         )
 
     routine_id = f"calendar_watcher::{user_id}"
     watcher = CalendarWatcher()
-    router = signal_router or getattr(scheduler, "signal_router", None) or get_default_signal_router()
+    router = (
+        signal_router or getattr(scheduler, "signal_router", None) or get_default_signal_router()
+    )
     cache = dedupe_cache or getattr(scheduler, "dedupe_cache", None) or DedupeCache()
 
-    async def _fire(uid: str, *args: Any, triggered_at: datetime | None = None, **kwargs: Any) -> list:
+    async def _fire(
+        uid: str, *args: Any, triggered_at: datetime | None = None, **kwargs: Any
+    ) -> list:
         signals = await watcher.generate_signals(
             user_id=uid,
             platform=platform,

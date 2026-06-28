@@ -259,11 +259,11 @@ class TestRuntimeFlagOff:
         if self._old is not None:
             os.environ["RAVEN_CONVERSATION_V2"] = self._old
 
-    def test_flag_off_by_default(self) -> None:
+    def test_flag_on_by_default(self) -> None:
         from app.core.runtime import AgentRuntime
 
         r = AgentRuntime()
-        assert r._use_conversation_v2 is False
+        assert r._use_conversation_v2 is True
         # Manager is still built (so callers can opt-in later)
         # but the runtime won't auto-ingest.
         assert r.conversation_manager is not None

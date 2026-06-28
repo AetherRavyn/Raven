@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.acp_protocol
+display_name: Agent Communication Protocol
+version: "1.0.0"
+category: skill
+description: "Integrate with IDEs and external tools via the ACP endpoint."
+tags: [acp, ide, integration, protocol, api]
+capabilities: [acp]
+trust_level: system
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.90
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "ide.*connect|acp|external.*tool|editor.*integration|agent.*protocol"
+    confidence: 0.85

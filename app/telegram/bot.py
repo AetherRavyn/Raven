@@ -14,6 +14,7 @@ from app.telegram.command import (
     help_command,
     start,
     status,
+    voice_command,
 )
 from app.telegram.constants import ORCHESTRATOR_KEY
 from telegram.ext import (
@@ -26,6 +27,7 @@ from telegram.ext import (
 
 logger = logging.getLogger(__name__)
 TELEGRAM_TEXT_LIMIT = 4096
+
 
 def _chunk_text(text: str, limit: int) -> list[str]:
     if len(text) <= limit:
@@ -68,6 +70,7 @@ def create_bot() -> Application:
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("status", status))
     app.add_handler(CommandHandler("about", about))
+    app.add_handler(CommandHandler("voice", voice_command))
 
     # Register message handler for non-command text messages
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
@@ -85,20 +88,14 @@ def create_bot() -> Application:
     return app
 
 
-def bind_runtime(
-    app: Application, orchestrator: MessageOrchestrator, botsignal: BotSignal
-) -> None:
+def bind_runtime(app: Application, orchestrator: MessageOrchestrator, botsignal: BotSignal) -> None:
     """Bind runtime objects and register Telegram sender on BotSignal."""
     app.bot_data[ORCHESTRATOR_KEY] = orchestrator
     app.bot_data["botsignal"] = botsignal
 
     async def _send_telegram(target: ReplyTarget, payload: SignalPayload) -> None:
         chat_id: str | int
-        chat_id = (
-            int(target.chat_id)
-            if target.chat_id.lstrip("-").isdigit()
-            else target.chat_id
-        )
+        chat_id = int(target.chat_id) if target.chat_id.lstrip("-").isdigit() else target.chat_id
         kwargs = {}
         temp_file_path: str | None = None
         if target.reply_to_id and target.reply_to_id.isdigit():
@@ -106,12 +103,10 @@ def bind_runtime(
 
         message_text = payload.text or payload.caption or ""
         temp_file_path = None
-        
+
         # If there's an actual file to send or the message is insanely huge (> 20000 chars), fallback to file
         if len(message_text) > 20000 and not payload.file_path:
-            fd, temp_file_path = tempfile.mkstemp(
-                prefix="raven_output_", suffix=".txt", text=True
-            )
+            fd, temp_file_path = tempfile.mkstemp(prefix="raven_output_", suffix=".txt", text=True)
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 fh.write(message_text)
             message_text = "Output was extremely long. Sent as file attachment."
@@ -184,7 +179,10 @@ def bind_runtime(
                     **send_kwargs,
                 )
                 import asyncio
-                await asyncio.sleep(0.5) # Slight delay to prevent rate limit on multi-chunk messages
+
+                await asyncio.sleep(
+                    0.5
+                )  # Slight delay to prevent rate limit on multi-chunk messages
         finally:
             if temp_file_path and os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
@@ -214,9 +212,7 @@ def bind_runtime(
             audio_path = await synthesize(payload.text)
             if audio_path:
                 chat_id: str | int = (
-                    int(target.chat_id)
-                    if target.chat_id.lstrip("-").isdigit()
-                    else target.chat_id
+                    int(target.chat_id) if target.chat_id.lstrip("-").isdigit() else target.chat_id
                 )
                 kwargs: dict = {}
                 if target.reply_to_id and target.reply_to_id.isdigit():

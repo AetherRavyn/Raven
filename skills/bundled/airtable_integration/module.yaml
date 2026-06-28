@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.airtable_integration
+display_name: Airtable Record Manager
+version: "1.0.0"
+category: skill
+description: "Create, read, update, and delete Airtable records via the Airtable REST API."
+tags: [airtable, database, spreadsheet, records]
+capabilities: [airtable]
+trust_level: user_config
+enabled_by_default: false
+stability: stable
+origin: bundled
+confidence: 0.90
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "airtable|airtable.*record|airtable.*table|base.*data"
+    confidence: 0.85

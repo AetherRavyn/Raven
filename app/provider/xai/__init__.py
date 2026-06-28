@@ -1,3 +1,3 @@
-from app.provider.xai.clinet import XAIGrpcClient
+from app.provider.xai.client import XAIGrpcClient
 
 __all__ = ["XAIGrpcClient"]

@@ -181,9 +181,7 @@ def _search_gemini(
             gmodel = genai.GenerativeModel(model)
             resp = gmodel.generate_content(query)
         except ImportError as e:
-            raise ImportError(
-                "Install 'google-genai' to use the Gemini search provider."
-            ) from e
+            raise ImportError("Install 'google-genai' to use the Gemini search provider.") from e
     answer = getattr(resp, "text", "") or ""
     results = [{"title": "AI Answer", "url": "", "snippet": answer}]
     # Extract grounding citations and resolve Google redirect URLs
@@ -268,6 +266,75 @@ def _resolve_redirect(url: str, timeout: int = 10) -> str:
 # ---------------------------------------------------------------------------
 # DuckDuckGo free fallback (no API key needed)
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Tavily search (structured results, optimized for AI agents)
+# ---------------------------------------------------------------------------
+def _search_tavily(
+    query: str,
+    api_key: str,
+    count: int,
+    timeout: int = 30,
+    include_raw_content: bool = True,
+) -> list[dict[str, Any]]:
+    """Call Tavily Search API — built for AI agents, returns structured results."""
+    try:
+        import requests
+    except ImportError:
+        raise ImportError("Install 'requests' to use the Tavily search provider.")
+    try:
+        resp = requests.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": api_key,
+                "query": query,
+                "max_results": min(count, 20),
+                "include_raw_content": include_raw_content,
+                "include_answer": True,
+            },
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception:
+        return _search_tavily_fallback(query, api_key, count, timeout)
+
+    results = []
+    answer = data.get("answer", "")
+    if answer:
+        results.append({"title": "AI Summary", "url": "", "snippet": answer})
+    for r in (data.get("results") or [])[:count]:
+        results.append(
+            {
+                "title": r.get("title", ""),
+                "url": r.get("url", ""),
+                "snippet": r.get("content", ""),
+            }
+        )
+    return results
+
+
+def _search_tavily_fallback(
+    query: str, api_key: str, count: int, timeout: int
+) -> list[dict[str, Any]]:
+    """Fallback: direct HTTP call to Tavily REST API."""
+    try:
+        import requests
+
+        resp = requests.post(
+            "https://api.tavily.com/search",
+            json={"api_key": api_key, "query": query, "max_results": count},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return [
+            {"title": r.get("title", ""), "url": r.get("url", ""), "snippet": r.get("content", "")}
+            for r in (data.get("results") or [])[:count]
+        ]
+    except Exception as e:
+        raise ValueError(f"Tavily search failed: {e}")
+
+
 def _search_duckduckgo(
     query: str,
     count: int,
@@ -315,9 +382,7 @@ def _search_duckduckgo(
             if not html:
                 continue
             seen: set[str] = set()
-            for match in re.finditer(
-                r'<a[^>]+href="(https?://[^"]+)"[^>]*>(.*?)</a>', html, re.S
-            ):
+            for match in re.finditer(r'<a[^>]+href="(https?://[^"]+)"[^>]*>(.*?)</a>', html, re.S):
                 url = match.group(1).strip()
                 title = re.sub(r"<[^>]+>", "", match.group(2)).strip()
                 if not url or not title or url in seen or "duckduckgo.com" in url:
@@ -338,16 +403,15 @@ def _search_duckduckgo(
 def _detect_provider() -> Tuple[str, str]:
     """
     Return (provider_name, api_key) by checking env vars in documented order:
-    Brave → Gemini → Perplexity → Grok → DuckDuckGo (free fallback)
+    Tavily → Brave → Gemini → Perplexity → Grok → DuckDuckGo (free fallback)
     """
-    brave_key = os.environ.get("BRAVE_API_KEY") or getattr(
-        Config, "BRAVE_API_KEY", None
-    )
+    tavily_key = os.environ.get("TAVILY_API_KEY") or getattr(Config, "TAVILY_API_KEY", None)
+    if tavily_key:
+        return "tavily", tavily_key
+    brave_key = os.environ.get("BRAVE_API_KEY") or getattr(Config, "BRAVE_API_KEY", None)
     if brave_key:
         return "brave", brave_key
-    gemini_key = os.environ.get("GEMINI_API_KEY") or getattr(
-        Config, "GEMINI_API_KEY", None
-    )
+    gemini_key = os.environ.get("GEMINI_API_KEY") or getattr(Config, "GEMINI_API_KEY", None)
     if gemini_key:
         return "gemini", gemini_key
     perp_key = (
@@ -454,7 +518,7 @@ class WebOperationTool(BaseTool):
                 ToolParameter(
                     name="provider",
                     type="string",
-                    description="Force provider: brave | perplexity | gemini | grok",
+                    description="Force provider: tavily | brave | perplexity | gemini | grok",
                     required=False,
                 ),
             ],
@@ -470,11 +534,7 @@ class WebOperationTool(BaseTool):
         country: Optional[str] = kwargs.get("country")
         freshness: Optional[str] = kwargs.get("freshness")
 
-        if (
-            freshness
-            and freshness not in self.VALID_FRESHNESS
-            and "to" not in freshness
-        ):
+        if freshness and freshness not in self.VALID_FRESHNESS and "to" not in freshness:
             return self._error(
                 f"Invalid freshness '{freshness}'. "
                 f"Use one of: {', '.join(sorted(self.VALID_FRESHNESS))} "
@@ -543,7 +603,9 @@ class WebOperationTool(BaseTool):
                     )
                 elif op == "scholar":
                     # Academic bias
-                    scholar_query = f"{query} scholar OR pdf OR academic OR research OR doi OR filetype:pdf"
+                    scholar_query = (
+                        f"{query} scholar OR pdf OR academic OR research OR doi OR filetype:pdf"
+                    )
                     return _search_brave(
                         "web",
                         scholar_query,
@@ -563,11 +625,16 @@ class WebOperationTool(BaseTool):
                 elif op == "image_search":
                     enhanced_query = f"Find and describe images of: {query}"
                 elif op == "scholar":
-                    enhanced_query = (
-                        f"Academic papers, authors, abstracts, DOIs on: {query}"
-                    )
+                    enhanced_query = f"Academic papers, authors, abstracts, DOIs on: {query}"
 
-                if provider == "perplexity":
+                if provider == "tavily":
+                    return _search_tavily(
+                        query=enhanced_query,
+                        api_key=api_key,
+                        count=count,
+                        timeout=self.TIMEOUT,
+                    )
+                elif provider == "perplexity":
                     base_url = self._perp_base_url or _perplexity_base_url(api_key)
                     return _search_perplexity(
                         query=enhanced_query,
@@ -654,9 +721,7 @@ class WebSearchTool(WebOperationTool):
 
         content = getattr(candidates[0], "content", None)
         parts = getattr(content, "parts", []) or []
-        text = "\n".join(
-            getattr(part, "text", "") for part in parts if getattr(part, "text", "")
-        )
+        text = "\n".join(getattr(part, "text", "") for part in parts if getattr(part, "text", ""))
         if not text:
             text = "No search results"
 

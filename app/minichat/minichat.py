@@ -49,6 +49,16 @@ class System1Router:
                 "patterns": [r"who are you", r"what are you"],
                 "response": ["I'm your AI assistant 🤖"],
             },
+            {
+                "name": "learning_summary",
+                "priority": 5,
+                "patterns": [
+                    r"what have you learned",
+                    r"what did you learn",
+                    r"show me what you know",
+                ],
+                "dynamic": True,
+            },
         ]
         self._provider = None
         self._provider_health_checked = False
@@ -291,6 +301,11 @@ class System1Router:
         if intent_name == "time":
             now = datetime.now().strftime("%I:%M %p")
             return f"The current time is {now}. ⏰"
+        if intent_name == "learning_summary":
+            return (
+                "Let me check what I've learned and get back to you. "
+                "(Learning summary queries are handled in deeper reasoning.)"
+            )
         return "I'm not sure how to handle that dynamic request yet."
 
     def teach_response(self, pattern, response):

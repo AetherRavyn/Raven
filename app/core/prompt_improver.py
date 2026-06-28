@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 @dataclass(slots=True)
 class InteractionRecord:
     """Record of a single interaction for analysis."""
+
     interaction_id: str
     query: str
     response: str
@@ -36,14 +37,13 @@ class InteractionRecord:
     model_used: str = ""
     duration_ms: float = 0.0
     user_feedback: str | None = None  # "good", "bad", or None
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 @dataclass(slots=True)
 class PromptAdjustment:
     """A suggested adjustment to the system prompt."""
+
     category: str  # e.g. "tone", "detail_level", "tool_usage", "response_format"
     adjustment: str  # e.g. "Be more concise for simple questions"
     reason: str  # Why this adjustment is needed
@@ -56,6 +56,7 @@ class InteractionTracker:
 
     def __init__(self, workspace_dir: str | None = None) -> None:
         from app.settings.config import Config
+
         self._dir = Path(workspace_dir or Config.MEMORY_ROOT) / "interactions"
         self._dir.mkdir(parents=True, exist_ok=True)
         self._file = self._dir / "interactions.jsonl"
@@ -88,18 +89,20 @@ class InteractionTracker:
                 continue
             try:
                 d = json.loads(line)
-                records.append(InteractionRecord(
-                    interaction_id=d.get("id", ""),
-                    query=d.get("query", ""),
-                    response=d.get("response", ""),
-                    success=d.get("success", True),
-                    failure_reason=d.get("failure_reason", ""),
-                    tool_used=d.get("tool_used", ""),
-                    model_used=d.get("model_used", ""),
-                    duration_ms=d.get("duration_ms", 0),
-                    user_feedback=d.get("user_feedback"),
-                    timestamp=d.get("timestamp", ""),
-                ))
+                records.append(
+                    InteractionRecord(
+                        interaction_id=d.get("id", ""),
+                        query=d.get("query", ""),
+                        response=d.get("response", ""),
+                        success=d.get("success", True),
+                        failure_reason=d.get("failure_reason", ""),
+                        tool_used=d.get("tool_used", ""),
+                        model_used=d.get("model_used", ""),
+                        duration_ms=d.get("duration_ms", 0),
+                        user_feedback=d.get("user_feedback"),
+                        timestamp=d.get("timestamp", ""),
+                    )
+                )
             except Exception:
                 continue
         return records
@@ -133,22 +136,30 @@ class PromptAnalyzer:
             # Check for timeout pattern
             timeouts = [f for f in failures if "timeout" in f.failure_reason.lower()]
             if len(timeouts) > len(failures) * 0.3:
-                adjustments.append(PromptAdjustment(
-                    category="tool_usage",
-                    adjustment="When tools timeout, suggest alternative approaches instead of retrying the same tool.",
-                    reason=f"{len(timeouts)}/{len(failures)} failures were timeouts",
-                    confidence=0.8,
-                ))
+                adjustments.append(
+                    PromptAdjustment(
+                        category="tool_usage",
+                        adjustment="When tools timeout, suggest alternative approaches instead of retrying the same tool.",
+                        reason=f"{len(timeouts)}/{len(failures)} failures were timeouts",
+                        confidence=0.8,
+                    )
+                )
 
             # Check for tool-not-found pattern
-            not_found = [f for f in failures if "not found" in f.failure_reason.lower() or "unknown" in f.failure_reason.lower()]
+            not_found = [
+                f
+                for f in failures
+                if "not found" in f.failure_reason.lower() or "unknown" in f.failure_reason.lower()
+            ]
             if len(not_found) > len(failures) * 0.2:
-                adjustments.append(PromptAdjustment(
-                    category="tool_usage",
-                    adjustment="Before using a tool, verify the tool name is correct. Check available tools first.",
-                    reason=f"{len(not_found)}/{len(failures)} failures were tool-not-found",
-                    confidence=0.7,
-                ))
+                adjustments.append(
+                    PromptAdjustment(
+                        category="tool_usage",
+                        adjustment="Before using a tool, verify the tool name is correct. Check available tools first.",
+                        reason=f"{len(not_found)}/{len(failures)} failures were tool-not-found",
+                        confidence=0.7,
+                    )
+                )
 
         # Analyze user feedback patterns
         bad_feedback = [r for r in records if r.user_feedback == "bad"]
@@ -156,22 +167,26 @@ class PromptAnalyzer:
             # Check if responses are too long
             long_responses = [r for r in bad_feedback if len(r.response) > 500]
             if len(long_responses) > len(bad_feedback) * 0.4:
-                adjustments.append(PromptAdjustment(
-                    category="detail_level",
-                    adjustment="Keep responses concise. Use bullet points for lists. Avoid unnecessary preamble.",
-                    reason=f"{len(long_responses)}/{len(bad_feedback)} negative feedback on long responses",
-                    confidence=0.7,
-                ))
+                adjustments.append(
+                    PromptAdjustment(
+                        category="detail_level",
+                        adjustment="Keep responses concise. Use bullet points for lists. Avoid unnecessary preamble.",
+                        reason=f"{len(long_responses)}/{len(bad_feedback)} negative feedback on long responses",
+                        confidence=0.7,
+                    )
+                )
 
         # Analyze response time
         slow_interactions = [r for r in records if r.duration_ms > 10000]
         if len(slow_interactions) > len(records) * 0.2:
-            adjustments.append(PromptAdjustment(
-                category="efficiency",
-                adjustment="Prioritize fast tools. Use cached results when available. Avoid unnecessary API calls.",
+            adjustments.append(
+                PromptAdjustment(
+                    category="efficiency",
+                    adjustment="Prioritize fast tools. Use cached results when available. Avoid unnecessary API calls.",
                     reason=f"{len(slow_interactions)}/{len(records)} interactions took >10s",
                     confidence=0.6,
-                ))
+                )
+            )
 
         return adjustments
 
@@ -185,6 +200,7 @@ class PromptImprover:
 
     def __init__(self, workspace_dir: str | None = None) -> None:
         from app.settings.config import Config
+
         self._dir = Path(workspace_dir or Config.MEMORY_ROOT) / "prompt_adjustments"
         self._dir.mkdir(parents=True, exist_ok=True)
         self._file = self._dir / "adjustments.json"
@@ -215,11 +231,16 @@ class PromptImprover:
     def add_adjustment(self, adjustment: PromptAdjustment) -> None:
         """Add a new adjustment (avoid duplicates)."""
         for existing in self._adjustments:
-            if existing.category == adjustment.category and existing.adjustment == adjustment.adjustment:
+            if (
+                existing.category == adjustment.category
+                and existing.adjustment == adjustment.adjustment
+            ):
                 return  # Already exists
         self._adjustments.append(adjustment)
         self._save()
-        logger.info("Prompt adjustment added: [%s] %s", adjustment.category, adjustment.adjustment[:60])
+        logger.info(
+            "Prompt adjustment added: [%s] %s", adjustment.category, adjustment.adjustment[:60]
+        )
 
     def remove_adjustment(self, index: int) -> bool:
         """Remove an adjustment by index."""
@@ -246,6 +267,31 @@ class PromptImprover:
 
     def get_all(self) -> list[PromptAdjustment]:
         return list(self._adjustments)
+
+    def prune(self, min_confidence: float = 0.3, max_count: int = 20) -> int:
+        """Remove low-confidence adjustments and cap total count.
+
+        Args:
+            min_confidence: Remove adjustments below this confidence.
+            max_count: Maximum number of adjustments to keep (keeps highest confidence).
+
+        Returns:
+            Number of adjustments removed.
+        """
+        before = len(self._adjustments)
+
+        # Remove low confidence
+        self._adjustments = [a for a in self._adjustments if a.confidence >= min_confidence]
+
+        # Cap total count
+        if len(self._adjustments) > max_count:
+            self._adjustments.sort(key=lambda a: a.confidence, reverse=True)
+            self._adjustments = self._adjustments[:max_count]
+
+        removed = before - len(self._adjustments)
+        if removed:
+            self._save()
+        return removed
 
     def clear(self) -> None:
         self._adjustments.clear()

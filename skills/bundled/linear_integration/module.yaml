@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.linear_integration
+display_name: Linear Issue Manager
+version: "1.0.0"
+category: skill
+description: "Create, read, update, and search Linear issues via the Linear GraphQL API."
+tags: [linear, project-management, issues, tickets]
+capabilities: [linear]
+trust_level: user_config
+enabled_by_default: false
+stability: stable
+origin: bundled
+confidence: 0.90
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "linear|create.*issue|linear.*task|project.*management"
+    confidence: 0.85

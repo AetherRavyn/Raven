@@ -80,6 +80,8 @@ dependencies = [
     "psutil>=7.0.0",
     "docker>=7.0.0",
     "feedparser>=6.0.11",
+    "jupyter-client>=8.6.0",
+    "nbformat>=5.10.0",
     "pyotp>=2.9.0",
     "praw>=7.1.0",
     "python-dateutil>=2.9.0",
@@ -168,6 +170,9 @@ ignore = [
 quote-style = "double"
 indent-style = "space"
 line-ending = "lf"
+
+[tool.uv]
+package = true
 
 [tool.setuptools]
 packages = ["app", "agent_reach"]

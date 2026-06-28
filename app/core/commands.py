@@ -51,6 +51,10 @@ class CommandGateway:
                 result = self._cmd_plugins()
             elif command == "/bash":
                 result = self._cmd_bash(args)
+            elif command == "/checkpoints":
+                result = self._cmd_checkpoints(args)
+            elif command == "/rollback":
+                result = await self._cmd_rollback(args)
             else:
                 result = f"Unknown command: {command}. Type /help for a list of available commands."
         except Exception as e:
@@ -71,7 +75,10 @@ class CommandGateway:
             "**Capabilities**\n"
             "• `/tools`, `/agents`, `/plugins`\n\n"
             "**Developer**\n"
-            "• `/bash` or `!`"
+            "• `/bash` or `!`\n\n"
+            "**Safety**\n"
+            "• `/checkpoints [filepath]` — list file snapshots\n"
+            "• `/rollback <checkpoint_id>` — restore from snapshot"
         )
 
     def _cmd_status(self) -> str:
@@ -179,18 +186,14 @@ class CommandGateway:
             self.orchestrator._agent_runtime.model_name = args
             return f"Model set to {args}"
         else:
-            current_model = getattr(
-                self.orchestrator._agent_runtime, "model_name", "unknown"
-            )
+            current_model = getattr(self.orchestrator._agent_runtime, "model_name", "unknown")
             return f"Current model: {current_model}"
 
     def _cmd_tasks(self) -> str:
         ledger = TaskLedger(Config.MEMORY_ROOT)
         tasks = ledger.list_tasks()
         active_tasks = [
-            t
-            for t in tasks
-            if t.get("status") in ["open", "in_progress", "pending_approval"]
+            t for t in tasks if t.get("status") in ["open", "in_progress", "pending_approval"]
         ]
 
         if not active_tasks:
@@ -242,12 +245,44 @@ class CommandGateway:
         except Exception as e:
             return f"Error loading plugins: {str(e)}"
 
+    def _cmd_checkpoints(self, args: str) -> str:
+        from app.core.checkpoints import get_checkpoint_manager
+
+        mgr = get_checkpoint_manager()
+        filepath = args.strip() or None
+        checkpoints = mgr.list_checkpoints(filepath)
+
+        if not checkpoints:
+            return "No checkpoints found."
+
+        lines = ["**Checkpoints:**"]
+        for cp in checkpoints[-15:]:
+            lines.append(
+                f"• `{cp['id']}` — {cp.get('original_path', '?')} ({cp.get('reason', 'no reason')})"
+            )
+        lines.append(f"\nTotal: {len(checkpoints)} | Use `/rollback <id>` to restore")
+        return "\n".join(lines)
+
+    async def _cmd_rollback(self, args: str) -> str:
+        checkpoint_id = args.strip()
+        if not checkpoint_id:
+            return "Usage: `/rollback <checkpoint_id>`\nGet checkpoint IDs from `/checkpoints`"
+
+        from app.core.checkpoints import get_checkpoint_manager
+
+        mgr = get_checkpoint_manager()
+        result = mgr.rollback(checkpoint_id)
+        if "error" in result:
+            return f"Rollback failed: {result['error']}"
+        return f"Restored `{result['restored']}` from checkpoint `{result['from_checkpoint']}`"
+
     def _cmd_bash(self, args: str) -> str:
         if not args:
             return "Usage: /bash <command> or !<command>"
 
         try:
             import shlex
+
             cmd_parts = shlex.split(args)
             result = subprocess.run(cmd_parts, capture_output=True, text=True, timeout=30)
             output = ""

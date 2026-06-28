@@ -1,6 +1,5 @@
-import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 import pandas as pd
 import yfinance as yf
 from app.tools.base import BaseTool, ToolParameter, ToolSchema
@@ -160,9 +159,7 @@ class FinanceOperationTool(BaseTool):
 
         symbol = kwargs.get("symbol", "")
         if not symbol or not isinstance(symbol, str) or not symbol.strip():
-            return self._error(
-                f"Missing required parameter 'symbol' for operation '{op}'"
-            )
+            return self._error(f"Missing required parameter 'symbol' for operation '{op}'")
         kwargs["symbol"] = symbol.upper().strip()
 
         if op == "quote":
@@ -261,9 +258,7 @@ class FinanceOperationTool(BaseTool):
             info = ticker.info
 
             if not info or not info.get("longName"):
-                return self._error(
-                    f"No data found for symbol '{symbol}'. Check the ticker."
-                )
+                return self._error(f"No data found for symbol '{symbol}'. Check the ticker.")
 
             def safe_pct(val):
                 return round(val * 100, 2) if val else 0
@@ -287,9 +282,7 @@ class FinanceOperationTool(BaseTool):
                 "forwardPE": round(info.get("forwardPE", 0) or 0, 2),
                 "pegRatio": round(info.get("pegRatio", 0) or 0, 2),
                 "priceToBook": round(info.get("priceToBook", 0) or 0, 2),
-                "priceToSales": round(
-                    info.get("priceToSalesTrailing12Months", 0) or 0, 2
-                ),
+                "priceToSales": round(info.get("priceToSalesTrailing12Months", 0) or 0, 2),
                 "evToEbitda": round(info.get("enterpriseToEbitda", 0) or 0, 2),
                 "evToRevenue": round(info.get("enterpriseToRevenue", 0) or 0, 2),
                 # Per-share
@@ -307,9 +300,7 @@ class FinanceOperationTool(BaseTool):
                 # Growth
                 "revenueGrowthYoY": safe_pct(info.get("revenueGrowth")),
                 "earningsGrowthYoY": safe_pct(info.get("earningsGrowth")),
-                "earningsQuarterlyGrowth": safe_pct(
-                    info.get("earningsQuarterlyGrowth")
-                ),
+                "earningsQuarterlyGrowth": safe_pct(info.get("earningsQuarterlyGrowth")),
                 # Balance sheet
                 "totalCash": info.get("totalCash", 0),
                 "totalDebt": info.get("totalDebt", 0),
@@ -338,9 +329,7 @@ class FinanceOperationTool(BaseTool):
                 "fiftyTwoWeekHigh": info.get("fiftyTwoWeekHigh", 0),
                 "fiftyTwoWeekLow": info.get("fiftyTwoWeekLow", 0),
                 "fiftyDayAverage": round(info.get("fiftyDayAverage", 0) or 0, 2),
-                "twoHundredDayAverage": round(
-                    info.get("twoHundredDayAverage", 0) or 0, 2
-                ),
+                "twoHundredDayAverage": round(info.get("twoHundredDayAverage", 0) or 0, 2),
             }
 
             llm_content = (
@@ -391,8 +380,7 @@ class FinanceOperationTool(BaseTool):
             )
         if frequency not in self.VALID_FREQUENCIES:
             return self._error(
-                f"Invalid frequency '{frequency}'. "
-                f"Allowed: {', '.join(self.VALID_FREQUENCIES)}"
+                f"Invalid frequency '{frequency}'. Allowed: {', '.join(self.VALID_FREQUENCIES)}"
             )
 
         symbol = symbol.upper().strip()
@@ -406,11 +394,7 @@ class FinanceOperationTool(BaseTool):
                 df = ticker.quarterly_income_stmt if quarterly else ticker.income_stmt
                 label = "Income Statement"
             elif stmt_type == "balance_sheet":
-                df = (
-                    ticker.quarterly_balance_sheet
-                    if quarterly
-                    else ticker.balance_sheet
-                )
+                df = ticker.quarterly_balance_sheet if quarterly else ticker.balance_sheet
                 label = "Balance Sheet"
             else:
                 df = ticker.quarterly_cash_flow if quarterly else ticker.cash_flow
@@ -432,9 +416,7 @@ class FinanceOperationTool(BaseTool):
                 for row_idx in df.index:
                     val = df.loc[row_idx, col]
                     try:
-                        records[period_key][str(row_idx)] = (
-                            float(val) if val is not None else None
-                        )
+                        records[period_key][str(row_idx)] = float(val) if val is not None else None
                     except (ValueError, TypeError):
                         records[period_key][str(row_idx)] = None
 
@@ -495,10 +477,7 @@ class FinanceOperationTool(BaseTool):
                 f"Periods: {', '.join(periods)}\n"
                 f"Total Line Items: {len(df.index)}\n\n"
                 f"--- Key Highlights (most recent period: {periods[0] if periods else 'N/A'}) ---\n"
-                + (
-                    "\n".join(f"  • {h}" for h in highlights)
-                    or "  No highlights available"
-                )
+                + ("\n".join(f"  • {h}" for h in highlights) or "  No highlights available")
                 + f"\n\nFull data returned in returnDisplay.data "
                 f"with {len(periods)} periods × {len(df.index)} line items."
             )
@@ -568,24 +547,16 @@ class FinanceOperationTool(BaseTool):
             bb_lower = float((bb_mid - 2 * bb_std).iloc[-1])
             bb_mid_v = float(bb_mid.iloc[-1])
             bb_pct = (
-                round(
-                    (float(close.iloc[-1]) - bb_lower) / (bb_upper - bb_lower) * 100, 2
-                )
+                round((float(close.iloc[-1]) - bb_lower) / (bb_upper - bb_lower) * 100, 2)
                 if (bb_upper - bb_lower) != 0
                 else 50
             )
 
             # ── Moving Averages ───────────────────────────────────────
             sma20 = round(float(close.rolling(20).mean().iloc[-1]), 4)
-            sma50 = (
-                round(float(close.rolling(50).mean().iloc[-1]), 4)
-                if len(close) >= 50
-                else None
-            )
+            sma50 = round(float(close.rolling(50).mean().iloc[-1]), 4) if len(close) >= 50 else None
             sma200 = (
-                round(float(close.rolling(200).mean().iloc[-1]), 4)
-                if len(close) >= 200
-                else None
+                round(float(close.rolling(200).mean().iloc[-1]), 4) if len(close) >= 200 else None
             )
             ema20 = round(float(close.ewm(span=20).mean().iloc[-1]), 4)
             ema50 = round(float(close.ewm(span=50).mean().iloc[-1]), 4)
@@ -604,16 +575,9 @@ class FinanceOperationTool(BaseTool):
             # ── Stochastic Oscillator %K / %D (14, 3) ─────────────────
             low14 = low.rolling(14).min()
             high14 = high.rolling(14).max()
-            stoch_k = round(
-                float(((close - low14) / (high14 - low14) * 100).iloc[-1]), 2
-            )
+            stoch_k = round(float(((close - low14) / (high14 - low14) * 100).iloc[-1]), 2)
             stoch_d = round(
-                float(
-                    ((close - low14) / (high14 - low14) * 100)
-                    .rolling(3)
-                    .mean()
-                    .iloc[-1]
-                ),
+                float(((close - low14) / (high14 - low14) * 100).rolling(3).mean().iloc[-1]),
                 2,
             )
 
@@ -667,9 +631,7 @@ class FinanceOperationTool(BaseTool):
                 if price > sma200:
                     bullish.append(f"Price above SMA200 ({sma200}) — long-term uptrend")
                 else:
-                    bearish.append(
-                        f"Price below SMA200 ({sma200}) — long-term downtrend"
-                    )
+                    bearish.append(f"Price below SMA200 ({sma200}) — long-term downtrend")
             if sma50 and sma200:
                 if sma50 > sma200:
                     bullish.append("Golden cross: SMA50 > SMA200")
@@ -788,9 +750,7 @@ class FinanceOperationTool(BaseTool):
             info = ticker.info
 
             if not info or not info.get("longName"):
-                return self._error(
-                    f"No data found for '{symbol}'. Check the ticker symbol."
-                )
+                return self._error(f"No data found for '{symbol}'. Check the ticker symbol.")
 
             # ════════════════════════════════════════════════════════
             # 1. REAL-TIME QUOTE
@@ -883,15 +843,9 @@ class FinanceOperationTool(BaseTool):
 
             # MAs
             sma20 = round(float(close.rolling(20).mean().iloc[-1]), 2)
-            sma50 = (
-                round(float(close.rolling(50).mean().iloc[-1]), 2)
-                if len(close) >= 50
-                else None
-            )
+            sma50 = round(float(close.rolling(50).mean().iloc[-1]), 2) if len(close) >= 50 else None
             sma200 = (
-                round(float(close.rolling(200).mean().iloc[-1]), 2)
-                if len(close) >= 200
-                else None
+                round(float(close.rolling(200).mean().iloc[-1]), 2) if len(close) >= 200 else None
             )
 
             # ATR
@@ -906,9 +860,7 @@ class FinanceOperationTool(BaseTool):
             resistance = round(float(df.tail(60)["High"].max()), 2)
 
             # Volume
-            vol_ratio = round(
-                float(volume.iloc[-1]) / float(volume.rolling(20).mean().iloc[-1]), 2
-            )
+            vol_ratio = round(float(volume.iloc[-1]) / float(volume.rolling(20).mean().iloc[-1]), 2)
 
             # Signal scoring
             bullish, bearish = [], []
@@ -985,7 +937,7 @@ class FinanceOperationTool(BaseTool):
                     def get_val(key):
                         try:
                             return float(inc.loc[key, latest_col])
-                        except:
+                        except Exception:
                             return None
 
                     for key, label in [
@@ -1062,10 +1014,7 @@ class FinanceOperationTool(BaseTool):
                 f"  D/E: {company['debtToEquity']}  |  Current Ratio: {company['currentRatio']}\n"
                 f"  Dividend Yield: {company['dividendYield']}%  |  Beta: {company['beta']}\n\n"
                 f"━━━ 📋 INCOME HIGHLIGHTS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                + (
-                    "\n".join(f"  • {h}" for h in income_highlights)
-                    or "  Not available"
-                )
+                + ("\n".join(f"  • {h}" for h in income_highlights) or "  Not available")
                 + "\n\n"
                 f"━━━ 📈 TECHNICAL ANALYSIS ({period}) ━━━━━━━━━━━━━━━━━━━━\n"
                 f"  Signal: {signal} (score: {score:+d})\n"
@@ -1136,22 +1085,12 @@ class FinanceOperationTool(BaseTool):
                 sentiment = "EXTREME FEAR"
 
             sector_changes = [
-                (k, v["changePct"])
-                for k, v in sectors_data.items()
-                if v["changePct"] is not None
+                (k, v["changePct"]) for k, v in sectors_data.items() if v["changePct"] is not None
             ]
             sectors_up = [s for s, c in sector_changes if c > 0]
             sectors_down = [s for s, c in sector_changes if c < 0]
-            best_sector = (
-                max(sector_changes, key=lambda x: x[1])
-                if sector_changes
-                else ("N/A", 0)
-            )
-            worst_sector = (
-                min(sector_changes, key=lambda x: x[1])
-                if sector_changes
-                else ("N/A", 0)
-            )
+            best_sector = max(sector_changes, key=lambda x: x[1]) if sector_changes else ("N/A", 0)
+            worst_sector = min(sector_changes, key=lambda x: x[1]) if sector_changes else ("N/A", 0)
 
             ten_y = bonds_data.get("US 10Y Yield", {}).get("price", 0) or 0
             two_y = bonds_data.get("US 2Y Yield", {}).get("price", 0) or 0
@@ -1188,9 +1127,6 @@ class FinanceOperationTool(BaseTool):
                     arrow = "▲" if (c or 0) >= 0 else "▼"
                     lines.append(f"  {name}: {p} {arrow} {c}%")
                 return "\n".join(lines)
-
-            sp500 = indices_data.get("S&P 500", {})
-            nasdaq = indices_data.get("NASDAQ 100", {})
 
             llm_content = (
                 f"=== Market Overview — {datetime.now().strftime('%Y-%m-%d %H:%M')} ===\n\n"
@@ -1243,9 +1179,7 @@ class FinanceOperationTool(BaseTool):
                     news_items.append(
                         {
                             "title": content.get("title", item.get("title", "")),
-                            "publisher": content.get("provider", {}).get(
-                                "displayName", ""
-                            ),
+                            "publisher": content.get("provider", {}).get("displayName", ""),
                             "url": content.get("canonicalUrl", {}).get("url", ""),
                             "publishedAt": content.get("pubDate", ""),
                             "summary": content.get("summary", "")[:200]
@@ -1301,11 +1235,7 @@ class FinanceOperationTool(BaseTool):
             total_sell = sum(r["sell"] for r in recs)
             total_strong_sell = sum(r["strongSell"] for r in recs)
             total_analysts = (
-                total_strong_buy
-                + total_buy
-                + total_hold
-                + total_sell
-                + total_strong_sell
+                total_strong_buy + total_buy + total_hold + total_sell + total_strong_sell
             )
 
             bullish_count = total_strong_buy + total_buy
@@ -1372,6 +1302,4 @@ class FinanceOperationTool(BaseTool):
             return self._success(llm_content, display)
 
         except Exception as e:
-            return self._error(
-                f"Failed to fetch news/recommendations for '{symbol}': {str(e)}"
-            )
+            return self._error(f"Failed to fetch news/recommendations for '{symbol}': {str(e)}")

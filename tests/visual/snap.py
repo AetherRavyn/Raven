@@ -24,10 +24,10 @@ Notes:
   Playwright is missing so a CI without the browser still
   documents the page set.
 """
+
 from __future__ import annotations
 
 import argparse
-import os
 import socket
 import sys
 import threading
@@ -46,18 +46,36 @@ PAGE_SETS: dict[str, list[str]] = {
     "v31": ["chat", "sessions", "models", "logs"],
     # v32 will add 8 more (full 12-page dashboard).
     "v32": [
-        "chat", "sessions", "models", "logs",
-        "cron", "skills", "plugins", "mcp",
-        "channels", "webhooks", "pairing", "profiles",
+        "chat",
+        "sessions",
+        "models",
+        "logs",
+        "cron",
+        "skills",
+        "plugins",
+        "mcp",
+        "channels",
+        "webhooks",
+        "pairing",
+        "profiles",
     ],
     # v33 voice-stack — same 12 pages; the chat page now has
     # the 🎙 button + Voice: <name> header, but the layout is
     # unchanged.  We re-snap so the v33 visual record shows
     # the post-refactor chrome.
     "v33": [
-        "chat", "sessions", "models", "logs",
-        "cron", "skills", "plugins", "mcp",
-        "channels", "webhooks", "pairing", "profiles",
+        "chat",
+        "sessions",
+        "models",
+        "logs",
+        "cron",
+        "skills",
+        "plugins",
+        "mcp",
+        "channels",
+        "webhooks",
+        "pairing",
+        "profiles",
     ],
 }
 
@@ -70,19 +88,17 @@ def _free_port() -> int:
 
 
 def _start_dashboard(port: int) -> tuple["uvicorn.Server", threading.Thread]:
-    """Boot a real WebDashboard on 127.0.0.1:<port> in a background thread.
+    """Boot the unified dashboard on 127.0.0.1:<port> in a background thread.
 
     Returns the uvicorn server handle and the thread it's running on.
     Caller is responsible for ``server.should_exit = True`` at teardown.
     """
     import uvicorn
-    from unittest.mock import MagicMock
 
-    from app.web.server import WebDashboard
+    from app.api.server import app as dashboard_app
 
-    dashboard = WebDashboard(orchestrator=MagicMock())
     config = uvicorn.Config(
-        dashboard._app,
+        dashboard_app,
         host="127.0.0.1",
         port=port,
         log_level="warning",
@@ -132,8 +148,8 @@ def _snap_with_playwright(cycle: str, port: int, slugs: list[str]) -> list[Path]
 def _print_fallback(cycle: str, port: int, slugs: list[str]) -> list[Path]:
     """If Playwright is missing, print URLs so CI still documents the set."""
     print(
-        f"\n[snap.py] Playwright not available — printing URLs instead.\n"
-        f"  To enable visual capture: .venv/bin/playwright install chromium\n"
+        "\n[snap.py] Playwright not available — printing URLs instead.\n"
+        "  To enable visual capture: .venv/bin/playwright install chromium\n"
     )
     base = f"http://127.0.0.1:{port}"
     for slug in slugs:
@@ -145,8 +161,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("cycle", nargs="?", help="cycle key (e.g. v31) — see PAGE_SETS")
     parser.add_argument("--list", action="store_true", help="list available cycles")
-    parser.add_argument("--port", type=int, default=0,
-                        help="bind port (default: random free port)")
+    parser.add_argument("--port", type=int, default=0, help="bind port (default: random free port)")
     args = parser.parse_args(argv)
 
     if args.list:
@@ -172,8 +187,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[snap.py] Playwright capture failed: {exc}")
             _print_fallback(args.cycle, port, slugs)
             return 1
-        print(f"\n[snap.py] {len(paths)} screenshot(s) saved under "
-              f"tests/visual/_snaps/{args.cycle}/")
+        print(
+            f"\n[snap.py] {len(paths)} screenshot(s) saved under tests/visual/_snaps/{args.cycle}/"
+        )
     finally:
         server.should_exit = True
         time.sleep(0.3)  # give uvicorn a moment to drain

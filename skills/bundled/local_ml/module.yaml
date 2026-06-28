@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.local_ml
+display_name: Local ML Model Runner
+version: "1.0.0"
+category: skill
+description: "Run local LLMs via llama.cpp, download/search HuggingFace models, manage vLLM."
+tags: [ml, llama, huggingface, vllm, inference, local]
+capabilities: [local_ml]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.90
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "local.*model|llama|huggingface|download.*model|run.*inference"
+    confidence: 0.85

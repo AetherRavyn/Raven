@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.ocr_tool
+display_name: OCR Text Extraction
+version: "1.0.0"
+category: skill
+description: "Extract text from images and scanned PDFs using Tesseract OCR."
+tags: [ocr, text-extraction, document-scanning, pdf]
+capabilities: [ocr]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.90
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "extract.*text|ocr|read.*image|scan.*document"
+    confidence: 0.85

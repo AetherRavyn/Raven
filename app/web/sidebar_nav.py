@@ -17,6 +17,7 @@ The list is intentionally a Python module rather than a Jinja-only
 constant so the dashboard tests can iterate it (route-table snapshot,
 sidebar-present assertions, etc.) without re-parsing HTML.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -37,14 +38,35 @@ class NavEntry:
 NAV_ENTRIES: tuple[NavEntry, ...] = (
     NavEntry("chat", "CHAT", "primary", "Live conversation with the assistant"),
     NavEntry("sessions", "SESSIONS", "primary", "Per-user conversation history"),
-    NavEntry("cowork", "COWORK", "primary", "Kimi/Claude-style folder sessions (plan, approve, diff)"),
-    NavEntry("knowledge-graph", "KNOWLEDGE GRAPH", "primary", "HelixDB entity browser + graph visualization"),
+    NavEntry(
+        "cowork", "COWORK", "primary", "Kimi/Claude-style folder sessions (plan, approve, diff)"
+    ),
+    NavEntry(
+        "knowledge-graph",
+        "KNOWLEDGE GRAPH",
+        "primary",
+        "HelixDB entity browser + graph visualization",
+    ),
     NavEntry("memory", "MEMORY", "primary", "Memory system: search, store, stats"),
     NavEntry("models", "MODELS", "primary", "Active LLM provider + model"),
-    NavEntry("providers", "PROVIDERS", "primary", "API keys for every LLM / voice / search provider"),
-    NavEntry("provider-manage", "MODEL SELECT", "primary", "Active provider, model, ranking, enable/disable"),
-    NavEntry("learned-skills", "LEARNED SKILLS", "primary", "Auto-created skills + reinforcement learning"),
-    NavEntry("personality", "PERSONALITY", "primary", "Emotional state, drift, values, relationship"),
+    NavEntry(
+        "providers", "PROVIDERS", "primary", "API keys for every LLM / voice / search provider"
+    ),
+    NavEntry(
+        "provider-manage",
+        "MODEL SELECT",
+        "primary",
+        "Active provider, model, ranking, enable/disable",
+    ),
+    NavEntry(
+        "learned-skills",
+        "LEARNED SKILLS",
+        "primary",
+        "Auto-created skills + reinforcement learning",
+    ),
+    NavEntry(
+        "personality", "PERSONALITY", "primary", "Emotional state, drift, values, relationship"
+    ),
     NavEntry("logs", "LOGS", "primary", "Audit timeline + event stream"),
     NavEntry("cron", "CRON", "config", "Scheduled jobs (toggle / run)"),
     NavEntry("skills", "SKILLS", "config", "Skill registry + learner"),
@@ -55,6 +77,7 @@ NAV_ENTRIES: tuple[NavEntry, ...] = (
     NavEntry("webhooks", "WEBHOOKS", "config", "Outgoing HTTP hooks"),
     NavEntry("pairing", "PAIRING", "config", "DM pairing codes"),
     NavEntry("profiles", "PROFILES", "config", "Per-user preferences"),
+    NavEntry("learning", "LEARNING", "config", "Learning store, reflection, consolidation"),
 )
 
 

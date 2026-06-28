@@ -88,12 +88,18 @@ from app.tools.mobiletool import MobileDeviceTool
 from app.tools.desktoptool import DesktopControlTool
 from app.tools.screenreadertool import ScreenReaderTool
 from app.tools.sandbox import SandboxExecTool
-from app.tools.google_calendar import GoogleCalendarTool
+from app.tools.toolkit.google.googlecalendar import GoogleCalendarTool
 from app.tools.translation import TranslationTool
 from app.tools.maps_geocoding import MapsGeocodingTool
 from app.tools.free_apis import FreeInformationAPIs
 from app.tools.document_parser import PDFReaderTool, DocxReaderTool, ExcelReaderTool
-from app.tools.document_generator import PDFGeneratorTool, DocxGeneratorTool, ExcelGeneratorTool, CSVGeneratorTool, HTMLGeneratorTool
+from app.tools.document_generator import (
+    PDFGeneratorTool,
+    DocxGeneratorTool,
+    ExcelGeneratorTool,
+    CSVGeneratorTool,
+    HTMLGeneratorTool,
+)
 from app.tools.data_visualization import ChartGeneratorTool, TableVisualizerTool
 from app.tools.health_tracker import HealthTrackerTool
 from app.tools.outlook_calendar import OutlookCalendarTool
@@ -113,8 +119,23 @@ from app.tools.elevatedtool import ElevatedModeTool
 from app.tools.exectool import ExecTool
 from app.tools.docker_exec_tool import DockerExecTool
 from app.tools.pathchtool import ApplyPatchTool
+from app.tools.mcptool import MCPManagementTool
+from app.tools.contexttool import ContextTool
+from app.tools.batchtool import BatchTool
+from app.tools.rollbacktool import RollbackTool
+from app.tools.shelltool import ShellTool
+from app.tools.jupypertool import JupyterTool
+from app.tools.ocrtool import OcrTool
+from app.tools.lineartool import LinearTool
+from app.tools.airtabletool import AirtableTool
+from app.tools.drivetool import DriveTool
+from app.tools.localmltool import LocalMLTool
+from app.tools.acptool import AcpTool
+from app.tools.session_search import SessionSearchTool
+from app.tools.skill_hub import SkillHubTool
 from app.tools.skill_manage import SkillManagementTool
 from app.tools.writetool import WriteTodosTool
+from app.core.task_scheduler import get_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -122,21 +143,22 @@ logger = logging.getLogger(__name__)
 class MessageOrchestrator:
     """Receives requests from any platform and delegates to AgentRuntime for execution."""
 
-    def __init__(
-        self, botsignal: BotSignal, output_directory: str = "workspace"
-    ) -> None:
-        self._botsignal = botsignal
+    def __init__(self, botsignal: BotSignal, output_directory: str = "workspace") -> None:
+        from app.core.learning_messenger import BotSignalWrapper
+
+        self._botsignal = BotSignalWrapper(botsignal)
         self._engine = System1Router()
         self._agent_runtime = AgentRuntime(workspace_dir=output_directory)
-        self._agent_runtime.botsignal = botsignal
+        self._agent_runtime.botsignal = self._botsignal
         self._agent_runtime.emit_status_messages = False
         self._brain_provider = self._agent_runtime.provider
         self._swarm_manager = SwarmManager(workspace_dir=output_directory)
+        self._init_scheduler()
 
         # Register core tools dynamically into the AgentRuntime and SwarmManager
         tools = [
             AdvancedFileOperationTool(base_directory=output_directory),
-            GitOperationTool(repo_path="."),
+            GitOperationTool(repo_path=Path(__file__).resolve().parents[2]),
             KnowledgeGraphTool(),
             NetworkTool(),
             BrowserOperationTool(),
@@ -260,14 +282,46 @@ class MessageOrchestrator:
             ElevatedModeTool(),
             ExecTool(),
             DockerExecTool(),
+            ShellTool(output_directory),
             ApplyPatchTool(),
             WriteTodosTool(),
             SkillManagementTool(),
+            MCPManagementTool(),
+            BatchTool(),
+            ContextTool(),
+            RollbackTool(),
+            SessionSearchTool(),
+            SkillHubTool(),
+            # Phase 10 — Gap-filling tools
+            JupyterTool(),
+            OcrTool(),
+            DriveTool(),
+            LocalMLTool(),
+            AcpTool(),
         ]
+
+        # Conditional — Linear (needs LINEAR_API_KEY)
+        try:
+            import os
+
+            if os.getenv("LINEAR_API_KEY"):
+                self._agent_runtime.tools["linear"] = LinearTool()
+        except Exception:
+            pass
+
+        # Conditional — Airtable (needs AIRTABLE_API_KEY)
+        try:
+            import os
+
+            if os.getenv("AIRTABLE_API_KEY"):
+                self._agent_runtime.tools["airtable"] = AirtableTool()
+        except Exception:
+            pass
 
         # Load skill plugin tools — make skills executable, not just advisory
         try:
             from app.core.skill_registry import SkillRegistry
+
             sr = SkillRegistry()
             plugin_tools = sr.load_plugin_tools()
             if plugin_tools:
@@ -299,6 +353,7 @@ class MessageOrchestrator:
         # Supabase — requires SUPABASE_URL and SUPABASE_KEY env vars
         try:
             import os as _os
+
             _su_url = _os.environ.get("SUPABASE_URL")
             _su_key = _os.environ.get("SUPABASE_KEY")
             if _su_url and _su_key:
@@ -316,13 +371,16 @@ class MessageOrchestrator:
         # Outlook calendar — gated behind Azure env vars
         try:
             from app.settings.config import Config as _Cfg
+
             azure_client = getattr(_Cfg, "AZURE_CLIENT_ID", "")
             if azure_client:
-                tools.append(OutlookCalendarTool(
-                    tenant_id=getattr(_Cfg, "AZURE_TENANT_ID", ""),
-                    client_id=azure_client,
-                    client_secret=getattr(_Cfg, "AZURE_CLIENT_SECRET", ""),
-                ))
+                tools.append(
+                    OutlookCalendarTool(
+                        tenant_id=getattr(_Cfg, "AZURE_TENANT_ID", ""),
+                        client_id=azure_client,
+                        client_secret=getattr(_Cfg, "AZURE_CLIENT_SECRET", ""),
+                    )
+                )
         except Exception:
             pass
 
@@ -360,6 +418,19 @@ class MessageOrchestrator:
         self._web_fetch_tool = self._agent_runtime.tools.get("web_fetch_ops")
         self._vt_tool = self._agent_runtime.tools.get("virustotal_scanner")
         self._xai_image_tool = self._agent_runtime.tools.get("xai_image_understand")
+
+        # Wire AutonomousPlanner with the real tool registry
+        try:
+            from app.core.autonomous_planner import AutonomousPlanner
+
+            self._autonomous_planner = AutonomousPlanner(
+                workspace_dir=output_directory,
+                tool_registry=self._agent_runtime.tools,
+            )
+            logger.info("AutonomousPlanner wired with %d tools", len(self._agent_runtime.tools))
+        except Exception as exc:
+            logger.debug("AutonomousPlanner init failed: %s", exc)
+            self._autonomous_planner = None
 
         # Register specialized Agents into the SwarmManager
         self._swarm_manager.register_agent(FinanceAgent())
@@ -510,6 +581,7 @@ class MessageOrchestrator:
         # Wire CommandGateway — slash-command dispatcher
         try:
             from app.core.commands import CommandGateway
+
             self._command_gateway = CommandGateway(self)
         except Exception as exc:
             logger.debug("CommandGateway init failed: %s", exc)
@@ -518,10 +590,141 @@ class MessageOrchestrator:
         # Wire HeartbeatRunner — periodic session check
         try:
             from app.core.heartbeat import HeartbeatRunner
+
             self._heartbeat_runner = HeartbeatRunner(workspace_dir=output_directory)
         except Exception as exc:
             logger.debug("HeartbeatRunner init failed: %s", exc)
             self._heartbeat_runner = None
+
+    def _init_scheduler(self) -> None:
+        try:
+            from app.core.botsignal import ReplyTarget
+            from app.core.learning_db import get_learning_store
+            from app.core.learning_events import push_event
+            from app.core.learning_report import generate_report, save_report
+            from app.core.skill_crystallizer import SkillCrystallizer
+
+            sched = get_scheduler()
+            signal = self._botsignal
+            notify_target = ReplyTarget(platform="web", chat_id="system")
+
+            def _notify(text: str) -> None:
+                try:
+                    import asyncio
+
+                    asyncio.ensure_future(
+                        signal.send_text(
+                            notify_target, f"[Learning] {text}", source_kind="learning"
+                        )
+                    )
+                except Exception:
+                    pass
+
+            def _prune() -> None:
+                store = get_learning_store()
+                result = store.prune()
+                total = result.get("low_confidence", 0) + result.get("excess", 0)
+                if total:
+                    push_event(
+                        "prune",
+                        f"Pruned {total} items",
+                        f"low_confidence={result.get('low_confidence', 0)}, excess={result.get('excess', 0)}",
+                    )
+                    logger.info("Pruned learning store: %d items removed", total)
+
+            def _save_report() -> None:
+                report = generate_report()
+                save_report(report)
+                push_event("report", f"Report saved at turn {sched.turn}")
+                logger.debug("Auto-saved learning report at turn %d", sched.turn)
+
+            def _crystallize() -> None:
+                crystal = SkillCrystallizer()
+                names = crystal.crystallize_all(min_confidence=0.6)
+                if names:
+                    push_event(
+                        "crystallize", f"Crystallized {len(names)} skills", ", ".join(names[:5])
+                    )
+                    _notify(
+                        f"🧠 Crystallized {len(names)} new skills: {', '.join(names[:3])}"
+                        + (f" +{len(names) - 3} more" if len(names) > 3 else "")
+                    )
+                    logger.info("Crystallized %d skills: %s", len(names), names)
+
+            def _consolidate() -> None:
+                from app.core.consolidation import ConsolidationEngine
+
+                engine = ConsolidationEngine()
+                result = engine.consolidate_all()
+                total = result["merges"] + result["deletions"] + len(result["promotions"])
+                contradictions = len(result.get("contradictions", []))
+                if total or contradictions:
+                    push_event(
+                        "consolidate",
+                        f"Consolidated: {result['merges']} merges, {result['deletions']} deletions, {contradictions} contradictions",
+                        metadata=result,
+                    )
+                    if contradictions:
+                        _notify(
+                            f"⚠ Found {contradictions} knowledge contradictions — check /page/learning"
+                        )
+                    if result.get("promotions"):
+                        _notify(f"⭐ Promoted {len(result['promotions'])} items to skills")
+                    logger.info(
+                        "Consolidation: %d merges, %d deletions, %d contradictions, %d promotions",
+                        result["merges"],
+                        result["deletions"],
+                        contradictions,
+                        len(result["promotions"]),
+                    )
+
+            def _run_benchmark() -> None:
+                try:
+                    import subprocess
+                    import sys
+
+                    result = subprocess.run(
+                        [sys.executable, "-m", "benchmarks.learning_benchmark"],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                    )
+                    if result.returncode == 0:
+                        push_event(
+                            "benchmark",
+                            f"Benchmark completed (turn {sched.turn})",
+                            result.stdout[-300:],
+                        )
+                        logger.info("Benchmark completed:\n%s", result.stdout[-500:])
+                    else:
+                        push_event(
+                            "benchmark_error",
+                            f"Benchmark failed (turn {sched.turn})",
+                            result.stderr[-300:],
+                        )
+                        logger.warning("Benchmark stderr:\n%s", result.stderr[-500:])
+                except Exception as exc:
+                    logger.debug("Benchmark run failed: %s", exc)
+
+            sched.register("prune_stores", interval_turns=100, callback=_prune)
+            sched.register("save_report", interval_turns=50, callback=_save_report)
+            sched.register("crystallize_skills", interval_turns=200, callback=_crystallize)
+            sched.register("consolidate_knowledge", interval_turns=300, callback=_consolidate)
+            sched.register("run_benchmark", interval_turns=500, callback=_run_benchmark)
+
+            def _vacuum() -> None:
+                store = get_learning_store()
+                reclaimed = store.vacuum()
+                if reclaimed > 0:
+                    label = f"{reclaimed / 1024:.0f} KB" if reclaimed > 1024 else f"{reclaimed} B"
+                    push_event(
+                        "vacuum", f"VACUUM reclaimed {label}", detail=f"{reclaimed} bytes freed"
+                    )
+                    logger.info("VACUUM reclaimed %d bytes from learning store", reclaimed)
+
+            sched.register("vacuum_learning", interval_turns=500, callback=_vacuum)
+        except Exception as exc:
+            logger.debug("Scheduler init failed: %s", exc)
 
     def _tool_by_name(self, name: str) -> Any | None:
         return self._agent_runtime.tools.get(name)
@@ -559,9 +762,7 @@ class MessageOrchestrator:
     async def _handle_escalated_prompt(
         self, request: IncomingRequest, source_kind: str, mini_response: str
     ) -> bool:
-        provider: Any = (
-            getattr(self, "_brain_provider", None) or self._agent_runtime.provider
-        )
+        provider: Any = getattr(self, "_brain_provider", None) or self._agent_runtime.provider
         provider_name = (
             provider.__class__.__name__.lower().replace("client", "")
             if provider
@@ -585,6 +786,7 @@ class MessageOrchestrator:
             return True
 
         from app.core.session import SessionManager
+
         session_manager = SessionManager(str(self._agent_runtime.workspace_dir))
         session_id = request.conversation_id or f"{request.platform}_{request.user_id}"
 
@@ -634,7 +836,9 @@ class MessageOrchestrator:
 
             # Save assistant reply to memory/session
             if content:
-                session_manager.append_message(session_id, {"role": "assistant", "content": content})
+                session_manager.append_message(
+                    session_id, {"role": "assistant", "content": content}
+                )
                 session_manager.prune_session(session_id)
 
             await self._botsignal.send_text(
@@ -786,9 +990,7 @@ class MessageOrchestrator:
             lines.append(str(result))
         return "\n".join(lines).strip()
 
-    async def _handle_direct_tool_prompt(
-        self, request: IncomingRequest, source_kind: str
-    ) -> bool:
+    async def _handle_direct_tool_prompt(self, request: IncomingRequest, source_kind: str) -> bool:
         text = request.text.strip()
         lowered = text.lower()
 
@@ -831,9 +1033,7 @@ class MessageOrchestrator:
                 )
             )
             reply_lines.append("recent_commits:")
-            reply_lines.extend(
-                f"- {commit}" for commit in (log_res.get("commits") or [])[:10]
-            )
+            reply_lines.extend(f"- {commit}" for commit in (log_res.get("commits") or [])[:10])
             last_res = await tool.execute(operation="last_commit")
             traces.append(
                 ToolTrace(
@@ -867,9 +1067,7 @@ class MessageOrchestrator:
                 traces: list[ToolTrace] = []
                 reply_lines: list[str] = ["File tool operation complete."]
                 base_dir = getattr(tool, "base_directory", None) or Path.cwd()
-                temp_file = (
-                    base_dir / f"raven_file_test_{request.reply_target.chat_id}.txt"
-                )
+                temp_file = base_dir / f"raven_file_test_{request.reply_target.chat_id}.txt"
 
                 write_res = await tool.execute(
                     operation="write",
@@ -941,9 +1139,7 @@ class MessageOrchestrator:
             operation = parts[0]
             filepath = parts[1]
             content = parts[2] if len(parts) > 2 else None
-            result = await tool.execute(
-                operation=operation, filepath=filepath, content=content
-            )
+            result = await tool.execute(operation=operation, filepath=filepath, content=content)
             await self._send_direct_payload(
                 request,
                 source_kind,
@@ -962,9 +1158,7 @@ class MessageOrchestrator:
                         success=self._result_success(result),
                     )
                 ],
-                file_path=filepath
-                if result.get("success") and operation == "read"
-                else None,
+                file_path=filepath if result.get("success") and operation == "read" else None,
             )
             return True
 
@@ -1050,9 +1244,7 @@ class MessageOrchestrator:
                 return False
             parts = text.split(maxsplit=2)
             indicator = (
-                parts[2].strip()
-                if len(parts) > 2
-                else (parts[1].strip() if len(parts) > 1 else "")
+                parts[2].strip() if len(parts) > 2 else (parts[1].strip() if len(parts) > 1 else "")
             )
             if not indicator:
                 await self._botsignal.send_text(
@@ -1084,17 +1276,13 @@ class MessageOrchestrator:
             return True
 
         # xAI image understanding routes
-        if lowered.startswith("image understand") or lowered.startswith(
-            "/image understand"
-        ):
+        if lowered.startswith("image understand") or lowered.startswith("/image understand"):
             tool = self._direct_tool("_xai_image_tool", "xai_image_understand")
             if tool is None:
                 return False
             parts = text.split(maxsplit=2)
             image_url = (
-                parts[2].strip()
-                if len(parts) > 2
-                else (parts[1].strip() if len(parts) > 1 else "")
+                parts[2].strip() if len(parts) > 2 else (parts[1].strip() if len(parts) > 1 else "")
             )
             if not image_url:
                 await self._botsignal.send_text(
@@ -1133,8 +1321,8 @@ class MessageOrchestrator:
         # surfaced as a chat reply (the user is asking, so they
         # should see the error rather than the loop swallowing it).
         if lowered == "/goal" or lowered.startswith("/goal "):
-            goal_text = "" if lowered == "/goal" else text[len("/goal "):].strip()
-            goal_text = text[len("/goal "):].strip()
+            goal_text = "" if lowered == "/goal" else text[len("/goal ") :].strip()
+            goal_text = text[len("/goal ") :].strip()
             if not goal_text:
                 await self._botsignal.send_text(
                     request.reply_target,
@@ -1144,6 +1332,7 @@ class MessageOrchestrator:
                 return True
             try:
                 from app.core.task_decomposer import get_task_decomposer
+
                 decomposer = get_task_decomposer()
                 tasks = decomposer.decompose_goal(goal_text)
             except Exception as exc:
@@ -1159,18 +1348,20 @@ class MessageOrchestrator:
                 lines = [f"Decomposed into {len(tasks)} task(s):", ""]
                 for t in tasks:
                     lines.append(
-                        f"- [{t.priority}] {t.title} (id={t.id}, "
-                        f"~{t.estimated_minutes}min)"
+                        f"- [{t.priority}] {t.title} (id={t.id}, ~{t.estimated_minutes}min)"
                     )
                 reply = "\n".join(lines)
             await self._botsignal.send_text(
-                request.reply_target, reply, source_kind=source_kind,
+                request.reply_target,
+                reply,
+                source_kind=source_kind,
             )
             return True
 
         if lowered == "/tasks":
             try:
                 from app.core.task_decomposer import get_task_decomposer
+
                 decomposer = get_task_decomposer()
                 pending = decomposer.get_pending_tasks()
             except Exception as exc:
@@ -1186,12 +1377,13 @@ class MessageOrchestrator:
                 lines = [f"{len(pending)} pending task(s):", ""]
                 for t in pending[:20]:  # cap the chat reply
                     lines.append(
-                        f"- [{t.priority}] {t.title} (id={t.id}, "
-                        f"~{t.estimated_minutes}min)"
+                        f"- [{t.priority}] {t.title} (id={t.id}, ~{t.estimated_minutes}min)"
                     )
                 reply = "\n".join(lines)
             await self._botsignal.send_text(
-                request.reply_target, reply, source_kind=source_kind,
+                request.reply_target,
+                reply,
+                source_kind=source_kind,
             )
             return True
 
@@ -1199,12 +1391,15 @@ class MessageOrchestrator:
         if lowered == "/schedule":
             try:
                 from app.core.schedule_learner import get_schedule_learner
+
                 learner = get_schedule_learner()
                 reply = learner.get_learning_summary()
             except Exception as exc:
                 reply = f"ScheduleLearner failed: {exc}"
             await self._botsignal.send_text(
-                request.reply_target, reply, source_kind=source_kind,
+                request.reply_target,
+                reply,
+                source_kind=source_kind,
             )
             return True
 
@@ -1214,14 +1409,11 @@ class MessageOrchestrator:
         # `/kg path <a> <b>` — find a connection between entities.
         # Bare `/kg` replies with usage.
         if lowered == "/kg" or lowered.startswith("/kg "):
-            tokens = text[len("/kg"):].strip().split()
+            tokens = text[len("/kg") :].strip().split()
             if not tokens:
                 await self._botsignal.send_text(
                     request.reply_target,
-                    (
-                        "Usage: /kg add <subj> <pred> <obj> | "
-                        "/kg query <name> | /kg path <a> <b>"
-                    ),
+                    ("Usage: /kg add <subj> <pred> <obj> | /kg query <name> | /kg path <a> <b>"),
                     source_kind=source_kind,
                 )
                 return True
@@ -1229,6 +1421,7 @@ class MessageOrchestrator:
             args = tokens[1:]
             try:
                 from app.core.knowledge_manager import get_knowledge_manager
+
                 mgr = get_knowledge_manager()
             except Exception as exc:
                 await self._botsignal.send_text(
@@ -1254,7 +1447,9 @@ class MessageOrchestrator:
                         f"{fact.object} (backend={mgr.backend})"
                     )
                 await self._botsignal.send_text(
-                    request.reply_target, reply, source_kind=source_kind,
+                    request.reply_target,
+                    reply,
+                    source_kind=source_kind,
                 )
                 return True
             if op == "query":
@@ -1271,12 +1466,12 @@ class MessageOrchestrator:
                 else:
                     lines = [f"{len(facts)} fact(s) about {args[0]}:"]
                     for f in facts:
-                        lines.append(
-                            f"  - {f.subject} --{f.predicate}--> {f.object}"
-                        )
+                        lines.append(f"  - {f.subject} --{f.predicate}--> {f.object}")
                     reply = "\n".join(lines)
                 await self._botsignal.send_text(
-                    request.reply_target, reply, source_kind=source_kind,
+                    request.reply_target,
+                    reply,
+                    source_kind=source_kind,
                 )
                 return True
             if op == "path":
@@ -1293,7 +1488,9 @@ class MessageOrchestrator:
                 else:
                     reply = " → ".join(path)
                 await self._botsignal.send_text(
-                    request.reply_target, reply, source_kind=source_kind,
+                    request.reply_target,
+                    reply,
+                    source_kind=source_kind,
                 )
                 return True
             await self._botsignal.send_text(
@@ -1316,12 +1513,11 @@ class MessageOrchestrator:
                 # The tracker is best-effort; a missing
                 # SkillLearner or audit log must not crash the
                 # reply path.  Fall back to a graceful message.
-                reply = (
-                    "No learning signals recorded yet "
-                    f"(tracker unavailable: {exc})."
-                )
+                reply = f"No learning signals recorded yet (tracker unavailable: {exc})."
             await self._botsignal.send_text(
-                request.reply_target, reply, source_kind=source_kind,
+                request.reply_target,
+                reply,
+                source_kind=source_kind,
             )
             return True
 
@@ -1341,7 +1537,7 @@ class MessageOrchestrator:
                 )
                 return True
 
-            tokens = text[len("/scene"):].strip().split()
+            tokens = text[len("/scene") :].strip().split()
             if not tokens or tokens[0].lower() == "list":
                 scenes = orchestrator_home.list_scenes()
                 if not scenes:
@@ -1363,12 +1559,11 @@ class MessageOrchestrator:
                 orchestrator_home.set_presence(tokens[1], source="slash")
                 reply = f"Presence set to: {tokens[1]}"
             else:
-                reply = (
-                    "Usage: /scene list | /scene run <name> | "
-                    "/scene here <location>"
-                )
+                reply = "Usage: /scene list | /scene run <name> | /scene here <location>"
             await self._botsignal.send_text(
-                request.reply_target, reply, source_kind=source_kind,
+                request.reply_target,
+                reply,
+                source_kind=source_kind,
             )
             return True
 
@@ -1389,10 +1584,12 @@ class MessageOrchestrator:
                     source_kind=source_kind,
                 )
                 return True
-            args = text[len("/cron"):].strip()
+            args = text[len("/cron") :].strip()
             reply = CronCommand().handle(args, SlashCommandContext())
             await self._botsignal.send_text(
-                request.reply_target, reply, source_kind=source_kind,
+                request.reply_target,
+                reply,
+                source_kind=source_kind,
             )
             return True
 
@@ -1425,7 +1622,8 @@ class MessageOrchestrator:
                 lines.append("")
                 lines.append("- Skills used:")
                 for name, count in sorted(
-                    skills_used.items(), key=lambda kv: -kv[1],
+                    skills_used.items(),
+                    key=lambda kv: -kv[1],
                 ):
                     lines.append(f"  • {name}: {count}")
             recent = stats.get("recent") or []
@@ -1439,9 +1637,70 @@ class MessageOrchestrator:
                         f"{'OK' if r['success'] else 'FAIL'}"
                     )
             await self._botsignal.send_text(
-                request.reply_target, "\n".join(lines), source_kind=source_kind,
+                request.reply_target,
+                "\n".join(lines),
+                source_kind=source_kind,
             )
             return True
+
+        # Calendar routes
+        if any(
+            lowered.startswith(p)
+            for p in (
+                "/calendar",
+                "calendar",
+                "/schedule",
+                "my schedule",
+                "what's on",
+                "whats on",
+                "add event",
+                "create event",
+            )
+        ):
+            try:
+                from app.tools.calendar import CalendarTool
+
+                cal = CalendarTool()
+                parts = text.split(maxsplit=1)
+                if len(parts) > 1:
+                    sub_text = parts[1].lower()
+                else:
+                    sub_text = ""
+
+                if not sub_text or any(
+                    w in sub_text for w in ("show", "list", "what", "upcoming", "next")
+                ):
+                    events = await cal.list_upcoming()
+                    if not events:
+                        await self._botsignal.send_text(
+                            request.reply_target,
+                            "No upcoming events found.",
+                            source_kind=source_kind,
+                        )
+                    else:
+                        lines = [
+                            f"- {e.summary} ({e.start.strftime('%a %b %d %H:%M')} — {e.end.strftime('%H:%M')})"
+                            for e in events
+                        ]
+                        await self._botsignal.send_text(
+                            request.reply_target,
+                            "## Upcoming Events\n" + "\n".join(lines),
+                            source_kind=source_kind,
+                        )
+                elif "add" in sub_text or "create" in sub_text:
+                    result = await cal.handle_calendar_intent(text)
+                    await self._botsignal.send_text(
+                        request.reply_target, result, source_kind=source_kind
+                    )
+                else:
+                    await self._botsignal.send_text(
+                        request.reply_target,
+                        'Calendar: try "calendar show", "calendar add meeting tomorrow", or "delete event <id>"',
+                        source_kind=source_kind,
+                    )
+                return True
+            except Exception as exc:
+                logger.debug("Calendar direct dispatch failed: %s", exc)
 
         return False
 
@@ -1509,16 +1768,10 @@ class MessageOrchestrator:
         reply_lines: list[str] = []
         if isinstance(result, dict):
             if result.get("success") is False:
-                reply_lines.append(
-                    f"Internet intel error: {result.get('error', 'unknown error')}"
-                )
+                reply_lines.append(f"Internet intel error: {result.get('error', 'unknown error')}")
             elif operation in {"status", "report"}:
                 reply_lines.append(
-                    str(
-                        result.get("report")
-                        or result.get("summary")
-                        or "Internet status ready."
-                    )
+                    str(result.get("report") or result.get("summary") or "Internet status ready.")
                 )
             else:
                 summary = (
@@ -1555,6 +1808,144 @@ class MessageOrchestrator:
         )
         return True
 
+    async def _handle_learning_query(self, request: IncomingRequest, source_kind: str) -> bool:
+        """Answer "what have you learned" / "what's my progress" queries."""
+        import re
+
+        text = request.text.strip().lower()
+        patterns = [
+            r"^/learned",
+            r"what have you learned",
+            r"what did you learn",
+            r"what do you know about me",
+            r"show me what you know",
+            r"tell me what you learned",
+        ]
+        is_progress = bool(re.search(r"^/progress|^/report|learning progress|how am i doing", text))
+        if not (is_progress or any(re.search(p, text) for p in patterns)):
+            return False
+
+        from app.core.learning_report import (
+            compare_reports,
+            format_change_summary,
+            generate_report,
+            load_latest_report,
+            save_report,
+        )
+
+        report = generate_report()
+        save_report(report)
+
+        if is_progress:
+            prev = load_latest_report()
+            if prev and prev.get("timestamp") != report.get("timestamp"):
+                changes = compare_reports(prev, report)
+                summary = format_change_summary(changes)
+            else:
+                summary = (
+                    "This is my first report — check back after more interactions to see progress!"
+                )
+            await self._botsignal.send_text(
+                request.reply_target,
+                summary,
+                source_kind=source_kind,
+            )
+            return True
+
+        # Full summary — use unified learning store
+        lines: list[str] = ["## What Raven Has Learned\n"]
+
+        try:
+            from app.core.learning_db import get_learning_store
+
+            store = get_learning_store()
+            stats = store.get_stats()
+
+            # 1. By type breakdown
+            for type_, count in sorted(stats.get("by_type", {}).items()):
+                tag = type_.replace("_", " ").title()
+                items = store.get_recent(type_=type_, limit=3)
+                if items:
+                    lines.append(f"**{tag} ({count} total):**")
+                    for item in items:
+                        lines.append(f"- [{item['topic']}] {item['content'][:100]}")
+                else:
+                    lines.append(f"**{tag}:** none recorded")
+                lines.append("")
+
+            # 2. Top topics by count
+            topics: dict[str, int] = {}
+            for type_ in stats.get("by_type", {}):
+                for item in store.get_recent(type_=type_, limit=20):
+                    t = item.get("topic", "general") or "general"
+                    topics[t] = topics.get(t, 0) + 1
+            if topics:
+                top = sorted(topics.items(), key=lambda x: -x[1])[:5]
+                lines.append(f"**Top Topics ({len(top)}):**")
+                for topic, cnt in top:
+                    lines.append(f"- {topic}: {cnt} items")
+                lines.append("")
+
+            # 3. Skills crystallized
+            try:
+                from app.core.skill_crystallizer import SkillCrystallizer
+
+                crystal = SkillCrystallizer()
+                skills = crystal.get_crystallized_skills()
+                if skills:
+                    lines.append(f"**Crystallized Skills ({len(skills)}):**")
+                    for s in skills:
+                        lines.append(f"- {s.get('title', s['name'])} ({s.get('skill_type', '')})")
+                    lines.append("")
+            except Exception:
+                pass
+
+            # 4. Contradictions detected
+            try:
+                from app.core.consolidation import ConsolidationEngine
+
+                engine = ConsolidationEngine()
+                contradictions = engine.get_contradictions_report()
+                if contradictions:
+                    lines.append(f"**⚠ Potential Contradictions ({len(contradictions)}):**")
+                    for c in contradictions[:3]:
+                        lines.append(f"- topic: {c['topic']}")
+                        lines.append(f"  A: {c['item_a']['content'][:80]}")
+                        lines.append(f"  B: {c['item_b']['content'][:80]}")
+                    lines.append("")
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+        # 4. Health snapshot
+        try:
+            from app.core.learning_health import get_health_monitor
+
+            monitor = get_health_monitor()
+            snap = monitor.snapshot()
+            lines.append("**Learning Health Snapshot:**")
+            lines.append(f"- Turns tracked: {snap.get('total_turns_recorded', 0)}")
+            lines.append(f"- Success rate: {snap.get('success_rate', 0) * 100:.0f}%")
+            lines.append(f"- Avg confidence: {snap.get('avg_confidence', 0):.2f}")
+            lines.append(f"- Correction rate: {snap.get('correction_rate', 0) * 100:.0f}%")
+            if snap.get("alerts"):
+                for a in snap["alerts"]:
+                    lines.append(f"- ⚠ {a.get('type', 'alert')}: {a.get('message', '')[:80]}")
+        except Exception:
+            lines.append("**Learning Health:** unavailable")
+
+        lines.append("")
+        lines.append("---")
+        lines.append("Use `/progress` to see what changed since last time.")
+
+        await self._botsignal.send_text(
+            request.reply_target,
+            "\n".join(lines).strip(),
+            source_kind=source_kind,
+        )
+        return True
+
     async def handle(self, request: IncomingRequest) -> None:
         """
         The entrypoint for all incoming platform messages.
@@ -1565,6 +1956,7 @@ class MessageOrchestrator:
         # Map platform-specific user ID to canonical RAVEN user for cross-platform continuity
         try:
             from app.core.user_identity import get_identity_store
+
             identity_store = get_identity_store()
             canonical_id = identity_store.resolve(request.platform, request.user_id)
             request.user_id = canonical_id
@@ -1577,9 +1969,7 @@ class MessageOrchestrator:
         try:
             from app.core.metrics import requests_total, requests_blocked
 
-            requests_total.labels(
-                platform=request.platform, source_kind=source_kind
-            ).inc()
+            requests_total.labels(platform=request.platform, source_kind=source_kind).inc()
         except Exception:
             pass
 
@@ -1602,9 +1992,7 @@ class MessageOrchestrator:
 
         # Rate Limiter: Per-user sliding window
         rate_limiter = get_rate_limiter()
-        allowed, rate_reason = rate_limiter.is_allowed(
-            f"{request.platform}:{request.user_id}"
-        )
+        allowed, rate_reason = rate_limiter.is_allowed(f"{request.platform}:{request.user_id}")
         if not allowed:
             try:
                 from app.core.metrics import requests_blocked
@@ -1625,9 +2013,7 @@ class MessageOrchestrator:
         # banner so the dashboard still loads.
         try:
             security_guard = get_security_guard()
-            paired, pair_msg = security_guard.check_dm_pairing(
-                request.user_id, request.platform
-            )
+            paired, pair_msg = security_guard.check_dm_pairing(request.user_id, request.platform)
             if not paired:
                 if request.platform == "web":
                     # Web is special — allow but attach a banner flag.
@@ -1651,11 +2037,34 @@ class MessageOrchestrator:
             # continue (fail-open on infrastructure, not on policy).
             logger.debug("DM pairing check raised: %s", exc)
 
+        # Phase 6 — Context Reference Expansion (inline @file, @folder, @url, @git).
+        # Resolves @references before the message reaches System 1 or System 2,
+        # so both the fast router and the ReAct loop see the expanded context.
+        try:
+            from app.core.context_references import get_context_resolver
+
+            resolver = get_context_resolver()
+            expanded_text, resolved_refs = resolver.resolve_references(request.text)
+            if resolved_refs:
+                request.text = expanded_text
+                source_kind = "context_expanded"
+                logger.debug(
+                    "Expanded %d context references in message",
+                    len(resolved_refs),
+                )
+        except Exception as exc:
+            # Never let reference expansion crash the loop.
+            logger.debug("Reference expansion failed: %s", exc)
+
         if await self._handle_direct_tool_prompt(request, source_kind):
             return
 
         # Direct, low-compute internet intelligence commands.
         if await self._handle_internet_intel_direct(request, source_kind):
+            return
+
+        # Self-improvement learning summary queries.
+        if await self._handle_learning_query(request, source_kind):
             return
 
         # System 1: Fast Reflex Check
@@ -1670,7 +2079,40 @@ class MessageOrchestrator:
                 mini_response,
                 source_kind=source_kind,
             )
+            # Record System 1 outcome in metacognition
+            try:
+                from app.core.metacognition import get_metacognitive_monitor
+
+                metacog = get_metacognitive_monitor()
+                metacog.record(
+                    query=request.text,
+                    category="system1_handled",
+                    strategy="rapid",
+                    tools_used=[],
+                    success=True,
+                    confidence=0.8,
+                    duration_ms=0.0,
+                )
+            except Exception:
+                pass
             return
+
+        # Metacognition: record the escalation decision
+        try:
+            from app.core.metacognition import get_metacognitive_monitor
+
+            metacog = get_metacognitive_monitor()
+            metacog.record(
+                query=request.text,
+                category="system1_escalated",
+                strategy="rapid",
+                tools_used=[],
+                success=True,
+                confidence=0.5,
+                duration_ms=0.0,
+            )
+        except Exception:
+            pass
 
         # System 2: Deep provider-backed response with fallback (AgentRuntime with full tool access).
         turn_result = await self._agent_runtime.execute_turn(request)
@@ -1743,3 +2185,422 @@ class MessageOrchestrator:
             )
         except Exception as exc:
             logger.debug("Self-review cycle failed: %s", exc)
+
+        # Phase 2 — Uncertainty Estimation & Clarification.
+        # If confidence is low, send a follow-up clarifying question.
+        try:
+            from app.core.uncertainty import get_uncertainty_estimator
+
+            estimator = get_uncertainty_estimator()
+            confidence = estimator.estimate(turn_result, request.text)
+            if estimator.needs_clarification(confidence):
+                question = estimator.generate_clarifying_question(request.text, turn_result)
+                await self._botsignal.send_text(
+                    request.reply_target,
+                    question,
+                    source_kind=source_kind,
+                )
+        except Exception as exc:
+            logger.debug("Uncertainty estimation failed: %s", exc)
+
+        # Phase 2b — Response Quality Scoring.
+        # Evaluate response on completeness, conciseness, and correctness signals.
+        try:
+            from app.core.response_quality import ResponseQualityScorer
+
+            scorer = ResponseQualityScorer()
+            response_text = (turn_result or {}).get("response", "")
+            quality = scorer.score(
+                response=response_text,
+                query=request.text,
+                tool_calls=(turn_result or {}).get("tool_calls"),
+            )
+            if quality.get("flags"):
+                logger.debug(
+                    "Response quality flags: %s (overall=%.2f)",
+                    quality["flags"],
+                    quality.get("overall", 0),
+                )
+            # Store quality score in turn_result for downstream phases
+            if isinstance(turn_result, dict):
+                turn_result["quality_score"] = quality
+        except Exception as exc:
+            logger.debug("Response quality scoring failed: %s", exc)
+
+        # Phase 3 — Prompt Improvement Orchestration.
+        # Analyze feedback signals and generate prompt adjustments.
+        try:
+            from app.core.prompt_improvement_orchestrator import (
+                get_prompt_improvement_orchestrator,
+            )
+
+            orch = get_prompt_improvement_orchestrator()
+            improvements = await orch.review_and_improve(
+                turn_result=turn_result,
+                query=request.text,
+            )
+            if improvements:
+                logger.debug("Generated %d prompt improvements", len(improvements))
+                # Clear processed self-review suggestions so they don't accumulate
+                try:
+                    from app.core.self_review import get_self_reviewer
+
+                    reviewer = get_self_reviewer()
+                    reviewer.clear_suggestions()
+                except Exception:
+                    pass
+        except Exception as exc:
+            logger.debug("Prompt improvement orchestration failed: %s", exc)
+
+        # Phase 4 — Self-Correction Acknowledgment.
+        # If the user just corrected us, send a brief confirmation.
+        try:
+            from app.core.self_correction_engine import (
+                get_self_correction_engine,
+            )
+
+            engine = get_self_correction_engine()
+            ack = await engine.process(
+                user_message=request.text,
+                turn_result=turn_result,
+            )
+            if ack:
+                await self._botsignal.send_text(
+                    request.reply_target,
+                    ack,
+                    source_kind=source_kind,
+                )
+                # RLHF: a correction acknowledgment means the user pointed out an error — negative signal
+                try:
+                    from app.core.rlhf import record_feedback
+
+                    record_feedback(
+                        task_type="general",
+                        provider_id=self._agent_runtime.provider_name
+                        if hasattr(self._agent_runtime, "provider_name")
+                        else "unknown",
+                        preferred=False,
+                        response_style="general",
+                    )
+                except Exception:
+                    pass
+        except Exception as exc:
+            logger.debug("Self-correction acknowledgment failed: %s", exc)
+
+        # Phase 5 — Fact-Check Gate.
+        # Proactively check response against known facts and corrections.
+        try:
+            from app.core.fact_check import get_fact_check_engine
+
+            engine = get_fact_check_engine()
+            response_text = (turn_result or {}).get("response", "")
+            if response_text:
+                contradictions = await engine.check_response(
+                    response=response_text,
+                    query=request.text,
+                )
+                if contradictions:
+                    lines = [
+                        f"- {c['claim'][:100]} → *{c['expected'][:60]}*" for c in contradictions
+                    ]
+                    correction_msg = (
+                        "Hold on — I need to correct myself:\n"
+                        + "\n".join(lines)
+                        + "\n\nI've learned from this and won't make the same mistake again."
+                    )
+                    await self._botsignal.send_text(
+                        request.reply_target,
+                        correction_msg,
+                        source_kind=source_kind,
+                    )
+        except Exception as exc:
+            logger.debug("Fact-check gate failed: %s", exc)
+
+        # Phase 6 — Retrospective Analysis (every 50 System 2 turns).
+        # Deep batch analysis of interaction patterns.
+        try:
+            from app.core.retrospective import get_retrospective_analyzer
+
+            _RETRO_COUNTER_FILE = (
+                Path(getattr(Config, "MEMORY_ROOT", "workspace")) / "memory" / ".retro_counter"
+            )
+            _RETRO_COUNTER_FILE.parent.mkdir(parents=True, exist_ok=True)
+            count = 0
+            try:
+                count = int(_RETRO_COUNTER_FILE.read_text(encoding="utf-8").strip() or "0")
+            except Exception:
+                pass
+            count += 1
+            _RETRO_COUNTER_FILE.write_text(str(count), encoding="utf-8")
+
+            if count % 50 == 0:
+                analyzer = get_retrospective_analyzer()
+                insights = await analyzer.analyze()
+                if insights:
+                    from app.core.prompt_improver import (
+                        PromptAdjustment,
+                        PromptImprover,
+                    )
+
+                    improver = PromptImprover()
+                    for ins in insights:
+                        adj = PromptAdjustment(
+                            category=ins.get("category", "general"),
+                            adjustment=ins.get("recommendation", ins.get("insight", "")),
+                            reason=ins.get("evidence", ""),
+                            confidence=ins.get("confidence", 0.5),
+                        )
+                        improver.add_adjustment(adj)
+                        # Dual-write to unified learning store
+                        try:
+                            from app.core.learning_db import get_learning_store
+
+                            store = get_learning_store()
+                            store.add(
+                                type_="prompt_adjustment",
+                                content=ins.get("recommendation", ins.get("insight", "")),
+                                topic=ins.get("category", "general"),
+                                confidence=ins.get("confidence", 0.5),
+                                metadata={"reason": ins.get("evidence", "")},
+                                source="retrospective",
+                            )
+                        except Exception:
+                            pass
+                    logger.info(
+                        "Retrospective: generated %d insights from %d interactions",
+                        len(insights),
+                        count,
+                    )
+        except Exception as exc:
+            logger.debug("Retrospective analysis failed: %s", exc)
+
+        # Phase 7 — Success Pattern Learning.
+        # Record what worked so we can reinforce it.
+        try:
+            from app.core.success_patterns import get_success_pattern_learner
+
+            sl = get_success_pattern_learner()
+            tool_calls_s2 = (turn_result or {}).get("tool_calls", [])
+            response_s2 = (turn_result or {}).get("response", "")
+            success = (turn_result or {}).get("success", False)
+
+            if success and response_s2:
+                sl.record_success(
+                    query=request.text,
+                    response=response_s2,
+                    tool_calls=tool_calls_s2,
+                    latency_ms=(turn_result or {}).get("latency_ms", 0.0),
+                )
+                # Dual-write to unified learning store
+                try:
+                    from app.core.learning_db import get_learning_store
+
+                    store = get_learning_store()
+                    store.add(
+                        type_="success_pattern",
+                        content=f"Query: {request.text[:100]} | Response: {response_s2[:200]}",
+                        topic="success",
+                        confidence=0.7,
+                        source="success_pattern",
+                    )
+                except Exception:
+                    pass
+        except Exception as exc:
+            logger.debug("Success pattern learning failed: %s", exc)
+
+        # Phase 8 — Learned Reflection (replaces old CorrectionDetector).
+        # Uses LLM-based reflection with fallback to heuristic.
+        try:
+            from app.core.learned_reflector import get_reflector
+            from app.core.correction_learner import CorrectionDetector
+
+            # Try learned reflection first
+            reflector = get_reflector()
+            reflection = await reflector.reflect(
+                user_message=request.text or "",
+                assistant_response=(turn_result or {}).get("response", ""),
+            )
+
+            correction = None
+            if reflection.is_correction:
+                correction = reflection
+            else:
+                # Fallback to heuristic
+                if CorrectionDetector.is_correction(request.text):
+                    heur = CorrectionDetector.extract_correction(request.text)
+                    if heur:
+                        from app.core.learned_reflector import ReflectionResult
+
+                        correction = ReflectionResult(
+                            is_correction=True,
+                            topic=heur.topic,
+                            corrected_claim=heur.corrected_claim,
+                            wrong_segment=heur.wrong_segment or "",
+                            confidence=heur.confidence * 0.8,
+                        )
+
+            if correction and correction.corrected_claim:
+                # Store in unified learning store
+                correction_id = 0
+                try:
+                    from app.core.learning_db import get_learning_store
+
+                    store = get_learning_store()
+                    correction_id = (
+                        store.add(
+                            type_="correction",
+                            content=correction.corrected_claim,
+                            topic=correction.topic,
+                            confidence=correction.confidence,
+                            metadata={
+                                "wrong_segment": correction.wrong_segment,
+                                "source": "learned_reflector"
+                                if reflection.is_correction
+                                else "heuristic_fallback",
+                            },
+                            source="phase8",
+                        )
+                        or 0
+                    )
+                    # Record RLHF preference signal — corrections are negative feedback
+                    try:
+                        from app.core.rlhf import record_feedback
+
+                        record_feedback(
+                            task_type=correction.topic or "general",
+                            provider_id=self._agent_runtime.provider_name
+                            if hasattr(self._agent_runtime, "provider_name")
+                            else "unknown",
+                            preferred=False,
+                            response_style="general",
+                        )
+                    except Exception:
+                        pass
+                    # Self-improvement: verify the correction was actually applied
+                    if correction_id:
+                        try:
+                            from app.core.self_improvement import get_self_improvement_loop
+
+                            loop = get_self_improvement_loop()
+                            await loop.on_correction_stored(correction_id)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+                # Also extract KG fact if possible (legacy)
+                try:
+                    from app.core.fact_extractor import get_fact_extractor
+
+                    extractor = get_fact_extractor()
+                    result = await extractor.extract_and_store(
+                        corrected_claim=correction.corrected_claim,
+                        topic=correction.topic,
+                        user_id=request.user_id,
+                    )
+                    if result.get("success"):
+                        logger.debug(
+                            "Extracted KG fact from correction: %s",
+                            correction.corrected_claim[:60],
+                        )
+                except Exception:
+                    pass
+        except Exception as exc:
+            logger.debug("Learned reflection failed: %s", exc)
+
+        # Phase 9 — Learning Health Monitoring.
+        # Tracks metrics and detects anomalies.
+        _reflection_result = locals().get("reflection")
+        try:
+            from app.core.learning_health import get_health_monitor
+
+            monitor = get_health_monitor()
+            turn_success = (turn_result or {}).get("success", False)
+            was_correction = (
+                bool(_reflection_result and _reflection_result.is_correction)
+                if _reflection_result
+                else False
+            )
+            if not was_correction and request.text:
+                try:
+                    from app.core.correction_learner import CorrectionDetector
+
+                    was_correction = CorrectionDetector.is_correction(request.text)
+                except Exception:
+                    pass
+            alert = monitor.record_turn(
+                success=turn_success,
+                was_correction=was_correction,
+            )
+            if alert.get("alert"):
+                for a in alert.get("alerts", []):
+                    logger.warning(
+                        "Health alert [%s]: %s",
+                        a.get("type", "unknown"),
+                        a.get("message", ""),
+                    )
+        except Exception as exc:
+            logger.debug("Health monitoring failed: %s", exc)
+
+        # Persist all learning state to disk
+        try:
+            from app.core.learning_health import get_health_monitor
+
+            get_health_monitor().save()
+        except Exception as exc:
+            logger.debug("Failed to persist learning state: %s", exc)
+
+        # Self-improvement batch verification (every 20 turns)
+        try:
+            from app.core.self_improvement import get_self_improvement_loop
+
+            loop = get_self_improvement_loop()
+            if hasattr(self, "_verify_counter"):
+                self._verify_counter += 1
+            else:
+                self._verify_counter = 0
+            if self._verify_counter % 20 == 0:
+                results = await loop.run_batch(limit=10)
+                if results:
+                    passed = sum(1 for r in results if r.passed)
+                    logger.info("Batch verification: %d/%d passed", passed, len(results))
+        except Exception as exc:
+            logger.debug("Batch verification failed: %s", exc)
+
+        # Periodic tasks (pruning, report generation, etc.)
+        try:
+            from app.core.task_scheduler import get_scheduler
+
+            ran = get_scheduler().tick()
+            if ran:
+                logger.info("Scheduler ran tasks: %s", ran)
+        except Exception as exc:
+            logger.debug("Scheduler tick failed: %s", exc)
+
+    async def handle_request(self, request: IncomingRequest) -> dict[str, Any]:
+        """Process a request and return the result (for batch processing)."""
+        turn_result = await self._agent_runtime.execute_turn(request)
+        response_text = (turn_result or {}).get("response", "")
+        tool_calls = (turn_result or {}).get("tool_calls", [])
+        return {
+            "text": response_text,
+            "tool_calls": tool_calls,
+            "success": (turn_result or {}).get("success", True),
+            "session_id": (turn_result or {}).get("session_id", ""),
+        }
+
+
+# Singleton
+_orchestrator: MessageOrchestrator | None = None
+
+
+def get_orchestrator() -> MessageOrchestrator:
+    global _orchestrator
+    if _orchestrator is None:
+        raise RuntimeError("Orchestrator not initialized. Call init_orchestrator() first.")
+    return _orchestrator
+
+
+def init_orchestrator(orch: MessageOrchestrator) -> None:
+    global _orchestrator
+    _orchestrator = orch

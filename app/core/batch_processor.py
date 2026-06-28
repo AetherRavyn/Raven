@@ -10,7 +10,6 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass(slots=True)
 class BatchJob:
     """A single batch processing job."""
+
     job_id: str
     prompt: str
     status: str = "pending"
@@ -35,6 +35,7 @@ class BatchProcessor:
 
     def __init__(self, workspace_dir: str = "workspace") -> None:
         from app.settings.config import Config
+
         self._workspace = workspace_dir or Config.MEMORY_ROOT
         self._output_dir = Path(self._workspace) / "batch_output"
         self._output_dir.mkdir(parents=True, exist_ok=True)
@@ -59,6 +60,7 @@ class BatchProcessor:
                 job.started_at = time.time()
                 try:
                     from app.core.models import IncomingRequest, ReplyTarget
+
                     request = IncomingRequest(
                         text=job.prompt,
                         platform="batch",
@@ -119,13 +121,11 @@ class BatchProcessor:
                         "time_seconds": round(j.completed_at - j.started_at, 2),
                     },
                 }
-                for j in jobs if j.status == "completed"
+                for j in jobs
+                if j.status == "completed"
             ]
         elif format == "jsonl":
-            return [
-                {"prompt": j.prompt, "response": j.result, "status": j.status}
-                for j in jobs
-            ]
+            return [{"prompt": j.prompt, "response": j.result, "status": j.status} for j in jobs]
         return [{"prompt": j.prompt, "response": j.result} for j in jobs]
 
 

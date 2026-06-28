@@ -10,9 +10,7 @@ class Bootstrapper:
     def __init__(self, workspace_dir: str | None = None):
         from app.settings.config import Config
 
-        self.workspace_dir = (
-            Path(workspace_dir) if workspace_dir else Path(Config.MEMORY_ROOT)
-        )
+        self.workspace_dir = Path(workspace_dir) if workspace_dir else Path(Config.MEMORY_ROOT)
         # Create default template files if they don't exist
         self._ensure_file_exists(
             "SOUL.md",
@@ -48,10 +46,7 @@ class Bootstrapper:
         try:
             content = filepath.read_text(encoding="utf-8")
             if len(content) > max_chars:
-                content = (
-                    content[:max_chars]
-                    + "\n...[Content Truncated due to size limit]..."
-                )
+                content = content[:max_chars] + "\n...[Content Truncated due to size limit]..."
             return f"\n--- [{filename}] ---\n{content}\n"
         except Exception as e:
             logger.error(f"Failed to read {filename}: {e}")
@@ -81,9 +76,7 @@ class Bootstrapper:
             f"Day of week: {now.strftime('%A')}"
         )
 
-    def build_system_prompt(
-        self, query: str | None = None, user_id: str | None = None
-    ) -> str:
+    def build_system_prompt(self, query: str | None = None, user_id: str | None = None) -> str:
         """Injects SOUL, AGENTS, TOOLS, live context, and relevant memories."""
         try:
             from app.core.memory_facade import get_memory_facade
@@ -95,9 +88,7 @@ class Bootstrapper:
             agents_context = facade.recall(
                 "available agents and behavior", user_id=user_id, top_k=1
             )
-            tools_context = facade.recall(
-                "available tools and usage", user_id=user_id, top_k=1
-            )
+            tools_context = facade.recall("available tools and usage", user_id=user_id, top_k=1)
 
             soul = (
                 "\n".join(m.content for m in soul_context)
@@ -165,9 +156,7 @@ class Bootstrapper:
                     profile_lines.extend(f"- {item}" for item in profile["facts"])
                 if profile_lines:
                     profile_summary_section = (
-                        "\n--- [User Profile Summary] ---\n"
-                        + "\n".join(profile_lines)
-                        + "\n"
+                        "\n--- [User Profile Summary] ---\n" + "\n".join(profile_lines) + "\n"
                     )
             except Exception as exc:
                 logger.warning("Profile summary retrieval failed: %s", exc)
@@ -196,9 +185,7 @@ class Bootstrapper:
             orders = store.parse()
             if orders:
                 order_lines = [
-                    f"- {order.title}: {order.rule}"
-                    for order in orders[:10]
-                    if order.enabled
+                    f"- {order.title}: {order.rule}" for order in orders[:10] if order.enabled
                 ]
                 if order_lines:
                     standing_orders_section = (
@@ -218,40 +205,85 @@ class Bootstrapper:
         except Exception as exc:
             logger.warning("Skill text retrieval failed: %s", exc)
 
-        correction_section = ""
-        if user_id:
+        # --- LEARNED KNOWLEDGE SECTION (unified FTS5 retrieval) ---
+        learning_section = ""
+        if query:
             try:
-                from app.core.correction_learner import CorrectionLearner
+                from app.core.learning_retrieval import IntelligentRetriever
 
-                learner = CorrectionLearner(str(self.workspace_dir))
-                corrections = learner.get_correction_context(user_id)
-                if corrections:
-                    correction_section = f"\n{corrections}\n"
+                retriever = IntelligentRetriever()
+                learning_section = retriever.get_injection_block(
+                    query,
+                    max_items=6,
+                    min_confidence=0.35,
+                )
+                if learning_section:
+                    learning_section = f"\n{learning_section}\n"
             except Exception as exc:
-                logger.debug("Correction context retrieval failed: %s", exc)
+                logger.debug("Intelligent retrieval failed: %s", exc)
 
-        prompt_improvements_section = ""
+        if not learning_section:
+            try:
+                from app.core.learning_db import get_learning_store
+
+                store = get_learning_store()
+                stats = store.get_stats()
+                if stats.get("total", 0) > 0:
+                    recent = store.get_recent(limit=5, min_confidence=0.5)
+                    if recent:
+                        items = [
+                            f"- [{r['type'].replace('_', ' ').title()}] {r['content'][:120]}"
+                            for r in recent
+                        ]
+                        learning_section = (
+                            "\n--- [Recent Learnings] ---\n" + "\n".join(items) + "\n"
+                        )
+            except Exception as exc:
+                logger.debug("Recent learnings fallback failed: %s", exc)
+
+        if not learning_section:
+            try:
+                from app.core.correction_learner import CorrectionStore
+
+                store = CorrectionStore(str(self.workspace_dir))
+                recents = store.get_recent(5)
+                if recents:
+                    facts = [f"- {c.corrected_claim[:120]}" for c in recents]
+                    if facts:
+                        learning_section = (
+                            "\n--- [Learned Facts (legacy)] ---\n" + "\n".join(facts) + "\n"
+                        )
+            except Exception:
+                pass
+
+        # --- RLHF Preference Section ---
+        rlhf_section = ""
         try:
-            from app.core.prompt_improver import PromptImprover
+            from app.core.rlhf import RlhfCrystallizer
 
-            improver = PromptImprover(str(self.workspace_dir))
-            improvements = improver.get_adjustments_prompt()
-            if improvements:
-                prompt_improvements_section = f"\n{improvements}\n"
+            rlhf_text = RlhfCrystallizer().build_preference_prompt()
+            if rlhf_text.strip():
+                rlhf_section = f"\n{rlhf_text}\n"
         except Exception as exc:
-            logger.debug("Prompt improvement retrieval failed: %s", exc)
+            logger.debug("RLHF preference injection failed: %s", exc)
 
-        pattern_rules_section = ""
-        try:
-            from app.core.pattern_learner import PatternLearner
-            pl = PatternLearner(str(self.workspace_dir))
-            rules = pl.get_rules_for_prompt()
-            if rules:
-                pattern_rules_section = f"\n{rules}\n"
-        except Exception:
-            pass
+        # --- Supervisor Routing Section ---
+        supervisor_section = ""
+        if query:
+            try:
+                from app.core.supervisor import get_supervisor
+
+                agent_id = get_supervisor().select_agent(query)
+                if agent_id != "assistant":
+                    supervisor_section = (
+                        f"\n--- [Agent Routing] ---\n"
+                        f"This request is classified as a {agent_id} task. "
+                        f"Route to the {agent_id} specialist if appropriate.\n"
+                    )
+            except Exception as exc:
+                logger.debug("Supervisor routing failed: %s", exc)
 
         return (
             f"System Bootstrapped Context:\n"
-            f"{soul}{dynamic_section}{profile_section}{profile_summary_section}{graph_section}{standing_orders_section}{active_skills_section}{correction_section}{prompt_improvements_section}{pattern_rules_section}{agents}{tools}{memory_section}"
+            f"{soul}{dynamic_section}{profile_section}{profile_summary_section}{graph_section}{standing_orders_section}{active_skills_section}{learning_section}{rlhf_section}{supervisor_section}{agents}{tools}{memory_section}"
         )

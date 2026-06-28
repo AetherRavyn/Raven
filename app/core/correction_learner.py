@@ -25,13 +25,14 @@ logger = logging.getLogger(__name__)
 @dataclass(slots=True)
 class Correction:
     """A user correction of Raven's output."""
+
     original_claim: str  # What Raven said
     corrected_claim: str  # What the user says is correct
     topic: str  # What category this falls under
     confidence: float = 1.0  # How confident we are in the correction
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    wrong_segment: str = ""  # The specific segment of the response that was wrong
+    response_context: str = ""  # Surrounding context around the wrong segment
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 # Correction detection patterns
@@ -43,7 +44,10 @@ _CORRECTION_PATTERNS = [
     # "I said" / "I mean" / "I meant"
     (r"(?:i said|i mean|i meant|i was trying to say)\s+(.+?)(?:\.|$)", "repetition"),
     # "The correct" / "The right"
-    (r"(?:the correct|the right|the actual)\s+(?:answer|value|name|is)\s+(?:is\s+)?(.+?)(?:\.|$)", "explicit"),
+    (
+        r"(?:the correct|the right|the actual)\s+(?:answer|value|name|is)\s+(?:is\s+)?(.+?)(?:\.|$)",
+        "explicit",
+    ),
     # "Don't" / "Don't use"
     (r"(?:don'?t|do not)\s+(?:use|say|write|call|name)\s+(.+?)(?:\.|$)", "negative"),
 ]
@@ -57,6 +61,78 @@ class CorrectionDetector:
         """Check if the user message contains a correction."""
         lower = user_message.lower()
         return any(re.search(pat, lower) for pat, _ in _CORRECTION_PATTERNS)
+
+    @staticmethod
+    def pinpoint(corrected_claim: str, previous_output: str) -> tuple[str, str]:
+        """Identify the specific segment in previous_output that the correction targets.
+
+        Uses sentence-level matching: splits the previous output into sentences,
+        extracts key terms from the correction, and finds sentences that contain
+        conflicting or contradicted terms.
+
+        Returns:
+            (wrong_segment, context) — the pinpointed sentence and surrounding context.
+        """
+        if not previous_output or not corrected_claim:
+            return ("", "")
+
+        sentences = re.split(r"(?<=[.!?])\s+", previous_output)
+        if not sentences:
+            return ("", "")
+
+        correct_lower = corrected_claim.lower()
+        correct_terms = {w for w in correct_lower.split() if len(w) > 3}
+
+        # Find sentences that contain similar entities but conflicting claims
+        scores: list[tuple[int, str]] = []
+        for i, sent in enumerate(sentences):
+            sent_lower = sent.lower()
+            score = 0
+
+            # Penalize if sentence already contains the corrected claim
+            if correct_lower in sent_lower:
+                score -= 5
+
+            # Score for shared key terms
+            sent_terms = {w for w in sent_lower.split() if len(w) > 3}
+            shared = correct_terms & sent_terms
+            score += len(shared) * 2
+
+            # Bonus for named entities (capitalized words)
+            sent_entities = {w for w in sent.split() if w[0].isupper() and len(w) > 2}
+            correct_entities = {w for w in corrected_claim.split() if w[0].isupper() and len(w) > 2}
+            if sent_entities & correct_entities:
+                score += 3
+
+            # Bonus for topic indicator words
+            if any(
+                w in sent_lower for w in ("is", "are", "was", "were", "means", "called", "located")
+            ):
+                score += 1
+
+            scores.append((score, sent))
+
+        if not scores:
+            return ("", "")
+
+        # Pick the highest-scoring sentence
+        scores.sort(key=lambda x: x[0], reverse=True)
+        best_score, best_sent = scores[0]
+
+        if best_score <= 1:
+            return ("", "")
+
+        # Build context: one sentence before and after
+        idx = next(i for i, (_, s) in enumerate(scores) if s == best_sent)
+        ctx_parts = []
+        if idx > 0:
+            ctx_parts.append(sentences[idx - 1])
+        ctx_parts.append(best_sent)
+        if idx < len(sentences) - 1:
+            ctx_parts.append(sentences[idx + 1])
+        context = " ".join(ctx_parts)
+
+        return (best_sent, context)
 
     @staticmethod
     def extract_correction(user_message: str, previous_output: str = "") -> Correction | None:
@@ -73,10 +149,17 @@ class CorrectionDetector:
                 # Determine topic from keywords
                 topic = _detect_topic(lower)
 
+                corrected_claim = corrected or user_message.strip()
+                wrong_segment, context = CorrectionDetector.pinpoint(
+                    corrected_claim, previous_output
+                )
+
                 return Correction(
                     original_claim=previous_output[:200] if previous_output else "(unknown)",
-                    corrected_claim=corrected or user_message.strip(),
+                    corrected_claim=corrected_claim,
                     topic=topic,
+                    wrong_segment=wrong_segment,
+                    response_context=context,
                 )
 
         return None
@@ -112,11 +195,14 @@ class CorrectionStore:
     def save(self, correction: Correction) -> None:
         """Append a correction to the store."""
         import json
+
         data = {
             "original": correction.original_claim,
             "corrected": correction.corrected_claim,
             "topic": correction.topic,
             "confidence": correction.confidence,
+            "wrong_segment": correction.wrong_segment,
+            "response_context": correction.response_context,
             "timestamp": correction.timestamp,
         }
         with open(self._file, "a", encoding="utf-8") as f:
@@ -125,6 +211,7 @@ class CorrectionStore:
     def get_recent(self, n: int = 20) -> list[Correction]:
         """Get the last N corrections."""
         import json
+
         if not self._file.exists():
             return []
         lines = self._file.read_text(encoding="utf-8").strip().splitlines()
@@ -134,13 +221,17 @@ class CorrectionStore:
                 continue
             try:
                 d = json.loads(line)
-                corrections.append(Correction(
-                    original_claim=d.get("original", ""),
-                    corrected_claim=d.get("corrected", ""),
-                    topic=d.get("topic", "general"),
-                    confidence=d.get("confidence", 1.0),
-                    timestamp=d.get("timestamp", ""),
-                ))
+                corrections.append(
+                    Correction(
+                        original_claim=d.get("original", ""),
+                        corrected_claim=d.get("corrected", ""),
+                        topic=d.get("topic", "general"),
+                        confidence=d.get("confidence", 1.0),
+                        wrong_segment=d.get("wrong_segment", ""),
+                        response_context=d.get("response_context", ""),
+                        timestamp=d.get("timestamp", ""),
+                    )
+                )
             except Exception:
                 continue
         return corrections
@@ -152,7 +243,48 @@ class CorrectionStore:
     def count(self) -> int:
         if not self._file.exists():
             return 0
-        return sum(1 for line in self._file.read_text(encoding="utf-8").strip().splitlines() if line.strip())
+        return sum(
+            1
+            for line in self._file.read_text(encoding="utf-8").strip().splitlines()
+            if line.strip()
+        )
+
+    def prune(self, max_unique: int = 50) -> int:
+        """Deduplicate corrections, keeping only the latest entry per unique corrected_claim.
+
+        Args:
+            max_unique: Maximum number of unique corrections to retain.
+
+        Returns:
+            Number of duplicate entries removed.
+        """
+        import json
+
+        if not self._file.exists():
+            return 0
+        lines = self._file.read_text(encoding="utf-8").strip().splitlines()
+        seen: dict[str, str] = {}  # corrected_claim → full line (latest wins)
+        removed = 0
+        for line in lines:
+            if not line.strip():
+                removed += 1
+                continue
+            try:
+                d = json.loads(line)
+                key = d.get("corrected", "").strip().lower()
+                if key in seen:
+                    removed += 1
+                seen[key] = line
+            except Exception:
+                removed += 1
+
+        # Keep only the most recent max_unique
+        unique_lines = list(seen.values())
+        if len(unique_lines) > max_unique:
+            unique_lines = unique_lines[-max_unique:]
+
+        self._file.write_text("\n".join(unique_lines) + "\n", encoding="utf-8")
+        return removed
 
 
 class CorrectionLearner:
@@ -191,6 +323,7 @@ class CorrectionLearner:
         # Update memory with the correction
         try:
             from app.core.memory_facade import get_memory_facade
+
             facade = get_memory_facade()
             facade.remember(
                 f"[Correction] {correction.topic}: {correction.corrected_claim}",
@@ -202,7 +335,9 @@ class CorrectionLearner:
 
         logger.info(
             "Learned correction [%s]: %s → %s",
-            correction.topic, correction.original_claim[:50], correction.corrected_claim[:50],
+            correction.topic,
+            correction.original_claim[:50],
+            correction.corrected_claim[:50],
         )
         return correction
 
@@ -217,6 +352,12 @@ class CorrectionLearner:
 
         lines = ["## Past Corrections (learn from these)"]
         for c in recent:
-            lines.append(f"- [{c.topic}] Wrong: {c.original_claim[:60]} → Correct: {c.corrected_claim[:60]}")
-
+            if c.wrong_segment:
+                lines.append(
+                    f"- [{c.topic}] "
+                    f'Wrong: "{c.wrong_segment[:80]}" → '
+                    f"Correct: {c.corrected_claim[:60]}"
+                )
+            else:
+                lines.append(f"- [{c.topic}] ")
         return "\n".join(lines)

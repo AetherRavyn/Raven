@@ -1,4 +1,4 @@
-"""Onboarding Wizard — ``ravyn onboard`` guided first-time setup.
+"""Onboarding Wizard — ``raven onboard`` guided first-time setup.
 
 Walks the user through API key configuration, channel setup, voice pipeline,
 and identity customization. Inspired by Hermes/OpenClaw onboarding flows.
@@ -7,7 +7,6 @@ and identity customization. Inspired by Hermes/OpenClaw onboarding flows.
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -28,8 +27,8 @@ _ARROW = f"{_CYAN}→{_RESET}"
 def _banner() -> str:
     return f"""{_CYAN}{_BOLD}
     ╔══════════════════════════════════════════╗
-    ║      🦅  AetherRavyn  Setup Wizard       ║
-    ║   "Let's configure your Ravyn."          ║
+    ║      🦅  Raven  Setup Wizard              ║
+    ║   "Let's configure your agent."          ║
     ╚══════════════════════════════════════════╝
 {_RESET}"""
 
@@ -39,6 +38,7 @@ def _prompt(question: str, default: str = "", secret: bool = False) -> str:
     try:
         if secret:
             import getpass
+
             answer = getpass.getpass(f"  {_ARROW} {question}{suffix}: ")
         else:
             answer = input(f"  {_ARROW} {question}{suffix}: ").strip()
@@ -103,7 +103,7 @@ def _write_env_updates(env_file: Path, existing: dict[str, str], updates: dict[s
         new_lines.append(line)
     remaining = {k: v for k, v in updates.items() if k not in updated_keys}
     if remaining:
-        new_lines.append("\n# Added by ravyn onboard")
+        new_lines.append("\n# Added by raven onboard")
         for key, value in remaining.items():
             new_lines.append(f'{key}="{value}"')
     env_file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
@@ -188,5 +188,5 @@ def run_onboarding(env_path: str | None = None) -> None:
         _skip("No changes to write")
 
     _section("Setup Complete! 🎉")
-    print(f"  Run {_BOLD}ravyn doctor{_RESET} to verify everything works")
-    print(f"  Run {_BOLD}ravyn chat{_RESET} to start chatting\n")
+    print(f"  Run {_BOLD}raven doctor{_RESET} to verify everything works")
+    print(f"  Run {_BOLD}raven chat{_RESET} to start chatting\n")

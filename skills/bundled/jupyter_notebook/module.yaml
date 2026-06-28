@@ -1,0 +1,18 @@
+schema_version: "1.0"
+module_id: skill.bundled.jupyter_notebook
+display_name: Jupyter Notebook Reader & Runner
+version: "1.0.0"
+category: skill
+description: "Read, create, edit, and execute Jupyter notebooks (.ipynb) in an isolated kernel."
+tags: [jupyter, notebook, python, data-analysis, development]
+capabilities: [jupyter]
+trust_level: workspace
+enabled_by_default: true
+stability: stable
+origin: bundled
+confidence: 0.90
+invocation_count: 0
+success_rate: 1.0
+triggers:
+  - pattern: "run.*notebook|execute.*ipynb|jupyter|create.*notebook"
+    confidence: 0.85

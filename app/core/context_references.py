@@ -19,13 +19,13 @@ class ContextReferenceResolver:
     """Resolve @references in user messages to inject external context."""
 
     REFERENCE_PATTERNS = [
-        (re.compile(r'@file\s+([^\s]+)'), "file"),
-        (re.compile(r'@folder\s+([^\s]+)'), "folder"),
-        (re.compile(r'@diff\s*(.*)', re.DOTALL), "diff"),
-        (re.compile(r'@url\s+(https?://\S+)'), "url"),
-        (re.compile(r'@git\s+diff', re.I), "git_diff"),
-        (re.compile(r'@git\s+log\s*(.*)', re.I), "git_log"),
-        (re.compile(r'@context\s+([^\s]+)'), "context_file"),
+        (re.compile(r"@file\s+([^\s]+)"), "file"),
+        (re.compile(r"@folder\s+([^\s]+)"), "folder"),
+        (re.compile(r"@diff\s*(.*)", re.DOTALL), "diff"),
+        (re.compile(r"@url\s+(https?://\S+)"), "url"),
+        (re.compile(r"@git\s+diff", re.I), "git_diff"),
+        (re.compile(r"@git\s+log\s*(.*)", re.I), "git_log"),
+        (re.compile(r"@context\s+([^\s]+)"), "context_file"),
     ]
 
     def __init__(self, workspace_dir: str = ".") -> None:
@@ -60,7 +60,7 @@ class ContextReferenceResolver:
                 resolved.append(ref)
                 # Replace the reference with expanded content
                 injection = f"\n[{ref['type'].upper()}: {ref.get('query', '')}]\n{content}\n"
-                result = result[:ref["start"]] + injection + result[ref["end"]:]
+                result = result[: ref["start"]] + injection + result[ref["end"] :]
 
         return result, resolved
 
@@ -104,10 +104,13 @@ class ContextReferenceResolver:
 
     def _resolve_git_diff(self) -> str:
         import subprocess
+
         try:
             result = subprocess.run(
                 ["git", "diff", "HEAD~1", "--stat"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
                 cwd=str(self._workspace),
             )
             return result.stdout[:5000]
@@ -116,10 +119,13 @@ class ContextReferenceResolver:
 
     def _resolve_url(self, url: str) -> str:
         import subprocess
+
         try:
             result = subprocess.run(
                 ["curl", "-sL", "--max-time", "10", url],
-                capture_output=True, text=True, timeout=15,
+                capture_output=True,
+                text=True,
+                timeout=15,
             )
             return result.stdout[:10000]
         except Exception:
@@ -127,11 +133,14 @@ class ContextReferenceResolver:
 
     def _resolve_git_log(self, args: str) -> str:
         import subprocess
+
         count = args.strip() or "10"
         try:
             result = subprocess.run(
-                ["git", "log", f"--oneline", f"-{count}"],
-                capture_output=True, text=True, timeout=10,
+                ["git", "log", "--oneline", f"-{count}"],
+                capture_output=True,
+                text=True,
+                timeout=10,
                 cwd=str(self._workspace),
             )
             return result.stdout[:3000]
@@ -139,7 +148,7 @@ class ContextReferenceResolver:
             return "[Git log not available]"
 
     def _resolve_context_file(self, name: str) -> str:
-        candidates = [name, f"{name}.md", f".{name}", f"AGENTS.md"]
+        candidates = [name, f"{name}.md", f".{name}", "AGENTS.md"]
         for candidate in candidates:
             target = self._workspace / candidate
             if target.exists():

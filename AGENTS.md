@@ -51,6 +51,13 @@ Scope: core, tools, agents, voice, channels, skills, cli, gateway
 - `app/core/runtime.py` — Full execution runtime (System 2)
 - `app/core/agency.py` — Agent swarm manager
 - `app/core/skill_registry.py` — Skill discovery and management
+- `app/core/learning_db.py` — Unified SQLite + FTS5 store for all learning signals
+- `app/core/rlhf.py` — RLHF preference store, router, and crystallizer
+- `app/core/self_improvement.py` — Correction verifier and self-improvement loop
+- `app/core/supervisor.py` — Keyword-based agent supervisor (14 agents)
+- `app/core/task_scheduler.py` — Turn-based periodic task runner
+- `app/tools/calendar.py` — Unified Google + Outlook/CalDAV calendar tool
+- `app/voice/voice_bridge.py` — Cross-channel real-time voice session manager
 - `SOUL.md` — Agent identity definition
 - `MEMORY.md` — Persistent user knowledge
 - `Skills.md` — Skills system documentation

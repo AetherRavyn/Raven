@@ -1,34 +1,133 @@
 import argparse
 import asyncio
+import shutil
 import time
+from app.cli.cli_ui import (
+    WELCOME,
+    blank,
+    bold,
+    cyan,
+    dim,
+    divider,
+    error,
+    green,
+    header,
+    info,
+    item,
+    red,
+    status_dot,
+    success,
+    warning,
+    yellow,
+)
 from app.core.task_ledger import TaskLedger
+
+
+# ── Categorized help formatter ──────────────────────────────────────
+
+_COMMAND_CATEGORIES: list[tuple[str, list[str]]] = [
+    ("System", ["run", "stop", "status", "log", "doctor", "cleanup"]),
+    ("AI & Chat", ["chat", "mode", "providers", "modules"]),
+    ("Knowledge", ["memory", "context", "kg", "world-model"]),
+    ("Development", ["evolve", "companion", "personality", "onboard"]),
+    ("Platform", ["helix", "edge-node", "cowork", "train-data", "approve"]),
+    ("Learning", ["learning"]),
+    ("Configuration", ["daemon"]),
+]
+
+_COMMAND_ALIASES: dict[str, str] = {
+    "s": "status",
+    "l": "log",
+    "d": "doctor",
+    "h": "help",
+    "v": "--version",
+}
+
+# These descriptions are kept in sync with the add_parser() calls below.
+_COMMAND_DESCRIPTIONS: dict[str, str] = {}
+
+
+class _RavenHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    """Groups subcommands by category for a clean Hermes-style help page."""
+
+    def _format_action(self, action):
+        if isinstance(action, argparse._SubParsersAction):
+            return self._render_categorized(action)
+        return super()._format_action(action)
+
+    def _render_categorized(self, action: argparse._SubParsersAction) -> str:
+        width = max(self._width or 80, shutil.get_terminal_size((80, 20)).columns)
+        parts = []
+
+        # Build a lookup: name -> help text from _choices_actions
+        _help_lookup: dict[str, str] = {}
+        for ca in getattr(action, "_choices_actions", []):
+            _help_lookup[ca.dest] = ca.help or ""
+            for alias in getattr(ca, "aliases", []):
+                _help_lookup[alias] = ca.help or ""
+
+        for category, command_names in _COMMAND_CATEGORIES:
+            rows: list[tuple[str, str]] = []
+            for name in command_names:
+                if name not in action.choices:
+                    continue
+                desc = _help_lookup.get(name, "")
+                rows.append((name, desc))
+            if not rows:
+                continue
+            parts.append(f"  {category}")
+            for cmd_name, cmd_desc in rows:
+                padded = f"{cmd_name:20s}"
+                avail = width - 26
+                wrapped = cmd_desc[:avail] if avail > 10 else cmd_desc
+                parts.append(f"    {padded}{wrapped}")
+            parts.append("")
+
+        return "\n".join(parts) + "\n"
 
 
 def cmd_daemon(args):
     """Starts the background loops and FastAPI web server."""
+    import sys
+    from pathlib import Path
+    import logging as _logging
+
+    # Ensure project root is on sys.path for `from main import _main_async`
+    _project_root = str(Path(__file__).resolve().parents[2])
+    if _project_root not in sys.path:
+        sys.path.insert(0, _project_root)
+
     import uvicorn
     from app.settings.config import Config
     import threading
     from main import _main_async
     import asyncio
 
+    # Prefer explicit --port, then SERVER_PORT from config, fallback to 8090
+    cli_port = getattr(args, "port", None)
+    port = (
+        cli_port
+        if cli_port
+        else (int(Config.SERVER_PORT) if hasattr(Config, "SERVER_PORT") else 8090)
+    )
+    host = Config.SERVER_HOST if hasattr(Config, "SERVER_HOST") else "0.0.0.0"
+
     def background_thread():
-        asyncio.run(_main_async())
+        try:
+            asyncio.run(_main_async())
+        except Exception as exc:
+            _logging.getLogger(__name__).warning("Background services: %s", exc)
 
     t = threading.Thread(target=background_thread, daemon=True)
     t.start()
 
-    port = int(Config.WEB_DASHBOARD_PORT) if hasattr(Config, "WEB_DASHBOARD_PORT") else 8090
-    host = Config.WEB_DASHBOARD_HOST if hasattr(Config, "WEB_DASHBOARD_HOST") else "0.0.0.0"
-
-    print(f"Starting RAVEN daemon... UI on http://{host}:{port}/ui")
-    uvicorn.run("app.api.server:app", host=host, port=port)
+    print(WELCOME)
+    uvicorn.run("app.api.server:app", host=host, port=port, log_level="info")
 
 
 def cmd_run(args):
     """Start Raven — shows logs by default, --pid for silent daemon."""
     import os
-    import signal
     import sys
     from pathlib import Path
 
@@ -41,15 +140,14 @@ def cmd_run(args):
         try:
             old_pid = int(pid_file.read_text().strip())
             os.kill(old_pid, 0)  # Check if process exists
-            print(f"Raven is already running (PID {old_pid})")
-            print(f"  Stop it first: raven stop")
-            print(f"  Or check logs: raven log")
+            error(f"Raven is already running (PID {old_pid})")
+            info("Stop it first: raven stop")
+            info("Or check logs: raven log")
             return
         except (ProcessLookupError, ValueError):
             pid_file.unlink(missing_ok=True)
 
     port = args.port or 8090
-    voice_flag = "--no-voice" if args.no_voice else ""
 
     if args.pid:
         # Silent daemon mode — no logs, just PID file
@@ -58,55 +156,51 @@ def cmd_run(args):
             if pid > 0:
                 # Parent
                 pid_file.write_text(str(pid))
-                print(f"Raven started as daemon (PID {pid})")
-                print(f"  Dashboard: http://localhost:{port}/ui")
-                print(f"  Logs: raven log")
-                print(f"  Stop: raven stop")
+                success(f"Raven started as daemon (PID {pid})")
+                info(f"Dashboard: {cyan(f'http://localhost:{port}/ui')}")
+                info("Logs: raven log")
+                info("Stop: raven stop")
                 return
             else:
                 # Child — redirect stdout/stderr to log file
                 os.dup2(log_fh.fileno(), 1)
                 os.dup2(log_fh.fileno(), 2)
                 os.setsid()
-                # Start the server
-                import uvicorn
                 sys.argv = ["raven", "daemon"]
                 cmd_daemon(args)
                 os._exit(0)
     else:
         # Foreground mode — show logs
         pid_file.write_text(str(os.getpid()))
-        print("Starting Raven... (Ctrl+C to stop)")
-        print(f"  Dashboard: http://localhost:{port}/ui")
-        print(f"  Logs: raven log")
-        print()
+        print(WELCOME)
         try:
             cmd_daemon(args)
         except KeyboardInterrupt:
-            print("\nRaven stopped.")
+            success("Raven stopped.")
             pid_file.unlink(missing_ok=True)
 
 
 def cmd_stop(args):
     """Stop the Raven daemon."""
     import os
+    import signal
     from pathlib import Path
 
     pid_file = Path.home() / ".raven" / "raven.pid"
     if not pid_file.exists():
-        print("Raven is not running (no PID file found)")
+        warning("Raven is not running (no PID file found)")
         return
 
     try:
         pid = int(pid_file.read_text().strip())
         os.kill(pid, signal.SIGTERM)
-        print(f"Raven stopped (PID {pid})")
+        success(f"Raven stopped (PID {pid})")
         pid_file.unlink(missing_ok=True)
     except ProcessLookupError:
-        print("Raven was not running (stale PID)")
+        warning("Raven was not running (stale PID)")
         pid_file.unlink(missing_ok=True)
     except Exception as e:
-        print(f"Error stopping Raven: {e}")
+        error(f"Error stopping Raven: {e}")
 
 
 def cmd_log(args):
@@ -115,14 +209,16 @@ def cmd_log(args):
 
     log_file = Path.home() / ".raven" / "raven.log"
     if not log_file.exists():
-        print("No logs found. Start Raven with: raven run")
+        warning("No logs found. Start Raven with: raven run")
         return
 
     lines = args.lines
+    divider()
     with open(log_file) as f:
         all_lines = f.readlines()
         for line in all_lines[-lines:]:
-            print(line, end="")
+            print(f"  {line}", end="")
+    divider()
 
 
 def cmd_chat(args):
@@ -132,22 +228,32 @@ def cmd_chat(args):
     from app.core.models import IncomingRequest, ReplyTarget
     import builtins
 
-    print("Welcome to RAVEN terminal chat. Type 'quit' to exit.")
+    divider()
+    print(f"  {bold('RAVEN Terminal Chat')}")
+    info(f"Type your message. Use {yellow('/help')} for commands.")
+    info(f"Type {yellow('quit')} or press {yellow('Ctrl+C')} to exit.")
+    divider()
+    blank()
 
     async def chat_loop():
         signal = BotSignal()
 
         async def console_sender(target, payload):
             if payload.text:
-                print(f"RAVEN: {payload.text}")
+                blank()
+                print(f"  {bold('raven')} {dim(time.strftime('%H:%M:%S'))}")
+                print(f"  {payload.text}")
+                blank()
 
         signal.register_sender("cli", console_sender)
         orchestrator = MessageOrchestrator(signal, output_directory="workspace")
 
         while True:
             try:
-                user_input = builtins.input("You: ")
+                user_input = builtins.input(f"  {green('█')} ")
                 if user_input.lower() in ["quit", "exit"]:
+                    blank()
+                    success("Goodbye!")
                     break
 
                 req = IncomingRequest(
@@ -160,6 +266,8 @@ def cmd_chat(args):
             except EOFError:
                 break
             except KeyboardInterrupt:
+                blank()
+                success("Goodbye!")
                 break
 
     asyncio.run(chat_loop())
@@ -174,12 +282,18 @@ def cmd_status(args):
     tasks = ledger.list_tasks()
     pending = [t for t in tasks if t.get("status") == "pending_approval"]
 
-    print("=== RAVEN Status ===")
-    print(f"Pending Approvals: {len(pending)}")
-    for p in pending:
-        print(f" - [{p.get('task_id')}] {p.get('title')}")
+    header("RAVEN Status")
+    status_dot(True, bold("System Operational"))
+    blank()
 
-    print("\nEdge Nodes:")
+    item("Pending Approvals", str(len(pending)))
+    for p in pending:
+        pid = p.get("task_id", "?")
+        title = p.get("title", "?")
+        print(f"    {yellow('●')} [{pid}] {title}")
+
+    blank()
+    header("Edge Nodes")
     from pathlib import Path
 
     devices_file = Path(Config.MEMORY_ROOT) / "state" / "devices.json"
@@ -188,14 +302,16 @@ def cmd_status(args):
             with open(devices_file, "r") as f:
                 devices = json.load(f)
             if not devices:
-                print(" - No edge nodes registered.")
+                info("No edge nodes registered.")
             for device in devices:
-                status = device.get("status", "unknown")
-                print(f" - {device.get('id', 'unknown')} ({status})")
+                st = device.get("status", "unknown")
+                dot = green("●") if st == "online" else red("○")
+                print(f"  {dot} {device.get('id', 'unknown')} ({st})")
         except json.JSONDecodeError:
-            print(" - Error reading devices.json.")
+            error("Error reading devices.json.")
     else:
-        print(" - No edge nodes registered.")
+        info("No edge nodes registered.")
+    blank()
 
 
 def cmd_approve(args):
@@ -210,15 +326,15 @@ def cmd_approve(args):
         None,
     )
     if not task:
-        print(f"Task {task_id} not found.")
+        error(f"Task {task_id} not found.")
         return
 
     actual_id = task.get("task_id", task_id)
-    success = ledger.update_status(actual_id, "approved")
-    if success:
-        print(f"Task {actual_id} approved successfully.")
+    ok = ledger.update_status(actual_id, "approved")
+    if ok:
+        success(f"Task {actual_id} approved.")
     else:
-        print(f"Failed to approve task {actual_id}.")
+        error(f"Failed to approve task {actual_id}.")
 
 
 def cmd_edge_node(args):
@@ -248,7 +364,7 @@ def cmd_modules(args):
         for m in summary["modules"]:
             skills = ", ".join(m["skills"][:3])
             if len(m["skills"]) > 3:
-                skills += f" (+{len(m['skills'])-3} more)"
+                skills += f" (+{len(m['skills']) - 3} more)"
             print(f"  {m['name']:15s} {m['description'][:50]:50s} [{skills}]")
         print()
 
@@ -272,6 +388,7 @@ def cmd_modules(args):
 
         async def _call():
             from raven_protocol import ModuleClient
+
             client = ModuleClient()
             return await client.call(module_name, f"{module_name}.{method}", params)
 
@@ -294,7 +411,12 @@ def cmd_context(args):
             location = await client.call("context", "context.get_location", {})
             activity = await client.call("context", "context.get_activity", {})
             environment = await client.call("context", "context.get_environment", {})
-            return {"mood": mood, "location": location, "activity": activity, "environment": environment}
+            return {
+                "mood": mood,
+                "location": location,
+                "activity": activity,
+                "environment": environment,
+            }
         else:
             return await client.call("context", f"context.get_{query}", {"user_id": "default"})
 
@@ -314,20 +436,25 @@ def cmd_memory(args):
 
         if action == "remember" and args.args:
             content = " ".join(args.args)
-            return await client.call("memory", "memory.remember", {"content": content, "category": "FACT"})
+            return await client.call(
+                "memory", "memory.remember", {"content": content, "category": "FACT"}
+            )
         elif action == "recall" and args.args:
             query = " ".join(args.args)
             return await client.call("memory", "memory.recall", {"query": query, "top_k": 5})
         elif action == "stats":
             from app.core.memory import get_memory_store
+
             store = get_memory_store()
             total, tools = store.count()
             return {"total_memories": total, "tool_guides": tools}
         elif action == "consolidate":
             from app.core.memory_consolidation import MemoryConsolidator
+
             consolidator = MemoryConsolidator()
             stats = await consolidator.consolidate()
             from dataclasses import asdict
+
             return asdict(stats)
         return {"error": f"Unknown memory action: {action}"}
 
@@ -356,7 +483,9 @@ def cmd_evolve(args):
         summary = system.get_metric_summary()
         print(f"\n  Metrics ({len(summary)} tracked)\n")
         for name, data in summary.items():
-            print(f"  {name}: avg={data['avg']:.2f}, latest={data['latest']:.2f}, count={data['count']}")
+            print(
+                f"  {name}: avg={data['avg']:.2f}, latest={data['latest']:.2f}, count={data['count']}"
+            )
         print()
 
     elif action == "assess":
@@ -391,73 +520,112 @@ RAVEN_LOGO = """
 
 
 def main():
+    from importlib.metadata import version as _pkg_version
+
+    try:
+        _VERSION = _pkg_version("raven")
+    except Exception:
+        _VERSION = "1.0.0"
 
     parser = argparse.ArgumentParser(
+        prog="raven",
         description="RAVEN — Your JARVIS-class AI Agent",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=_RavenHelpFormatter,
         epilog=RAVEN_LOGO,
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {_VERSION}",
+        help="Show version and exit",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=False)
+
+    # ── System ──────────────────────────────────────────────────
 
     parser_daemon = subparsers.add_parser(
-        "daemon", help="Start the RAVEN daemon (FastAPI + Background Loops)"
+        "daemon", help="Start the background loops and FastAPI web server"
+    )
+    parser_daemon.add_argument(
+        "--port",
+        "-p",
+        type=int,
+        default=None,
+        help="Dashboard port (default: 8090)",
     )
     parser_daemon.set_defaults(func=cmd_daemon)
 
-    parser_chat = subparsers.add_parser("chat", help="Start a simple terminal chat with RAVEN")
+    parser_chat = subparsers.add_parser("chat", help="Interactive terminal chat with Raven")
     parser_chat.set_defaults(func=cmd_chat)
 
-    parser_status = subparsers.add_parser("status", help="Show system status and pending approvals")
+    parser_status = subparsers.add_parser("status", help="System health and pending approvals")
     parser_status.set_defaults(func=cmd_status)
 
-    parser_approve = subparsers.add_parser("approve", help="Approve a pending task")
-    parser_approve.add_argument("task_id", help="The ID of the task to approve")
-    parser_approve.set_defaults(func=cmd_approve)
+    parser_log = subparsers.add_parser("log", help="Tail Raven logs")
+    parser_log.add_argument(
+        "--lines",
+        "-n",
+        type=int,
+        default=50,
+        help="Number of log lines to show",
+    )
+    parser_log.set_defaults(func=cmd_log)
 
-    parser_edge = subparsers.add_parser(
-        "edge-node", help="Run as an edge device connected to RAVEN"
-    )
-    parser_edge.add_argument("--name", required=True, help="Name of the edge node")
-    parser_edge.add_argument(
-        "--server", default="http://localhost:8090", help="URL of the RAVEN server"
-    )
-    parser_edge.add_argument(
-        "--capabilities", default="bash,python", help="Comma separated list of capabilities"
-    )
-    parser_edge.add_argument("--location", default="unknown", help="Location of the node")
-    parser_edge.add_argument("--sensors", default="", help="Comma separated list of sensors")
-    parser_edge.set_defaults(func=cmd_edge_node)
+    parser_doctor = subparsers.add_parser("doctor", help="Run system diagnostics")
+    parser_doctor.set_defaults(func=cmd_doctor)
 
-    # Phase 10 — `raven mode` (registered via a sub-module so tests
-    # can import the handlers without pulling in the whole CLI).
+    parser_cleanup = subparsers.add_parser(
+        "cleanup",
+        help="Remove old checkpoints and sessions (auto-maintenance)",
+    )
+    parser_cleanup.add_argument(
+        "--days",
+        type=int,
+        default=14,
+        help="Remove checkpoints/sessions older than N days (default: 14)",
+    )
+    parser_cleanup.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be removed without deleting",
+    )
+    parser_cleanup.set_defaults(func=cmd_cleanup)
+
+    # ── AI & Chat ─────────────────────────────────────────────
+
+    parser_run = subparsers.add_parser("run", help="Start Raven daemon (background or foreground)")
+    parser_run.add_argument(
+        "--pid",
+        action="store_true",
+        help="Run as daemon PID file (background, no logs)",
+    )
+    parser_run.add_argument(
+        "--port",
+        "-p",
+        type=int,
+        default=None,
+        help="Dashboard port (default: 8090)",
+    )
+    parser_run.add_argument(
+        "--no-voice",
+        action="store_true",
+        help="Disable voice pipeline",
+    )
+    parser_run.set_defaults(func=cmd_run)
+
+    parser_stop = subparsers.add_parser("stop", help="Stop Raven daemon")
+    parser_stop.set_defaults(func=cmd_stop)
+
     try:
         from app.cli.mode_cmd import add_mode_subparser  # type: ignore
 
         add_mode_subparser(subparsers)
-    except Exception as exc:  # noqa: BLE001
-        import logging as _logging
+    except Exception:
+        pass
 
-        _logging.getLogger(__name__).debug("mode subparser not registered: %s", exc)
-
-    # ── `raven helix` ─────────────────────────────────────────────
-    parser_helix = subparsers.add_parser("helix", help="Manage HelixDB sidecar (up/down/status)")
-    parser_helix.add_argument(
-        "action", choices=["up", "down", "status", "logs"], help="Action to perform"
-    )
-    parser_helix.set_defaults(func=cmd_helix)
-
-    # ── `raven kg` ───────────────────────────────────────────────
-    parser_kg = subparsers.add_parser("kg", help="Knowledge graph operations (query/stats)")
-    parser_kg.add_argument(
-        "action", choices=["query", "stats", "entities"], help="Action to perform"
-    )
-    parser_kg.add_argument("query", nargs="?", default="", help="Search query or entity name")
-    parser_kg.set_defaults(func=cmd_kg)
-
-    # ── `raven providers` (v35 — 9router-style card system) ───────
     parser_providers = subparsers.add_parser(
         "providers",
-        help="Provider / model / combo management (CLI ↔ UI parity)",
+        help="Provider, model, and combo management",
     )
     parser_providers.add_argument(
         "action",
@@ -471,54 +639,111 @@ def main():
         ],
         help="Action to perform",
     )
-    parser_providers.add_argument(
-        "args", nargs="*", help="Action-specific arguments (provider_id, model_id, combo name, ...)"
-    )
+    parser_providers.add_argument("args", nargs="*", help="Action-specific arguments")
     parser_providers.set_defaults(func=cmd_providers)
 
-    # ── `raven modules` — A2A module management ──────────────────
-    parser_modules = subparsers.add_parser(
-        "modules", help="List and manage A2A modules"
-    )
+    parser_modules = subparsers.add_parser("modules", help="List and manage A2A modules")
     parser_modules.add_argument(
-        "action", choices=["list", "discover", "call"],
-        help="Action to perform"
+        "action", choices=["list", "discover", "call"], help="Action to perform"
     )
     parser_modules.add_argument("args", nargs="*", help="Module name, method, or tags")
     parser_modules.set_defaults(func=cmd_modules)
 
-    # ── `raven context` — user context queries ──────────────────
-    parser_context = subparsers.add_parser(
-        "context", help="Query user context (mood, location, activity)"
+    parser_helix = subparsers.add_parser("helix", help="Manage HelixDB sidecar (up/down/status)")
+    parser_helix.add_argument(
+        "action", choices=["up", "down", "status", "logs"], help="Action to perform"
     )
-    parser_context.add_argument(
-        "query", nargs="?", default="all",
-        help="Context to query: mood, location, activity, environment, all"
-    )
-    parser_context.set_defaults(func=cmd_context)
+    parser_helix.set_defaults(func=cmd_helix)
 
-    # ── `raven memory` — memory operations ──────────────────────
+    # ── Knowledge ──────────────────────────────────────────────
+
     parser_memory = subparsers.add_parser(
         "memory", help="Memory operations (remember, recall, stats)"
     )
     parser_memory.add_argument(
-        "action", choices=["remember", "recall", "stats", "consolidate"],
-        help="Action to perform"
+        "action", choices=["remember", "recall", "stats", "consolidate"], help="Action to perform"
     )
     parser_memory.add_argument("args", nargs="*", help="Memory content or query")
     parser_memory.set_defaults(func=cmd_memory)
 
-    # ── `raven evolve` — self-evolution ─────────────────────────
+    parser_context = subparsers.add_parser(
+        "context", help="Query user context (mood, location, activity)"
+    )
+    parser_context.add_argument(
+        "query",
+        nargs="?",
+        default="all",
+        help="Context to query: mood, location, activity, environment, all",
+    )
+    parser_context.set_defaults(func=cmd_context)
+
+    parser_kg = subparsers.add_parser("kg", help="Knowledge graph operations (query/stats)")
+    parser_kg.add_argument(
+        "action", choices=["query", "stats", "entities"], help="Action to perform"
+    )
+    parser_kg.add_argument("query", nargs="?", default="", help="Search query or entity name")
+    parser_kg.set_defaults(func=cmd_kg)
+
+    parser_wm = subparsers.add_parser(
+        "world-model", help="World model: people, projects, habits, timeline"
+    )
+    parser_wm.add_argument(
+        "action",
+        choices=["people", "projects", "habits", "events", "context"],
+        help="Action to perform",
+    )
+    parser_wm.add_argument("args", nargs="*", help="Filter arguments")
+    parser_wm.set_defaults(func=cmd_world_model)
+
+    # ── Development ────────────────────────────────────────────
+
     parser_evolve = subparsers.add_parser(
         "evolve", help="Self-evolution: goals, metrics, assessment"
     )
     parser_evolve.add_argument(
-        "action", choices=["goals", "metrics", "assess", "report"],
-        help="Action to perform"
+        "action", choices=["goals", "metrics", "assess", "report"], help="Action to perform"
     )
     parser_evolve.set_defaults(func=cmd_evolve)
 
-    # ── `raven cowork` (v36 — Kimi/Claude-style folder sessions) ─
+    parser_comp = subparsers.add_parser("companion", help="Companion AI: list, delegate, status")
+    parser_comp.add_argument(
+        "action",
+        choices=["list", "status", "summary"],
+        help="Action to perform",
+    )
+    parser_comp.set_defaults(func=cmd_companion)
+
+    parser_pers = subparsers.add_parser(
+        "personality", help="Adaptive personality: traits, vocabulary, styles"
+    )
+    parser_pers.add_argument(
+        "action",
+        choices=["traits", "vocabulary", "styles", "prompt"],
+        help="Action to perform",
+    )
+    parser_pers.set_defaults(func=cmd_personality)
+
+    parser_onboard = subparsers.add_parser(
+        "onboard", help="First-time setup wizard (API keys, channels, voice)"
+    )
+    parser_onboard.set_defaults(func=cmd_onboard)
+
+    # ── Platform ───────────────────────────────────────────────
+
+    parser_edge = subparsers.add_parser(
+        "edge-node", help="Run as an edge device connected to Raven"
+    )
+    parser_edge.add_argument("--name", required=True, help="Name of the edge node")
+    parser_edge.add_argument(
+        "--server", default="http://localhost:8090", help="URL of the Raven server"
+    )
+    parser_edge.add_argument(
+        "--capabilities", default="bash,python", help="Comma separated list of capabilities"
+    )
+    parser_edge.add_argument("--location", default="unknown", help="Location of the node")
+    parser_edge.add_argument("--sensors", default="", help="Comma separated list of sensors")
+    parser_edge.set_defaults(func=cmd_edge_node)
+
     parser_cowork = subparsers.add_parser(
         "cowork",
         help="Cowork sessions: pick a folder, propose a plan, approve steps",
@@ -556,7 +781,6 @@ def main():
     )
     parser_cowork.set_defaults(func=cmd_cowork)
 
-    # ── `raven train-data` — training data export ─────────────────
     parser_train = subparsers.add_parser(
         "train-data",
         help="Export conversation training data (JSONL)",
@@ -567,82 +791,51 @@ def main():
         help="Action to perform",
     )
     parser_train.add_argument(
-        "--session", "-s",
+        "--session",
+        "-s",
         help="Session ID to export (all sessions if omitted)",
     )
     parser_train.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         help="Output file path (auto-named if omitted)",
     )
     parser_train.set_defaults(func=cmd_train_data)
 
-    # ── `raven world-model` — world model operations ────────────
-    parser_wm = subparsers.add_parser(
-        "world-model", help="World model: people, projects, habits, timeline"
+    parser_approve = subparsers.add_parser("approve", help="Approve a pending task")
+    parser_approve.add_argument("task_id", help="The ID of the task to approve")
+    parser_approve.set_defaults(func=cmd_approve)
+
+    # ── Learning ──────────────────────────────────────────────
+
+    parser_learning = subparsers.add_parser(
+        "learning",
+        help="Learning system: stats, search, events, export, import",
     )
-    parser_wm.add_argument(
+    parser_learning.add_argument(
         "action",
-        choices=["people", "projects", "habits", "events", "context"],
+        choices=["stats", "search", "events", "export", "import"],
         help="Action to perform",
     )
-    parser_wm.add_argument("args", nargs="*", help="Filter arguments")
-    parser_wm.set_defaults(func=cmd_world_model)
-
-    # ── `raven personality` — adaptive personality ──────────────
-    parser_pers = subparsers.add_parser(
-        "personality", help="Adaptive personality: traits, vocabulary, styles"
+    parser_learning.add_argument("query", nargs="*", help="Search query terms")
+    parser_learning.add_argument(
+        "--type", dest="type", default=None, help="Filter by type (search/events)"
     )
-    parser_pers.add_argument(
-        "action", choices=["traits", "vocabulary", "styles", "prompt"],
-        help="Action to perform",
+    parser_learning.add_argument(
+        "--limit", type=int, default=20, help="Max results (search/events)"
     )
-    parser_pers.set_defaults(func=cmd_personality)
-
-    # ── `raven companion` — companion AI management ─────────────
-    parser_comp = subparsers.add_parser(
-        "companion", help="Companion AI: list, delegate, status"
+    parser_learning.add_argument(
+        "--min-confidence", type=float, default=0.0, help="Minimum confidence (search)"
     )
-    parser_comp.add_argument(
-        "action", choices=["list", "status", "summary"],
-        help="Action to perform",
-    )
-    parser_comp.set_defaults(func=cmd_companion)
-
-    # ── `raven run` — start Raven (background or foreground) ─────
-    parser_run = subparsers.add_parser(
-        "run", help="Start Raven (background by default, with logs)"
-    )
-    parser_run.add_argument(
-        "--pid", action="store_true",
-        help="Run as daemon PID file (background, no logs)",
-    )
-    parser_run.add_argument(
-        "--port", "-p", type=int, default=None,
-        help="Dashboard port (default: 8090)",
-    )
-    parser_run.add_argument(
-        "--no-voice", action="store_true",
-        help="Disable voice pipeline",
-    )
-    parser_run.set_defaults(func=cmd_run)
-
-    # ── `raven stop` — stop Raven daemon ─────────────────────────
-    parser_stop = subparsers.add_parser("stop", help="Stop Raven daemon")
-    parser_stop.set_defaults(func=cmd_stop)
-
-    # ── `raven status` — show system status ──────────────────────
-    parser_status2 = subparsers.add_parser("status", help="Show Raven status and health")
-    parser_status2.set_defaults(func=cmd_status)
-
-    # ── `raven log` — tail live logs ─────────────────────────────
-    parser_log = subparsers.add_parser("log", help="Tail Raven logs")
-    parser_log.add_argument(
-        "--lines", "-n", type=int, default=50,
-        help="Number of log lines to show",
-    )
-    parser_log.set_defaults(func=cmd_log)
+    parser_learning.add_argument("--kind", default=None, help="Event kind filter (events)")
+    parser_learning.add_argument("--output", "-o", default=None, help="Output file path (export)")
+    parser_learning.add_argument("--input", "-i", default=None, help="Input file path (import)")
+    parser_learning.set_defaults(func=cmd_learning)
 
     args = parser.parse_args()
+    if args.command is None:
+        parser.print_help()
+        return
     args.func(args)
 
 
@@ -675,15 +868,21 @@ def cmd_train_data(args: argparse.Namespace) -> None:
             {"role": "assistant", "content": sess.get("response_text", "")},
         ]
         for i, msg in enumerate(messages):
-            if msg["role"] == "user" and i + 1 < len(messages) and messages[i + 1]["role"] == "assistant":
+            if (
+                msg["role"] == "user"
+                and i + 1 < len(messages)
+                and messages[i + 1]["role"] == "assistant"
+            ):
                 resp = messages[i + 1].get("content", "")
                 if resp and len(resp) > 10:
-                    all_examples.append({
-                        "instruction": msg.get("content", ""),
-                        "input": "",
-                        "output": resp[:500],
-                        "metadata": {"session_id": sess.session_id},
-                    })
+                    all_examples.append(
+                        {
+                            "instruction": msg.get("content", ""),
+                            "input": "",
+                            "output": resp[:500],
+                            "metadata": {"session_id": sess.session_id},
+                        }
+                    )
 
     if args.action == "stats":
         print(f"Sessions: {len(sessions)}")
@@ -776,6 +975,7 @@ def cmd_companion(args: argparse.Namespace) -> None:
             print(f"  {k}: {v}")
     elif args.action == "summary":
         import json as _json
+
         print(_json.dumps(mgr.get_collaboration_summary(), indent=2))
 
 
@@ -1014,9 +1214,7 @@ def cmd_cowork(args: argparse.Namespace) -> None:
             return
         print("=== Workspaces ===")
         for w in ws:
-            print(
-                f"  [{w['id']}] {w['name']:<20} {w['access']:<2}  {w['path']}"
-            )
+            print(f"  [{w['id']}] {w['name']:<20} {w['access']:<2}  {w['path']}")
         return
 
     if action == "add-ws":
@@ -1063,14 +1261,14 @@ def cmd_cowork(args: argparse.Namespace) -> None:
             plan = active["plan"]
             print(f"  plan  : {plan['progress'][0]}/{plan['progress'][1]} steps done")
             for s in plan["steps"]:
-                print(
-                    f"    [{s['id'][:6]}] {s['status']:<20} {s['risk']:<6}  {s['title']}"
-                )
+                print(f"    [{s['id'][:6]}] {s['status']:<20} {s['risk']:<6}  {s['title']}")
         return
 
     if action == "start":
         if len(cli_args) < 2:
-            print("Usage: raven cowork start <workspace_id> <goal> [--strategy default|llm] [--auto-approve]")
+            print(
+                "Usage: raven cowork start <workspace_id> <goal> [--strategy default|llm] [--auto-approve]"
+            )
             return
         ws_id, goal = cli_args[0], " ".join(cli_args[1:])
         strategy = getattr(args, "strategy", None) or "default"
@@ -1087,14 +1285,9 @@ def cmd_cowork(args: argparse.Namespace) -> None:
         sess = asyncio.run(_start())
         print(f"✓ Started session [{sess['id']}]: {sess['goal']}")
         plan = sess.get("plan") or {}
-        print(
-            f"  planner : {strategy:<6}  "
-            f"steps: {len(plan.get('steps', []))}"
-        )
+        print(f"  planner : {strategy:<6}  steps: {len(plan.get('steps', []))}")
         for s in plan.get("steps", []):
-            print(
-                f"    [{s['id'][:6]}] {s['status']:<20} {s['risk']:<6}  {s['title']}"
-            )
+            print(f"    [{s['id'][:6]}] {s['status']:<20} {s['risk']:<6}  {s['title']}")
         return
 
     if action in {"pause", "resume", "stop", "approve-all"}:
@@ -1136,6 +1329,104 @@ def cmd_cowork(args: argparse.Namespace) -> None:
         return
 
     print(f"Unknown action: {action}")
+
+
+def cmd_doctor(args):
+    """Run system diagnostics (doctor)."""
+    from app.cli.doctor import run_doctor
+
+    run_doctor()
+
+
+def cmd_onboard(args):
+    """First-time setup wizard."""
+    from app.cli.onboard import run_onboarding
+
+    run_onboarding()
+
+
+def cmd_cleanup(args):
+    """Clean up old checkpoints and stale sessions."""
+    import shutil
+    from pathlib import Path
+    from app.core.session import SessionManager
+
+    days = args.days
+    dry_run = args.dry_run
+    cutoff = time.time() - days * 86400
+    removed = 0
+    saved = 0
+
+    # ── Clean old checkpoints ──
+    ckpt_dir = Path("workspace/checkpoints")
+    if ckpt_dir.exists():
+        header("Checkpoints")
+        for entry in ckpt_dir.iterdir():
+            if entry.is_dir():
+                mtime = entry.stat().st_mtime
+                if mtime < cutoff:
+                    size = sum(f.stat().st_size for f in entry.rglob("*") if f.is_file())
+                    if dry_run:
+                        info(f"Would remove {entry.name} ({_fmt_size(size)})")
+                    else:
+                        shutil.rmtree(entry)
+                        info(f"Removed {entry.name} ({_fmt_size(size)})")
+                    removed += 1
+                else:
+                    saved += 1
+        # Also clean index if empty
+        if not dry_run:
+            index_file = ckpt_dir / "index.json"
+            if index_file.exists():
+                remaining = [d for d in ckpt_dir.iterdir() if d.is_dir()]
+                if not remaining:
+                    index_file.unlink(missing_ok=True)
+
+    # ── Clean stale sessions ──
+    header("Sessions")
+    sm = SessionManager()
+    sessions = sm.list_sessions()
+    pruned = 0
+    for s in sessions:
+        mtime = s["modified_at"]
+        if mtime < cutoff:
+            session_id = s["session_id"]
+            sid_path = sm._get_session_file(session_id)
+            if dry_run:
+                info(f"Would remove session {session_id} ({_fmt_size(s['size_bytes'])})")
+            else:
+                sid_path.unlink(missing_ok=True)
+                info(f"Removed session {session_id} ({_fmt_size(s['size_bytes'])})")
+            pruned += 1
+
+    # ── Also prune active sessions ──
+    for s in sessions:
+        if s["modified_at"] >= cutoff:
+            file_path = sm._get_session_file(s["session_id"])
+            if file_path.exists() and file_path.stat().st_size > 500_000:
+                sm.prune_session(s["session_id"], max_messages=100)
+                info(f"Pruned oversized session {s['session_id']}")
+
+    divider()
+    if dry_run:
+        info(f"Would clean {removed} checkpoints and {pruned} sessions older than {days}d")
+    else:
+        success(f"Cleaned {removed} checkpoints and {pruned} sessions older than {days}d")
+
+
+def _fmt_size(size: int) -> str:
+    if size > 1024 * 1024:
+        return f"{size / (1024 * 1024):.1f} MB"
+    elif size > 1024:
+        return f"{size / 1024:.1f} KB"
+    return f"{size} B"
+
+
+def cmd_learning(args):
+    """Learning system operations (stats, search, events, export, import)."""
+    from app.cli.learning_cmd import cmd_learning as _cmd
+
+    _cmd(args)
 
 
 if __name__ == "__main__":

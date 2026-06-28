@@ -29,18 +29,14 @@ def _setup_logging() -> None:
 
     # Console handler
     console = logging.StreamHandler()
-    console.setFormatter(
-        logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
-    )
+    console.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
     root.addHandler(console)
 
     # Rotating file handler: 10 MB per file, keep 5 backups = max 50 MB
     rotating = logging.handlers.RotatingFileHandler(
         log_file, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
     )
-    rotating.setFormatter(
-        logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
-    )
+    rotating.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
     root.addHandler(rotating)
 
     logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -51,6 +47,11 @@ def _setup_logging() -> None:
 async def _run_telegram(
     stop_event: asyncio.Event, orchestrator: MessageOrchestrator, botsignal: BotSignal
 ) -> None:
+    token = getattr(Config, "TELEGRAM_BOT_TOKEN", "") or ""
+    if not token:
+        logger.warning("TELEGRAM_BOT_TOKEN not set — Telegram connector skipped")
+        await stop_event.wait()
+        return
     app = create_bot()
     bind_runtime(app, orchestrator, botsignal)
 
@@ -81,6 +82,11 @@ async def _run_telegram(
 async def _run_discord(
     stop_event: asyncio.Event, orchestrator: MessageOrchestrator, botsignal: BotSignal
 ) -> None:
+    token = getattr(Config, "DISCORD_BOT_TOKEN", "") or ""
+    if not token:
+        logger.warning("DISCORD_BOT_TOKEN not set — Discord connector skipped")
+        await stop_event.wait()
+        return
     enable_message_content = Config.DISCORD_ENABLE_MESSAGE_CONTENT_INTENT
     logger.info(
         "Discord message content intent is %s",
@@ -97,9 +103,7 @@ async def _run_discord(
     bot_task = asyncio.create_task(bot.start_bot(), name="discord-bot")
     stop_task = asyncio.create_task(stop_event.wait(), name="discord-stop")
 
-    done, pending = await asyncio.wait(
-        {bot_task, stop_task}, return_when=asyncio.FIRST_COMPLETED
-    )
+    done, pending = await asyncio.wait({bot_task, stop_task}, return_when=asyncio.FIRST_COMPLETED)
 
     try:
         if bot_task in done:
@@ -132,9 +136,7 @@ async def _run_slack(
     bot_task = asyncio.create_task(bot.start_bot(), name="slack-bot")
     stop_task = asyncio.create_task(stop_event.wait(), name="slack-stop")
 
-    done, pending = await asyncio.wait(
-        {bot_task, stop_task}, return_when=asyncio.FIRST_COMPLETED
-    )
+    done, pending = await asyncio.wait({bot_task, stop_task}, return_when=asyncio.FIRST_COMPLETED)
 
     try:
         if bot_task in done:
@@ -151,33 +153,10 @@ async def _run_slack(
 async def _run_web(
     stop_event: asyncio.Event, orchestrator: MessageOrchestrator, botsignal: BotSignal
 ) -> None:
-    """Run the web dashboard (FastAPI) until stop_event is set.
-
-    Silently skips when WEB_DASHBOARD_ENABLED is false (default).
-    """
-    if not Config.WEB_DASHBOARD_ENABLED:
-        logger.debug("Web dashboard disabled (WEB_DASHBOARD_ENABLED=false)")
-        await stop_event.wait()
-        return
-
-    from app.web.server import WebDashboard  # noqa: PLC0415
-
-    dashboard = WebDashboard(orchestrator)
-    dashboard.register_output_sender(botsignal)
-
-    server_task = asyncio.create_task(
-        dashboard.start(host=Config.WEB_DASHBOARD_HOST, port=Config.WEB_DASHBOARD_PORT),
-        name="web-dashboard-inner",
-    )
-    stop_task = asyncio.create_task(stop_event.wait(), name="web-stop")
-
-    done, pending = await asyncio.wait(
-        {server_task, stop_task}, return_when=asyncio.FIRST_COMPLETED
-    )
-    for task in pending:
-        task.cancel()
-    await asyncio.gather(*pending, return_exceptions=True)  # type: ignore
-    logger.info("Web dashboard shut down.")
+    """Legacy web dashboard stub — dashboard is now served by ``app.api.server:app``
+    on the ``raven run`` main thread (port 8090).  Kept as a no-op placeholder
+    so the service task set in ``_main_async`` doesn't change size."""
+    await stop_event.wait()
 
 
 async def _run_whatsapp(
@@ -200,9 +179,7 @@ async def _run_whatsapp(
     bot_task = asyncio.create_task(bot.start_bot(), name="whatsapp-bot")
     stop_task = asyncio.create_task(stop_event.wait(), name="whatsapp-stop")
 
-    done, pending = await asyncio.wait(
-        {bot_task, stop_task}, return_when=asyncio.FIRST_COMPLETED
-    )
+    done, pending = await asyncio.wait({bot_task, stop_task}, return_when=asyncio.FIRST_COMPLETED)
     for task in pending:
         task.cancel()
     await asyncio.gather(*pending, return_exceptions=True)  # type: ignore
@@ -340,6 +317,9 @@ async def _main_async() -> None:
     stop_event = asyncio.Event()
     botsignal = get_botsignal()
     orchestrator = MessageOrchestrator(botsignal)
+    from app.core.orchestrator import init_orchestrator
+
+    init_orchestrator(orchestrator)
     loop = asyncio.get_running_loop()
     loop.set_default_executor(DaemonExecutor(thread_name_prefix="raven"))
 
@@ -351,8 +331,8 @@ async def _main_async() -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
             loop.add_signal_handler(sig, _request_shutdown)
-        except NotImplementedError:
-            # Signal handlers are not supported in some environments.
+        except (NotImplementedError, RuntimeError):
+            # Signal handlers not supported in non-main threads or some envs.
             pass
 
     # Start persistent scheduler (APScheduler + SQLite)
@@ -390,8 +370,7 @@ async def _main_async() -> None:
         api_server = create_api_gateway_server()
         api_server.start()
 
-        logger.info("A2A modules registered: %s",
-                    [c.name for c in registry.list_modules()])
+        logger.info("A2A modules registered: %s", [c.name for c in registry.list_modules()])
     except Exception as exc:
         logger.warning("A2A module registration failed: %s", exc)
 
@@ -400,6 +379,7 @@ async def _main_async() -> None:
     # manifests (e.g. skills/community/) are discovered and auto-loaded.
     try:
         from app.modules import bootstrap_modular_platform
+
         bootstrap_modular_platform(
             modules_root=None,  # uses Config.MODULES_ROOT / RAVEN_MODULES_ROOT
             orchestrator=orchestrator,
@@ -431,14 +411,13 @@ async def _main_async() -> None:
     web_task = asyncio.create_task(
         _run_web(stop_event, orchestrator, botsignal), name="web-dashboard"
     )
-    streamlit_task = asyncio.create_task(
-        _run_streamlit(stop_event), name="streamlit-dashboard"
-    )
+    streamlit_task = asyncio.create_task(_run_streamlit(stop_event), name="streamlit-dashboard")
 
     # ── Ambient Intelligence Loop ──────────────────────────────────────
     # Always-on background heartbeat: self-improvement, workflow ticks,
     # sentinel digest, dashboard heartbeats
     from app.core.ambient_loop import get_ambient_loop
+
     ambient = get_ambient_loop()
     ambient._orchestrator = orchestrator
     ambient._botsignal = botsignal

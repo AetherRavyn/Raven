@@ -24,9 +24,7 @@ class GoogleCalendarTool(BaseTool):
         credentials_file: str | None = None,
         token_file: str | None = None,
     ):
-        self.credentials_file = (
-            credentials_file or Config.GOOGLE_CALENDAR_CREDENTIALS_PATH
-        )
+        self.credentials_file = credentials_file or Config.GOOGLE_CALENDAR_CREDENTIALS_PATH
         self.token_file = token_file or Config.GOOGLE_CALENDAR_TOKEN_PATH
         self._service = None
 
@@ -47,9 +45,7 @@ class GoogleCalendarTool(BaseTool):
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    self.credentials_file, self.SCOPES
-                )
+                flow = InstalledAppFlow.from_client_secrets_file(self.credentials_file, self.SCOPES)
                 creds = flow.run_local_server(port=0)
             with open(self.token_file, "w") as token:
                 token.write(creds.to_json())
@@ -265,8 +261,7 @@ class GoogleCalendarTool(BaseTool):
                     name="calendar_ids",
                     type="array",
                     description=(
-                        "List of calendar IDs to check for free_busy. "
-                        "Defaults to ['primary']."
+                        "List of calendar IDs to check for free_busy. Defaults to ['primary']."
                     ),
                     required=False,
                 ),
@@ -469,11 +464,7 @@ class GoogleCalendarTool(BaseTool):
                         "success": False,
                         "error": "'query' (natural-language text) is required for quick_add.",
                     }
-                event = (
-                    service.events()
-                    .quickAdd(calendarId=calendar_id, text=query)
-                    .execute()
-                )
+                event = service.events().quickAdd(calendarId=calendar_id, text=query).execute()
                 return {"success": True, "operation": operation, "event": event}
 
             # ── free_busy ────────────────────────────────────────────── #
@@ -558,9 +549,7 @@ class GoogleCalendarTool(BaseTool):
     def _get_event(self, service, calendar_id: str, event_id: str) -> Dict:
         return service.events().get(calendarId=calendar_id, eventId=event_id).execute()
 
-    def _build_time_field(
-        self, dt_str: str, timezone: str, all_day: bool
-    ) -> Dict[str, str]:
+    def _build_time_field(self, dt_str: str, timezone: str, all_day: bool) -> Dict[str, str]:
         """Return a Calendar API start/end dict for either a date or dateTime."""
         if all_day or len(dt_str) == 10:  # date-only string
             return {"date": dt_str[:10]}
@@ -707,9 +696,7 @@ class GoogleCalendarTool(BaseTool):
             add_conference,
             existing_body=existing,
         )
-        kwargs: Dict[str, Any] = dict(
-            calendarId=calendar_id, eventId=event_id, body=body
-        )
+        kwargs: Dict[str, Any] = dict(calendarId=calendar_id, eventId=event_id, body=body)
         if add_conference:
             kwargs["conferenceDataVersion"] = 1
         if send_notifications:

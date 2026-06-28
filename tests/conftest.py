@@ -31,6 +31,7 @@ The v31 cycle (Hermes-class dashboard, 2026-06-21) adds:
   ``fastapi.testclient.TestClient`` so the v31 tests don't pay
   the construction cost per test.
 """
+
 from __future__ import annotations
 
 import os
@@ -261,6 +262,7 @@ def _stub_voice_engines(
     class _StubAudioChunk:
         """Mimics the piper AudioChunk namedtuple / dataclass:
         has an ``audio`` attribute that is a numpy int16 array."""
+
         def __init__(self, audio):
             self.audio = audio
 
@@ -279,6 +281,7 @@ def _stub_voice_engines(
             stub mirrors this API exactly so :mod:`app.voice.piper`
             can iterate + concatenate + write a real WAV header."""
             import numpy as _np
+
             yield _StubAudioChunk(_np.zeros(100, dtype=_np.int16))
 
     _stub_voice = _StubPiperVoice()
@@ -286,9 +289,7 @@ def _stub_voice_engines(
     def _fake_ensure_loaded(self: Any) -> _StubPiperVoice:  # type: ignore[override]
         return _stub_voice
 
-    monkeypatch.setattr(
-        _piper_mod.PiperTTS, "_ensure_loaded", _fake_ensure_loaded
-    )
+    monkeypatch.setattr(_piper_mod.PiperTTS, "_ensure_loaded", _fake_ensure_loaded)
     _piper_mod.PiperTTS.reset_cache_for_tests()
 
     # --- 3. Sink registry reset --------------------------------------
@@ -326,25 +327,15 @@ def isolated_singleton() -> Generator[None, None, None]:
 
 @pytest.fixture(scope="session")
 def dashboard_client() -> Generator["fastapi.testclient.TestClient", None, None]:
-    """Session-scoped ``TestClient`` over the WebDashboard app.
+    """Session-scoped ``TestClient`` over the unified dashboard app.
 
-    The ``WebDashboard.__init__`` constructor takes an orchestrator
-    argument; we pass a ``MagicMock`` because the v31 tests only
-    exercise the page-render surface (the orchestrator-bound
-    endpoints like ``/message`` and ``/ws/chat`` are not part of
-    the v31 contract).
-
-    The client is built once per session because constructing a
-    FastAPI app with 26+ routes is ~50 ms — paying that per test
-    adds up across the 18 v31 tests.
+    Uses ``app.api.server:app`` which serves all Hermes dashboard
+    pages, OpenAI-compatible API, ACP, and WebSocket endpoints from
+    a single FastAPI app (same app that ``raven run`` serves).
     """
-    from unittest.mock import MagicMock
-
     from fastapi.testclient import TestClient
 
-    from app.web.server import WebDashboard
+    from app.api.server import app as dashboard_app
 
-    dashboard = WebDashboard(orchestrator=MagicMock())
-    client = TestClient(dashboard._app)
+    client = TestClient(dashboard_app)
     yield client
-

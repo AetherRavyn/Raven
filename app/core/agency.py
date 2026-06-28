@@ -24,6 +24,8 @@ class WorkerAgent:
         provider_name: str = "opencode_zen",
         model_name: str = "big-pickle",
         system_prompt: Optional[str] = None,
+        *,
+        shared_context: dict[str, Any] | None = None,
     ):
         self.name = name
         self.runtime = AgentRuntime(
@@ -31,6 +33,7 @@ class WorkerAgent:
             provider_name=provider_name,
             model_name=model_name,
         )
+        self._shared_context = shared_context or {}
 
         # If an enhanced system prompt is supplied (from BaseAgent.get_enhanced_prompt),
         # use it directly.  Otherwise fall back to the legacy template.
@@ -44,6 +47,11 @@ class WorkerAgent:
                 "Execute your tools, analyze the data, and provide a comprehensive final report of your findings."
             )
 
+        # Append cross-agent learning context if available
+        _learning_context = self._build_learning_context()
+        if _learning_context:
+            _prompt = f"{_prompt}\n\n## Cross-Agent Knowledge\n{_learning_context}"
+
         self.runtime.bootstrapper.build_system_prompt = lambda: _prompt
 
         for tool in tools:
@@ -51,6 +59,26 @@ class WorkerAgent:
 
         # FRIDAY: shared scratchpad for agent-to-agent communication
         self.scratchpad: Dict[str, Any] = {}
+
+    def _build_learning_context(self) -> str:
+        """Gather relevant learnings from the shared learning store."""
+        try:
+            from app.core.learning_db import get_learning_store
+
+            store = get_learning_store()
+            domain_hints = self._shared_context.get("_learning_domains", [])
+            parts: list[str] = []
+            for hint in domain_hints:
+                results = store.search(hint, limit=3, min_confidence=0.4)
+                for r in results:
+                    tag = r["type"].replace("_", " ").title()
+                    parts.append(f"- [{tag}] {r['content'][:200]}")
+                    store.record_use(r["id"])
+            if parts:
+                return "Relevant knowledge from other agents:\n" + "\n".join(parts)
+            return ""
+        except Exception:
+            return ""
 
     async def execute_task(self, task_description: str, request: IncomingRequest) -> str:
         """Executes a task autonomously and captures the output to return to the Manager."""
@@ -182,9 +210,33 @@ class SwarmManager:
         # FRIDAY: agent message bus for inter-agent messaging
         self._message_bus: Dict[str, list[Dict[str, Any]]] = {}
 
+        # Bootstrap cross-agent learning
+        try:
+            from app.core.learning_db import get_learning_store
+
+            get_learning_store()
+            self.shared_context["_learning_store_ready"] = True
+            self.shared_context["_learning_domains"] = [
+                "agent task execution",
+                "tool usage pattern",
+                "user preference",
+            ]
+        except Exception:
+            self.shared_context["_learning_store_ready"] = False
+
     def register_agent(self, agent: BaseAgent):
         """Registers a specialized agent into the swarm."""
         self.available_agents[agent.name] = agent
+
+        # Tag the agent's domain for cross-agent learning
+        try:
+            domains = self.shared_context.get("_learning_domains", [])
+            domain_tag = f"agent:{agent.name}"
+            if domain_tag not in domains:
+                domains.append(domain_tag)
+            self.shared_context["_learning_domains"] = domains
+        except Exception:
+            pass
 
     def deregister_agent(self, name: str) -> bool:
         """Remove an agent from the swarm by name.
@@ -223,6 +275,7 @@ class SwarmManager:
             workspace_dir=self.workspace_dir,
             provider_name=provider_name,
             model_name=model_name,
+            shared_context=self.shared_context,
         )
 
         logger.info("Dynamically spawned agent: %s — %s", name, role_description[:60])
@@ -359,6 +412,7 @@ class SwarmManager:
                     provider_name=worker_provider,
                     model_name=worker_model,
                     system_prompt=enhanced,
+                    shared_context=self.shared_context,
                 )
                 workers.append(worker)
                 coroutines.append(worker.execute_task(t["task"], request))
@@ -375,6 +429,30 @@ class SwarmManager:
 
         # Execute all agents in parallel (The Swarm)
         results = await asyncio.gather(*coroutines, return_exceptions=True)
+
+        # Record learning signals from this swarm execution
+        try:
+            from app.core.learning_db import get_learning_store
+
+            store = get_learning_store()
+            for i, worker in enumerate(workers):
+                res = results[i]
+                if isinstance(res, Exception):
+                    continue
+                store.add(
+                    type_="swarm_result",
+                    content=f"Agent {worker.name} completed task in case study",
+                    topic=f"agent:{worker.name}",
+                    confidence=0.5,
+                    metadata={
+                        "agent": worker.name,
+                        "output_length": len(str(res)),
+                        "success": True,
+                    },
+                    source="cross_agent_learning",
+                )
+        except Exception:
+            pass
 
         # FRIDAY: Agent feedback loop — cross-check outputs
         try:
@@ -468,6 +546,7 @@ class SwarmManager:
                 provider_name=rev_provider,
                 model_name=rev_model,
                 system_prompt=reviewer_enhanced,
+                shared_context=self.shared_context,
             )
             final_qa_report = await reviewer_worker.execute_task(
                 f"Here is the raw Evidence Board from the workers:\n\n{compiled_report}\n\nPlease synthesize this into a final, highly readable report for the user. Also, if you notice any permanent facts or network topologies, use your memory tool to save them.",
