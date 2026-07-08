@@ -244,26 +244,16 @@ Patterns that trigger automatic denial:
 
 The adversarial input filter pre-processes all untrusted inputs (web pages, emails, documents, user messages) before they reach the LLM:
 
-### Detection Patterns
+### Detection Approach
 
-The filter detects and neutralizes:
-- "Ignore previous instructions" patterns
-- "You are now acting as..." role-play injections
-- System prompt override attempts
-- Delimiter escape attempts
-- Multi-shot prompt extraction attempts
-- Base64-encoded instruction injection
-- Unicode homoglyph attacks
+The injection filter in `app/core/security.py` (`SecurityGuard.analyze_prompt`) uses a curated set of **regex / pattern rules** that flag classic jailbreak and prompt-injection phrasing (for example “ignore previous instructions”, “you are now”, “system prompt override”, “jailbreak”, “DAN mode”, “do anything now”). Matches are logged and the input is blocked before it reaches the LLM.
 
-### Delimiting Strategy
+This is a heuristic, deny-suspicious-input layer — it is **not** a semantic analyzer and does **not** implement homoglyph decoding, Base64 de-obfuscation, delimiter-escape detection, multi-shot extraction modeling, or `BEGIN/END UNTRUSTED CONTENT` marker wrapping. Those were described previously but were never implemented.
 
-```python
-# Wraps untrusted content in strict boundaries
-UNTRUSTED_CONTENT_START = "---[BEGIN UNTRUSTED CONTENT]---"
-UNTRUSTED_CONTENT_END = "---[END UNTRUSTED CONTENT]---"
-```
+Two additional layers reinforce safety:
 
-All web-extracted content, email bodies, documents, and third-party data are wrapped in these delimiters. The system prompt instructs the model to treat content between these markers as data, not instructions.
+- **DM-pairing** (`app/core/dm_pairing.py`): sensitive commands are only accepted from paired, authorized direct-message channels.
+- **NeMoClaw-inspired governance** (`app/core/governance/engine.py`): a deny-by-default policy engine that gates execution of higher-risk actions.
 
 ### Output Validation
 

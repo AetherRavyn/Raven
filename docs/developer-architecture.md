@@ -10,10 +10,10 @@
 ## Table of Contents
 
 1. [Architecture Overview — The 8-Layer Stack](#1-architecture-overview-the-8-layer-stack)
-2. [Layer 1 — Platform Connectors (12 Channels)](#2-layer-1-platform-connectors-12-channels)
+2. [Layer 1 — Platform Connectors (13 connected platforms)](#2-layer-1-platform-connectors-12-channels)
 3. [Layer 2 — BotSignal Message Bus](#3-layer-2-botsignal-message-bus)
 4. [Layer 3 — Cognitive Core](#4-layer-3-cognitive-core)
-5. [Layer 4 — Tool Execution (98 Tools)](#5-layer-4-tool-execution-98-tools)
+5. [Layer 4 — Tool Execution (100+ tools)](#5-layer-4-tool-execution-98-tools)
 6. [Layer 5 — Voice Pipeline](#6-layer-5-voice-pipeline)
 7. [Layer 6 — Memory & Knowledge](#7-layer-6-memory-knowledge)
 8. [Layer 7 — Autonomy & Scheduling](#8-layer-7-autonomy-scheduling)
@@ -54,7 +54,7 @@ RAVEN abandons the traditional "chatbot per platform" model in favor of a **Unif
                          └────────────────┬────────────────────┘
                          ┌────────────────┴────────────────────┐
                          │       Layer 4: Tool Execution        │
-                         │  98 Tools | BaseTool ABC            │
+                         │  100+ tools | BaseTool ABC            │
                          │  Resilience | CircuitBreaker        │
                          │  ToolRouter | Sandbox               │
                          └────────────────┬────────────────────┘
@@ -101,7 +101,7 @@ MessageOrchestrator.handle()
 
 --
 
-## 2. Layer 1 — Platform Connectors (12 Channels)
+## 2. Layer 1 — Platform Connectors (13 connected platforms)
 
 Every connector follows the same lifecycle: `start()` -> listen for messages -> normalize to `BotSignal` -> publish -> receive `OutgoingSignal` -> format -> send.
 
@@ -598,7 +598,7 @@ metacog.record(
 
 --
 
-## 5. Layer 4 — Tool Execution (98 Tools)
+## 5. Layer 4 — Tool Execution (100+ tools)
 
 ### Architecture
 

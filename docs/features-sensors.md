@@ -195,12 +195,7 @@ result = await smart_home_tool.execute(
 )
 ```
 
-### WebSocket API (`app/sensors/ha_websocket.py`)
-
-- Real-time event stream for instant state change notification
-- Subscribes to `state_changed` events for monitored entities
-- Pushes updates to BotSignal without polling
-- Reconnects automatically on disconnect with exponential backoff
+> **Note:** Real-time WebSocket sensor streaming (e.g. `app/sensors/ha_websocket.py`) is **planned but not yet shipped**. Current sensor ingestion is via the MQTT listener (`app/sensors/mqtt_listener.py`) and the webhook server (`app/sensors/webhook_server.py`). Home Assistant integration is available through the REST API and the `SmartHomeTool`.
 
 ### SmartHomeTool (`app/tools/smarthometool.py`)
 

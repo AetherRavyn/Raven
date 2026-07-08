@@ -4,7 +4,7 @@ title: "Tool Gateway"
 
 # Tool Gateway
 
-RAVEN's capability to act upon the world is defined by its massive Tool Gateway in `app/tools/`. The framework natively ships with **98 tool files** containing **over 110 tool classes** categorized by domain, all of which agents can invoke dynamically at runtime.
+RAVEN's capability to act upon the world is defined by its massive Tool Gateway in `app/tools/`. The framework natively ships with **100+ tools** containing **over 110 tool classes** categorized by domain, all of which agents can invoke dynamically at runtime.
 
 ---
 
@@ -322,7 +322,7 @@ The `shelltool` has a security guard integration: commands are analyzed before e
 
 ---
 
-## 5. Complete Tool Inventory (98 Tool Files)
+## 5. Complete Tool Inventory (100+ Tool Files)
 
 ### 5.1 Web & Network (12 files)
 
@@ -600,7 +600,7 @@ group = "agent"
 ### Step 1: Create the file in `app/tools/`
 
 ```python
-# app/tools/exampletool.py
+# app/tools/exampletool.py  (illustrative snippet — not a shipped file)
 from __future__ import annotations
 
 import logging
@@ -750,12 +750,12 @@ EXAMPLE_API_KEY: str = os.getenv("EXAMPLE_API_KEY", "")
 ### Step 3: Write tests
 
 ```python
-# tests/tools/test_exampletool.py
+# tests/tools/test_exampletool.py  (illustrative snippet — not a shipped file)
 from __future__ import annotations
 
 import pytest
 
-from app.tools.exampletool import ExampleTool
+from app.tools.exampletool import ExampleTool  # illustrative only — file not shipped
 
 
 @pytest.fixture
@@ -966,7 +966,7 @@ The `MCPManagementTool` (`mcptool.py`) allows agents to dynamically:
 - Browse tools by server
 - Disconnect servers
 
-Connected MCP servers expose additional tools beyond the 98 built-in files.
+Connected MCP servers expose additional tools beyond the 100+ built-in tools.
 
 ### 10.3 Manual Registration
 

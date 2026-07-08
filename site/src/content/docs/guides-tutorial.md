@@ -530,8 +530,8 @@ See the [Features — Automation](/features-automation/) doc for complete bluepr
 | `docs/guides-agents.md` | 15 agents and the swarm system |
 | `docs/features-skills.md` | Skill crystallization and the learning system |
 | `docs/features-automation.md` | Ambient loop, scheduling, workflows |
-| `docs/messaging-platforms.md` | Complete platform setup guides |
-| `docs/deployment.md` | Docker, cloud, and edge deployment |
+| `docs/02-platform-connectors.md` | Complete platform setup guides |
+| `docs/08-deployment-scaling.md` | Docker, cloud, and edge deployment |
 
 ### Join the Community
 

@@ -36,7 +36,7 @@ Raven's automation stack forms a layered, interconnected system:
                                        │
                         ┌──────────────┴───────────────────────┐
                         │        Supervisor (Routing)           │
-                        │  14 agents — keyword-matched dispatch │
+                        │  15 agents — keyword-matched dispatch │
                         └──────────────┬───────────────────────┘
                                        │
               ┌────────────────────────┼────────────────────────┐
@@ -82,7 +82,7 @@ Raven's automation stack forms a layered, interconnected system:
 | Connection | Mechanism | Location |
 |--|--|--|
 | Supervisor -> Agents | Keyword routing + delegate() | `app/core/supervisor.py:241` |
-| Orchestrator -> Tools | Tool registry (98 tools) | `app/core/orchestrator.py:300-330` |
+| Orchestrator -> Tools | Tool registry (100+ tools) | `app/core/orchestrator.py:300-330` |
 | Orchestrator -> Scheduler | _init_scheduler() registers 6+ tasks | `app/core/orchestrator.py:730-775` |
 | Orchestrator -> Kanban | KanbanTool + /kanban slash command | `app/tools/kanbantool.py`, `orchestrator.py:1751` |
 | Orchestrator -> Blueprints | BlueprintTool + /blueprint slash command | `app/tools/blueprinttool.py`, `orchestrator.py:1814` |
@@ -342,7 +342,7 @@ The `Supervisor` (`app/core/supervisor.py`) routes incoming requests to the best
 
 ```python
 registry = AgentRegistry()
-registry.register_all()  # 14 agents with specialties
+registry.register_all()  # 15 agents with specialties
 
 # The Supervisor.delegate() method:
 async def delegate(self, request) -> Response:
@@ -998,7 +998,7 @@ RAVEN_THEME=midnight raven dashboard
 
 The dashboard shows:
 - System health (CPU, memory, disk)
-- Agent status grid (14 agents)
+- Agent status grid (15 agents)
 - Gap services panel (kanban, blueprints, etc.)
 - Recent audit events
 
@@ -1042,7 +1042,7 @@ Goal advances:
 | Document | Topics |
 |--|--|
 | `docs/developer-architecture.md` | Full 8-layer architecture, event system, security |
-| `docs/roadmap-gaps.md` | Gap prioritization and implementation plans |
+| `docs/gap_analysis_2026_06.md` | Gap prioritization and implementation plans |
 | `docs/reference-cli.md` | CLI command reference (kanban, blueprint, dashboard) |
 | `docs/features-core.md` | Core cognitive engine, memory, learning |
 | `docs/features-skills.md` | Skill system and crystallization |

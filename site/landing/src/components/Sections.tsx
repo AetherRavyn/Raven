@@ -192,7 +192,7 @@ export function Intelligence() {
           {[
             ["World Model", "A living graph of people, plans, and consequences."],
             ["Forecasting", "It sees the likely future and warns before it arrives."],
-            ["Tool Use", "Ninety-plus tools, chosen with judgment, not habit."],
+            ["Tool Use", "100+ tools, chosen with judgment, not habit."],
             ["Self-Correction", "Confidence calibrated against reality, not vibes."],
           ].map(([t, d]) => (
             <div key={t} className="border-l border-blood/30 pl-6 py-2">
@@ -223,7 +223,7 @@ export function Execution() {
           {[
             ["Orchestration", "Spawns the right agent for the right job, in parallel."],
             ["Governance", "Deny-by-default policy. You stay in command."],
-            ["Companion", "Native apps mirror the mind to phone, watch, desktop."],
+            ["Companion", "Native apps mirror the mind to phone, desktop, and web."],
           ].map(([t, d], i) => (
             <motion.div
               key={t}
@@ -258,9 +258,9 @@ export function Community() {
         </Reveal>
         <Reveal delay={2} className="mt-12 flex flex-wrap gap-10">
           {[
-            ["140+", "Contributors"],
-            ["12k", "Shared skills"],
-            ["9", "Native platforms"],
+            ["13", "Connected platforms"],
+            ["5", "Companion device types"],
+            ["100+", "Tools in its arsenal"],
           ].map(([n, l]) => (
             <div key={l}>
               <div className="serif text-5xl text-blood-glow text-glow">{n}</div>

@@ -17,7 +17,7 @@ Welcome to the documentation for AetherRavyn. RAVEN is an advanced, multi-agent 
 
 - **Multi-Agent Swarm (Agency):** 15+ specialized agents orchestrated via ReAct loops to handle coding, research, and daily tasks.
 - **Ambient Intelligence:** A robust background loop (`AmbientLoop`) that monitors schedules, consolidates memory, and proactively surfaces opportunities.
-- **Unified Multimodal Context:** Processes text, voice, and file inputs seamlessly across 12+ messaging platforms (Telegram, Discord, Slack, etc.).
+- **Unified Multimodal Context:** Processes text, voice, and file inputs seamlessly across 13 connected platforms (Telegram, Discord, Slack, etc.).
 - **Self-Evolving Skills:** Automatically distills successful problem-solving traces into reusable skills.
 - **NeMoClaw Governance:** Strict, deny-by-default execution sandboxes and prompt injection detection.
 - **Edge Compute Routing:** Intelligently delegates tasks between local open-weights (PicoClaw) and cloud LLMs.
@@ -44,7 +44,7 @@ Ready to deploy your own JARVIS?
 
     Learn how to deploy RAVEN using Docker or native systemd services.
 
-    [:octicons-arrow-right-24: Deployment Guide](deployment.md)
+    [:octicons-arrow-right-24: Deployment Guide](08-deployment-scaling.md)
 
 -   :material-book-open-page-variant: __Architecture__
 
@@ -60,7 +60,7 @@ Ready to deploy your own JARVIS?
 
     Connect RAVEN to Telegram, Discord, and your Smart Home.
 
-    [:octicons-arrow-right-24: Messaging Platforms](messaging-platforms.md)
+    [:octicons-arrow-right-24: Messaging Platforms](02-platform-connectors.md)
 
 </div>
 
@@ -70,6 +70,6 @@ Ready to deploy your own JARVIS?
 
 AetherRavyn is actively maintained. Check out our recent gap analyses and roadmap to see what's next.
 
-* [Gap Analysis 2026](GAP_ANALYSIS_2026_06.md)
-* [Status Report](STATUS_2026_06.md)
-* [Roadmap](roadmap-gaps.md)
+* [Gap Analysis 2026](gap_analysis_2026_06.md)
+* [Status Report](status_2026_06.md)
+* [Roadmap](gap_analysis_2026_06.md)

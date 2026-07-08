@@ -72,7 +72,7 @@ RAVEN implements a Kahneman-inspired dual-system cognitive architecture:
 * **System 2 (AgentRuntime)**: Used for complex, multi-step reasoning. It spins up a ReAct loop with a maximum of 10 turns and grants full access to the Tool Ecosystem and Swarm Agency.
 
 ### Layer 4: Multi-Agent Swarm (Agency)
-When System 2 encounters a complex request requiring domain expertise, it delegates to the `SwarmManager` (`app/core/agency.py`). The Swarm consists of 14 specialized agents (e.g., `SysadminAgent`, `PolymathAgent`, `FinanceAgent`, `ResearcherAgent`). 
+When System 2 encounters a complex request requiring domain expertise, it delegates to the `SwarmManager` (`app/core/agency.py`). The Swarm consists of 15 specialized agents (e.g., `SysadminAgent`, `PolymathAgent`, `FinanceAgent`, `ResearcherAgent`). 
 
 A unique **LearnerAgent** acts as a cross-trainer, monitoring performance and providing meta-cognitive advice to other agents.
 

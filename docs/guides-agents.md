@@ -1,6 +1,6 @@
 # Agent Architecture & Custom Agent Guide
 
-RAVEN operates using a swarm architecture governed by a Supervisor and SwarmManager. Rather than relying on a single mega-prompt, RAVEN delegates complex tasks to a specialized swarm of isolated sub-agents. Each agent extends `BaseAgent(ABC)` from `app/agents/base.py` and has file-backed memory, personality, soul, goals, and provider routing.
+RAVEN operates using a swarm architecture governed by a Supervisor and SwarmManager. Rather than relying on a single mega-prompt, RAVEN delegates complex tasks to a specialized swarm of isolated sub-agents. Most agents extend `BaseAgent(ABC)` from `app/agents/base.py` and have file-backed memory, personality, soul, goals, and provider routing.
 
 ## 1. Complete Agent Reference Table
 
@@ -348,12 +348,14 @@ After swarm execution, the FeedbackCollector performs cross-check validation:
 - Outputs containing "error" or "failed" trigger a critical warning
 - Feedback is logged for quality monitoring
 
-## 8. Adding a New Agent: Complete Example
+## 8. Adding a New Agent: Complete Example (Illustrative)
+
+> **Note:** The `MarketingAgent` shown below is an illustrative example. The file `app/agents/marketing.py` is **not shipped** with RAVEN — it exists only to demonstrate the pattern.
 
 ### Step 1: Create the Agent Class
 
 ```python
-# app/agents/marketing.py
+# app/agents/marketing.py  (illustrative example — this file is not shipped)
 from typing import List
 from app.agents.base import BaseAgent
 from app.tools.base import BaseTool

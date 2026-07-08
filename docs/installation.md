@@ -710,7 +710,7 @@ Now that Raven is installed, continue with:
 | [Agent Architecture](guides-agents.md) | Understanding the 15-agent swarm |
 | [Soul Definition](guides-soul.md) | Customizing Raven's personality |
 | [Voice Pipeline](features-voice.md) | Wake-word, STT, TTS setup |
-| [Messaging Platforms](messaging-platforms.md) | Per-platform setup guides |
+| [Messaging Platforms](02-platform-connectors.md) | Per-platform setup guides |
 | [Dashboard Overview](index.md) | Full documentation index |
 
 ---
