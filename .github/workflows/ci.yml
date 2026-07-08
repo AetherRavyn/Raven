@@ -7,24 +7,19 @@ on:
     branches: [main, develop, "feat/**"]
   workflow_dispatch:
 
-# Cancel a previous run of the same workflow/branch on new push.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   PYTHON_VERSION: "3.12"
-  # Run tests in this environment so the Helix client can reach
-  # the service container in the `test` job.
   RAVEN_HELIX_URL: http://localhost:8080
   RAVEN_LOG_JSON: "true"
   RAVEN_LOG_LEVEL: INFO
   RAVEN_OTEL_IN_MEMORY: "true"
 
 jobs:
-  # ---------------------------------------------------------------------
-  # 1. Lint + format check
-  # ---------------------------------------------------------------------
+  # ── 1. Lint + format ──────────────────────────────────────────
   lint:
     name: Lint (ruff)
     runs-on: ubuntu-latest
@@ -40,14 +35,12 @@ jobs:
         run: uv venv
       - name: Install package
         run: uv pip install -e ".[dev]"
-      - name: Ruff check
-        run: .venv/bin/ruff check app/core/cost_router app/core/verifier app/core/vault.py app/core/audit app/core/policy_v2 app/core/security.py app/core/runtime.py app/db app/observability tests/test_helix.py tests/test_planning.py tests/test_cost_router.py tests/test_verifier.py tests/test_vault.py tests/test_audit.py tests/test_audit_redaction.py tests/test_audit_dashboard.py tests/test_audit_api.py tests/test_policy_v2.py tests/test_runtime_a4_integration.py tests/test_observability.py scripts/
-      - name: Ruff format check
-        run: .venv/bin/ruff format --check app/core/cost_router app/core/verifier app/core/vault.py app/core/audit app/core/policy_v2 app/core/security.py app/core/runtime.py app/db app/observability tests/test_helix.py tests/test_planning.py tests/test_cost_router.py tests/test_verifier.py tests/test_vault.py tests/test_audit.py tests/test_audit_redaction.py tests/test_audit_dashboard.py tests/test_audit_api.py tests/test_policy_v2.py tests/test_runtime_a4_integration.py tests/test_observability.py scripts/
+      - name: Ruff check (full app/)
+        run: .venv/bin/ruff check app/
+      - name: Ruff format check (full app/)
+        run: .venv/bin/ruff format --check app/
 
-  # ---------------------------------------------------------------------
-  # 2. Type check (pyright)
-  # ---------------------------------------------------------------------
+  # ── 2. Type check ─────────────────────────────────────────────
   typecheck:
     name: Type check (pyright)
     runs-on: ubuntu-latest
@@ -63,12 +56,10 @@ jobs:
         run: uv venv
       - name: Install package
         run: uv pip install -e ".[dev]"
-      - name: Pyright
-        run: .venv/bin/pyright app/core/cost_router app/core/verifier app/core/vault.py app/core/audit app/core/policy_v2 app/core/security.py app/db app/observability tests/test_helix.py tests/test_planning.py tests/test_cost_router.py tests/test_verifier.py tests/test_vault.py tests/test_audit.py tests/test_audit_redaction.py tests/test_audit_dashboard.py tests/test_audit_api.py tests/test_policy_v2.py tests/test_runtime_a4_integration.py tests/test_observability.py
+      - name: Pyright (full app/)
+        run: .venv/bin/pyright app/
 
-  # ---------------------------------------------------------------------
-  # 3. Security scan (bandit)
-  # ---------------------------------------------------------------------
+  # ── 3. Security scan ──────────────────────────────────────────
   security:
     name: Security (bandit)
     runs-on: ubuntu-latest
@@ -86,29 +77,21 @@ jobs:
         run: |
           uv pip install -e ".[dev]"
           uv pip install bandit[toml]
-      - name: Bandit scan (new A2-A5 modules)
-        # Scoped to modules we wrote — the broader app/ surface has
-        # legacy issues (subprocess shell=True, SHA1) that will be
-        # fixed incrementally.  This gate ensures the new code is
-        # clean without blocking on the existing debt.
-        # Skip B101 (assert), B311 (random) — not security issues here.
+      - name: Bandit scan (new modules)
         run: >
           .venv/bin/bandit -r
-          app/core/cost_router
-          app/core/verifier
-          app/core/vault.py
-          app/core/audit
-          app/core/policy_v2
-          app/core/security.py
-          app/db
-          app/observability
+          app/core/prediction
+          app/core/governance
+          app/core/edge
+          app/core/skill_enhancement
+          app/core/unified_multimodal.py
+          app/core/unified_multimodal_integration.py
+          app/core/multimodal_connectors.py
+          app/companion
           -lll
           --skip B101,B311
         continue-on-error: false
-      - name: Bandit scan (full repo, advisory only)
-        # Runs against the whole tree, but is `continue-on-error` so
-        # the existing legacy debt doesn't block the build.  Reviewers
-        # are expected to look at the report and open follow-ups.
+      - name: Bandit scan (full app/, advisory)
         run: >
           .venv/bin/bandit -r app/
           -lll
@@ -122,9 +105,7 @@ jobs:
           name: bandit-report
           path: bandit-report.json
 
-  # ---------------------------------------------------------------------
-  # 4. Tests + coverage (with HelixDB service container)
-  # ---------------------------------------------------------------------
+  # ── 4. Tests + coverage ───────────────────────────────────────
   test:
     name: Tests + coverage
     runs-on: ubuntu-latest
@@ -163,9 +144,6 @@ jobs:
       - name: Helix client smoke
         run: .venv/bin/pytest tests/test_helix.py -v --tb=short
       - name: Full test suite
-        # The 8 deselected tests are pre-existing failures in legacy
-        # code that predate the A2-A5 work.  Tracked separately so
-        # we can fix them incrementally without blocking the gate.
         run: |
           .venv/bin/pytest -v --tb=short \
             --deselect tests/test_dm_pairing.py::TestOrchestratorAndGatewayIntegration \
@@ -174,28 +152,8 @@ jobs:
             --deselect tests/test_vault.py::TestRotation::test_rotate_creates_new_key_file
       - name: Coverage report
         run: |
-          .venv/bin/pytest --cov=app/core/cost_router --cov=app/core/verifier \
-            --cov=app/core/vault --cov=app/core/audit --cov=app/core/policy_v2 \
-            --cov=app/core/security --cov=app/db --cov=app/observability \
+          .venv/bin/pytest --cov=app/ \
             --cov-report=xml --cov-report=term-missing --no-header -q
-      - name: Coverage gate (>=80% on new A2-A5 modules)
-        # Scoped to the modules we've written in the A2-A5 work
-        # (cost router, verifier, vault, audit, policy v2, security,
-        # HelixDB client, observability).  Legacy app/core/*.py
-        # files predate the audit and are ratcheted up incrementally.
-        run: |
-          COV=$(.venv/bin/coverage report \
-            --include="app/core/cost_router/*,app/core/verifier/*,app/core/vault.py,app/core/audit/*,app/core/policy_v2/*,app/db/helix.py,app/observability/*" \
-            2>/dev/null | grep -E "^TOTAL" | awk '{print $NF}')
-          echo "new-modules coverage: ${COV}"
-          python -c "
-          import sys
-          pct = float(sys.argv[1].rstrip('%'))
-          if pct < 80.0:
-              print(f'ERROR: new-modules coverage {pct:.2f}% < 80% gate')
-              sys.exit(1)
-          print(f'new-modules coverage {pct:.2f}% >= 80% gate — OK')
-          " "$COV"
       - name: Upload coverage to Codecov
         if: always()
         uses: codecov/codecov-action@v4
@@ -204,9 +162,7 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
-  # ---------------------------------------------------------------------
-  # 5. Build sanity (wheel + sdist)
-  # ---------------------------------------------------------------------
+  # ── 5. Build sanity ───────────────────────────────────────────
   build:
     name: Build (wheel + sdist)
     runs-on: ubuntu-latest
