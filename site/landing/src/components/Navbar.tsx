@@ -30,6 +30,13 @@ export default function Navbar() {
       </div>
 
       <a
+        href="/docs/"
+        data-magnetic
+        className="hidden md:inline-block text-xs tracking-[0.2em] uppercase text-ash hover:text-bone transition-colors duration-300"
+      >
+        Docs
+      </a>
+      <a
         href="#enter"
         data-magnetic
         className="text-xs tracking-[0.2em] uppercase text-bone border border-bone/30 rounded-full px-5 py-2 hover:border-blood-bright hover:text-blood-glow transition-all duration-400"

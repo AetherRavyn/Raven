@@ -1,49 +1,76 @@
-# Starlight Starter Kit: Basics
+# RAVEN — Website
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+The official RAVEN website monorepo. It contains two coordinated parts:
 
-```
-npm create astro@latest -- --template starlight
-```
+| Path | What | Stack | Purpose |
+|------|------|-------|---------|
+| `site/` (this folder) | **Documentation site** | Astro + Starlight | Full technical docs, guides, API/CLI/TUI references |
+| `site/landing/` | **Marketing landing page** | Vite + React + Three.js | Cinematic, immersive homepage experience |
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Both are deployed together — the landing page at the site root and the
+documentation under `/docs/`.
 
-## 🚀 Project Structure
+---
 
-Inside of your Astro + Starlight project, you'll see the following folders and files:
+## Documentation site (`site/`)
 
-```
-.
-├── public/
-├── src/
-│   ├── assets/
-│   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
-├── package.json
-└── tsconfig.json
+Astro + Starlight. Source content lives in `src/content/docs/` (Markdown).
+
+```bash
+npm install
+npm run dev        # http://localhost:4321
+npm run build      # production build -> dist/
+npm run preview    # preview build
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+`site` is configured in `astro.config.mjs` (title, sidebar, GitHub social,
+sitemap). The sidebar is organized into Overview, Core Components, Deployment &
+Hardware, Features, Guides, and Reference.
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+---
 
-Static assets, like favicons, can be placed in the `public/` directory.
+## Landing page (`site/landing/`)
 
-## 🧞 Commands
+A cinematic, award-style homepage: a 3D raven hero, narrative scroll chapters
+(Arrival → Memory → Understanding → Evolution → Intelligence → Execution →
+Community → Future), smooth scrolling, magnetic cursor, and ambient particles.
 
-All commands are run from the root of the project, from a terminal:
+```bash
+cd landing
+npm install
+npm run dev        # http://localhost:4321
+npm run build      # production build -> landing/dist/
+npm run preview    # preview build
+```
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+**Stack:** React 18 + TypeScript · Vite · Tailwind CSS · Framer Motion ·
+GSAP + ScrollTrigger · Lenis · Three.js (React Three Fiber).
 
-## 👀 Want to learn more?
+See `site/landing/README.md` for the full component architecture.
 
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+---
+
+## Deployment
+
+The site is a static build. Recommended: build both and serve from one origin.
+
+```bash
+# Docs
+cd site && npm run build            # -> site/dist
+
+# Landing
+cd site/landing && npm run build    # -> site/landing/dist
+```
+
+Serve `site/dist` at the root and `site/landing/dist` at `/` (or mount the
+landing output and copy `site/dist` into `site/landing/dist/docs`). Ensure the
+landing footer **Docs** link (`/docs/`) resolves to the documentation build.
+
+---
+
+## Design language
+
+- Deep matte black `#050505`, blood-red `#8b0000` / `#c8102e` glow, soft white `#f4f1ea`
+- Editorial serif (Cormorant Garamond) for headlines, Inter for UI
+- Massive whitespace, layered depth, volumetric fog, drifting feathers
+- Mystery, elegance, intelligence, calm confidence — not cyberpunk

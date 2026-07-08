@@ -54,8 +54,13 @@ export default function Footer() {
           </div>
           <div className="space-y-3">
             <p className="eyebrow mb-2">Project</p>
-            {["GitHub", "Docs", "Research", "Community"].map((l) => (
-              <a key={l} href="#" className="block text-ash hover:text-bone transition-colors">
+            {[
+              ["GitHub", "https://github.com/AetherRavyn/Raven"],
+              ["Docs", "/docs/"],
+              ["Research", "https://github.com/AetherRavyn/Raven/tree/main/docs"],
+              ["Community", "https://github.com/AetherRavyn/Raven/discussions"],
+            ].map(([l, h]) => (
+              <a key={l} href={h} className="block text-ash hover:text-bone transition-colors">
                 {l}
               </a>
             ))}

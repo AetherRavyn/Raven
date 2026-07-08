@@ -4,10 +4,13 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://aetherravyn.github.io/Raven',
 	integrations: [
 		starlight({
 			title: 'RAVEN Documentation',
-			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/swadhin/SARAS' }],
+			social: [
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/AetherRavyn/Raven' },
+			],
 			sidebar: [
 				{
 					label: 'Overview',
