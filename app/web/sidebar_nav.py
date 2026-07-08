@@ -68,8 +68,12 @@ NAV_ENTRIES: tuple[NavEntry, ...] = (
         "personality", "PERSONALITY", "primary", "Emotional state, drift, values, relationship"
     ),
     NavEntry("logs", "LOGS", "primary", "Audit timeline + event stream"),
+    NavEntry("kanban", "KANBAN", "primary", "Multi-agent task board with columns and cards"),
+    NavEntry("blueprints", "BLUEPRINTS", "primary", "Automation blueprint catalog — install, run, manage"),
+    NavEntry("automation", "AUTOMATION", "primary", "System health, services, scheduler, and event hooks"),
     NavEntry("cron", "CRON", "config", "Scheduled jobs (toggle / run)"),
     NavEntry("skills", "SKILLS", "config", "Skill registry + learner"),
+    NavEntry("marketplace", "MARKETPLACE", "config", "Skill community sharing + discovery"),
     NavEntry("plugins", "PLUGINS", "config", "Modular platform plugins"),
     NavEntry("modules", "A2A MODULES", "config", "Raven Protocol modules — discover, call, manage"),
     NavEntry("mcp", "MCP", "config", "Model Context Protocol servers"),

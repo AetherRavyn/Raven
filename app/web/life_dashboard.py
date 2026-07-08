@@ -29,7 +29,6 @@ under any framework.
 """
 from __future__ import annotations
 
-import datetime as _dt
 import logging
 from dataclasses import asdict
 from typing import Any, Callable, Mapping

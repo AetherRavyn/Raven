@@ -160,6 +160,22 @@ class MemoryManager:
         for guide in extracted.tool_guides:
             if not self._is_duplicate(guide, user_id):
                 self.store.save("TOOL_GUIDE", guide, user_id=user_id)
+
+        # Emit hook event for extracted memories
+        try:
+            from app.core.hooks import get_hook_manager
+            hook_mgr = get_hook_manager()
+            hook_mgr.trigger("memory_extracted", {
+                "user_id": user_id or "anonymous",
+                "facts_count": len(extracted.facts),
+                "preferences_count": len(extracted.preferences),
+                "tasks_count": len(extracted.tasks),
+                "tool_guides_count": len(extracted.tool_guides),
+                "total": len(extracted.facts) + len(extracted.preferences) + len(extracted.tasks) + len(extracted.tool_guides),
+            })
+        except Exception:
+            pass
+
         return extracted
 
     def _is_duplicate(self, content: str, user_id: str | None = None) -> bool:

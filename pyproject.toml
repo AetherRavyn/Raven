@@ -33,7 +33,6 @@ dependencies = [
     "lap>=0.5.12",
     "loguru>=0.7.3",
     "mcp[cli]>=1.26.0",
-
     "numpy>=2.4.2",
     "onnxruntime>=1.24.2",
     "opencv-contrib-python>=4.13.0.92",
@@ -46,7 +45,6 @@ dependencies = [
     "python-telegram-bot>=22.6",
     "pytubefix>=10.3.6",
     "pytz>=2025.2",
-
     "requests>=2.32.5",
     "sounddevice>=0.5.5",
     "soundfile>=0.13.1",
@@ -63,7 +61,6 @@ dependencies = [
     "vosk>=0.3.45",
     "slack-bolt>=1.22.0",
     "pydub>=0.25.1",
-
     "sentence-transformers>=3.4.0",
     "apscheduler>=3.10.4",
     "uvicorn[standard]>=0.34.0",
@@ -72,7 +69,6 @@ dependencies = [
     "yfinance>=1.2.0",
     "yt-dlp>=2026.2.4",
     "aiomqtt>=2.3.0",
-
     "alembic>=1.16.0",
     "aiosqlite>=0.21.0",
     "prometheus-client>=0.21.0",
@@ -86,6 +82,7 @@ dependencies = [
     "python-dateutil>=2.9.0",
     "youtube-transcript-api>=0.6.0",
     "dnspython>=2.6.0",
+    "keyring>=25.7.0",
 ]
 
 [project.optional-dependencies]
@@ -93,8 +90,11 @@ voice = [
     "pyaudio>=0.2.14",
 ]
 
+
 [project.scripts]
+# Entry point for `raven` CLI command.
 raven = "app.cli.main:main"
+# ``python -m raven`` also works courtesy of app/cli/__main__.py
 
 [dependency-groups]
 dev = [
@@ -179,5 +179,5 @@ line-ending = "lf"
 package = true
 
 [tool.setuptools]
-packages = ["app", "agent_reach"]
+packages = ["app", "agent_reach", "raven_protocol"]
 

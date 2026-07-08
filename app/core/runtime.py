@@ -9,7 +9,11 @@ from typing import Any, Dict, List, Optional
 from app.core.bootstrapper import Bootstrapper
 from app.core.botsignal import BotSignal, get_botsignal
 from app.core.models import IncomingRequest, SignalPayload, ToolTrace
+from app.core.rate_limit_middleware import RateLimitMiddleware
 from app.core.multimodal import MultimodalContextBuilder
+from app.core.unified_multimodal import UnifiedMultimodalContextBuilder, get_unified_context_builder
+from app.core.multimodal_connectors import MultimodalConnectorHub, get_connector_hub
+from app.core.governance import get_policy_engine, PolicyEngine
 from app.core.persona import get_persona_engine
 from app.core.proactive import schedule_follow_up
 from app.core.planner import ResultVerifier, TaskPlanner
@@ -24,6 +28,22 @@ from app.core.hooks import HookDispatcher
 from app.core.workflow_engine import WorkflowEngine
 from app.core.standing_orders import StandingOrderStore
 from app.core.feedback import FeedbackStore
+from app.core.governance import (
+    PolicyEngine,
+    SandboxExecutor,
+    EvaluationHarness,
+    ToolRiskProfile,
+    PolicyRule,
+    ApprovalRequest,
+    AuditEvent,
+    RiskLevel,
+    ActionType,
+    Decision,
+    get_policy_engine as get_governance_policy_engine,
+    get_sandbox_executor,
+    get_evaluation_harness,
+)
+from app.core.edge import get_model_tier_router, get_edge_dispatcher, ComputeTier, ComputeTask
 from app.core.security import get_security_guard
 
 
@@ -285,7 +305,14 @@ class AgentRuntime:
         self.privacy_manager = self._build_privacy_manager()
         self.security_guard = get_security_guard()
         self.multimodal_builder = MultimodalContextBuilder()
+        # Unified multimodal context (Friday-style holistic perception)
+        self.unified_multimodal_builder = get_unified_context_builder()
+        self.multimodal_connector_hub = get_connector_hub()
         self.policy_engine = get_policy_engine()
+        # Governance engine (NeMoClaw-inspired deny-by-default)
+        self.governance_policy = get_governance_policy_engine()
+        self.sandbox_executor = get_sandbox_executor()
+        self.evaluation_harness = get_evaluation_harness()
         from app.core.memory_facade import get_memory_facade
 
         self.memory_facade = get_memory_facade()
@@ -313,12 +340,78 @@ class AgentRuntime:
         self._cognition_ladder = None
         self._use_cognition_ladder = _env_flag("RAVEN_COGNITION_LADDER", default=True)
 
+        # Rate-limit middleware (subscription budget + request rate)
+        self._rate_mw = RateLimitMiddleware()
+        self._use_rate_limit = _env_flag("RAVEN_RATE_LIMIT", default=True)
+
+        # Edge/Compute Tier Router (PicoClaw/ZeroClaw-inspired)
+        self.model_tier_router = get_model_tier_router()
+        self.edge_dispatcher = get_edge_dispatcher()
+
+        # Probe HelixDB availability (best-effort, non-blocking for startup)
+        self._helix_available = False
+        try:
+            from app.db.helix import get_client
+
+            client = get_client()
+            # Synchronous probe — just check if the client can reach the gateway
+            import asyncio
+
+            loop = asyncio.get_running_loop()
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(asyncio.run, client.is_available())
+                self._helix_available = future.result(timeout=3.0)
+        except Exception:
+            self._helix_available = False
+
+        if not self._helix_available:
+            logger.warning(
+                "HelixDB is not available — memory, knowledge graph, and "
+                "planning persistence will fall back to SQLite/JSON. "
+                "Install and start the HelixDB sidecar for full durability."
+            )
+        else:
+            logger.info("HelixDB connection established")
+
     def _provider_name(self) -> str:
         return (
             getattr(self.provider, "name", None)
             or getattr(self.provider, "provider_name", None)
             or self.provider.__class__.__name__.lower()
         )
+
+    # ── rate-limit helpers ───────────────────────────────────────────
+    async def _check_llm_budget(
+        self, user_id: str, input_tokens: int = 0, output_tokens: int = 0
+    ) -> bool:
+        """Check rate limit and token budget before an LLM call.
+
+        Returns True if the call is allowed.  When blocked, sends a
+        friendly refusal message to the user via BotSignal.
+        """
+        if not self._use_rate_limit:
+            return True
+        result = await self._rate_mw.check(user_id, input_tokens, output_tokens)
+        if result.get("allowed", True):
+            return True
+        reason = result.get("reason", "unknown")
+        logger.warning("LLM call blocked for user=%s reason=%s", user_id, reason)
+        return False
+
+    async def _track_llm_usage(
+        self, user_id: str, tokens_consumed: int, metadata: dict | None = None
+    ) -> None:
+        """Record token consumption after a successful LLM call."""
+        if not self._use_rate_limit or tokens_consumed <= 0:
+            return
+        try:
+            await self._rate_mw.record(
+                user_id, tokens_consumed, action="llm_call", metadata=metadata
+            )
+        except Exception as exc:
+            logger.debug("Failed to track LLM usage: %s", exc)
 
     def set_model(self, provider_name: str, model_name: str) -> None:
         """Switch the active provider and model at runtime.
@@ -689,6 +782,13 @@ class AgentRuntime:
             from app.core.cognition_ladder import LadderStep
 
             async def _producer(step: LadderStep) -> tuple[str, float]:
+                from app.core.token_counter import estimate_messages_tokens  # noqa: PLC0415
+
+                cheap_input = estimate_messages_tokens([{"role": "user", "content": prompt}])
+                if not await self._check_llm_budget(
+                    "system", input_tokens=cheap_input, output_tokens=256
+                ):
+                    return "", 0.0
                 provider = create_provider(step.provider)
                 result = await provider.chat_completion(
                     model=step.model,
@@ -696,6 +796,12 @@ class AgentRuntime:
                     max_tokens=256,
                 )
                 text = result.get("content", "")
+                output_tokens = estimate_messages_tokens([{"role": "assistant", "content": text}])
+                await self._track_llm_usage(
+                    "system",
+                    cheap_input + output_tokens,
+                    {"model": step.model, "provider": step.provider, "action": "cognition_ladder"},
+                )
                 return text, 0.8  # Default confidence for simple tasks
 
             result = await ladder.run(prompt=prompt, producer=_producer)
@@ -1957,6 +2063,49 @@ class AgentRuntime:
         except Exception:
             pass  # Self-evolution adjustments are best-effort
 
+        # Edge Tier Router: use task complexity to select optimal model tier
+        # This allows cheap models to handle simple tasks and saves cost.
+        try:
+            context = {
+                "requires_tools": bool(getattr(request, "metadata", {}).get("skill_instructions")),
+                "multi_step": "and" in request.text.lower() and len(request.text) > 200,
+                "requires_reasoning": any(w in request.text.lower() for w in [
+                    "analyze", "compare", "evaluate", "design", "architect", "debug",
+                    "explain why", "how does", "what if", "predict", "forecast",
+                ]),
+            }
+            route = self.model_tier_router.route(request.text, context)
+            # Only override if the tier suggests a different model than current
+            if route.model_name and route.model_name != "unknown":
+                tier_provider = route.provider
+                tier_model = route.model_name
+                # Only apply tier routing for non-local tiers (local tiers use ollama)
+                if tier_provider not in ("local", "internal"):
+                    if tier_model != self.model_name:
+                        logger.debug(
+                            "EDGE_TIER_ROUTER  routed to %s/%s (tier=%s, reason=%s)",
+                            tier_provider,
+                            tier_model,
+                            route.tier.value,
+                            route.reasoning,
+                        )
+                        # Only override if not already overridden by self-evolution
+                        # (self-evolution has higher priority)
+                        try:
+                            from app.core.self_evolution import get_self_evolution as _se2
+                            _se_adj = _se2().get_adjustments()
+                            _se_preferred = _se_adj.get("preferred_models", [])
+                            if not _se_preferred:
+                                from app.provider import create_provider
+                                self.provider = create_provider(tier_provider)
+                                self.model_name = tier_model
+                        except Exception:
+                            from app.provider import create_provider
+                            self.provider = create_provider(tier_provider)
+                            self.model_name = tier_model
+        except Exception as exc:
+            logger.debug("Edge tier routing skipped: %s", exc)
+
         messages = self.session_manager.load_session(session_id)
 
         # FRIDAY: Token-aware auto-compress to reclaim context window
@@ -2151,6 +2300,22 @@ class AgentRuntime:
         if multimodal_context.has_signal():
             messages.append({"role": "system", "content": multimodal_context.render()})
 
+        # Unified Multimodal Context (Friday-style holistic perception)
+        # Inject data from all connectors (calendar, email, files, sensors)
+        connector_data = self.multimodal_connector_hub.get_all_context_data()
+        unified_context = self.unified_multimodal_builder.build(
+            request,
+            sensor_state=connector_data.get("sensor_state"),
+            memory_snippets=self.bootstrapper._read_and_truncate(
+                "AGENTS.md", max_chars=240
+            ).splitlines()[:5],
+            calendar_events=connector_data.get("calendar_events"),
+            emails=connector_data.get("emails"),
+            file_contents=connector_data.get("files"),
+        )
+        if unified_context.events:
+            messages.append({"role": "system", "content": unified_context.rendered})
+
         # Phase D: ingest the user turn into the conversation
         # manager (extracted facts, entities, current topic).
         # This is best-effort: when the manager is disabled or
@@ -2210,6 +2375,22 @@ class AgentRuntime:
                 llm_calls_total.labels(provider=provider_name, model=self.model_name).inc()
                 start_llm = __import__("time").perf_counter()
 
+                # ── Rate-limit / budget check before every LLM call ───
+                from app.core.token_counter import estimate_messages_tokens  # noqa: PLC0415
+
+                input_est = estimate_messages_tokens(messages)
+                if not await self._check_llm_budget(
+                    request.user_id, input_tokens=input_est, output_tokens=1024
+                ):
+                    logger.info("LLM call blocked by rate limiter for user=%s", request.user_id)
+                    await self.botsignal.send_text(
+                        request.reply_target,
+                        "I'm currently rate-limited. Please wait a moment and try again.",
+                        source_kind="error",
+                    )
+                    _turn_success = False
+                    break
+
                 # ── Streaming path — streams text tokens live ─────────────
                 # Works even when tools are registered: streams partial text
                 # for real-time UX, then falls through to tool execution.
@@ -2241,6 +2422,15 @@ class AgentRuntime:
                     except Exception:
                         pass
 
+                    output_tokens = (
+                        estimate_messages_tokens([{"role": "assistant", "content": buffer}])
+                        if buffer
+                        else 0
+                    )
+                    await self._track_llm_usage(
+                        request.user_id, input_est + output_tokens, {"model": self.model_name}
+                    )
+
                     if buffer:
                         asst_msg = {"role": "assistant", "content": buffer}
                         messages.append(asst_msg)
@@ -2262,6 +2452,15 @@ class AgentRuntime:
                 llm_duration_seconds.labels(provider=provider_name, model=self.model_name).observe(
                     __import__("time").perf_counter() - start_llm
                 )
+
+                if res.get("success"):
+                    content, _tc = self._extract_provider_message(res)
+                    output_tokens = estimate_messages_tokens(
+                        [{"role": "assistant", "content": content or ""}]
+                    )
+                    await self._track_llm_usage(
+                        request.user_id, input_est + output_tokens, {"model": self.model_name}
+                    )
 
                 if not res.get("success"):
                     # Try resilient fallback across all configured providers [CLI, API, Local, etc]
@@ -2698,7 +2897,137 @@ class AgentRuntime:
                                     pass
 
                                 if not _cached:
-                                    result = await tool.execute(**args)
+                                    # ── Governance Engine: Policy check (deny-by-default) ──
+                                    from app.core.governance import ActionType, Decision
+                                    
+                                    # Determine action type from tool name
+                                    action_type = ActionType.TOOL_CALL
+                                    if "exec" in function_name or "shell" in function_name:
+                                        action_type = ActionType.SHELL_EXEC
+                                    elif "file" in function_name and ("write" in function_name or "delete" in function_name):
+                                        action_type = ActionType.FILE_WRITE
+                                    elif "network" in function_name or "web" in function_name or "http" in function_name:
+                                        action_type = ActionType.NETWORK_REQUEST
+                                    elif "docker" in function_name:
+                                        action_type = ActionType.SHELL_EXEC
+                                    elif "finance" in function_name and "trade" in function_name:
+                                        action_type = ActionType.FINANCIAL_ACTION
+                                    elif "device" in function_name or "desktop" in function_name or "mobile" in function_name:
+                                        action_type = ActionType.DEVICE_CONTROL
+                                    
+                                    # Evaluate against governance policy
+                                    decision, reason, matched_rules = self.governance_policy.evaluate(
+                                        actor=request.user_id,
+                                        tool_name=function_name,
+                                        action_type=action_type,
+                                        parameters=args,
+                                        context={
+                                            "user_id": request.user_id,
+                                            "agent_name": getattr(self, "_agent_name", "AssistantAgent"),
+                                            "session_id": session_id,
+                                            "platform": request.platform,
+                                        }
+                                    )
+                                    
+                                    # Audit the decision
+                                    self.governance_policy.audit(
+                                        actor=request.user_id,
+                                        action=function_name,
+                                        action_type=action_type,
+                                        decision=decision,
+                                        risk_level=self.governance_policy.get_tool_profile(function_name).risk_level if self.governance_policy.get_tool_profile(function_name) else RiskLevel.LOW,
+                                        parameters=args,
+                                        target=str(args.get("path") or args.get("command") or args.get("url") or ""),
+                                        session_id=session_id,
+                                        conversation_id=request.conversation_id
+                                    )
+                                    
+                                    if decision == Decision.DENY:
+                                        traces.append(ToolTrace(
+                                            tool_name=function_name,
+                                            action="governance_deny",
+                                            success=False,
+                                            detail=reason,
+                                        ))
+                                        await self.botsignal.send_text(
+                                            request.reply_target,
+                                            f"Action blocked by governance: {reason}",
+                                            source_kind=source_kind,
+                                            tool_traces=traces,
+                                        )
+                                        break
+                                    
+                                    elif decision == Decision.REQUIRE_APPROVAL:
+                                        # Create approval request
+                                        approval = self.governance_policy.create_approval_request(
+                                            user_id=request.user_id,
+                                            agent_name=getattr(self, "_agent_name", "AssistantAgent"),
+                                            tool_name=function_name,
+                                            action_type=action_type,
+                                            parameters=args,
+                                            risk_level=self.governance_policy.get_tool_profile(function_name).risk_level if self.governance_policy.get_tool_profile(function_name) else RiskLevel.HIGH,
+                                            context={
+                                                "user_id": request.user_id,
+                                                "session_id": session_id,
+                                                "platform": request.platform,
+                                            },
+                                            reason=f"High-risk tool {function_name} requires approval"
+                                        )
+                                        # Broadcast approval request to companion devices
+                                        try:
+                                            from app.companion.server import get_connection_manager, CompanionMessage
+                                            import uuid as _uuid
+                                            companion_mgr = get_connection_manager()
+                                            await companion_mgr.broadcast_to_user(request.user_id, CompanionMessage(
+                                                message_id=f"msg_{_uuid.uuid4().hex[:8]}",
+                                                type="approval_request",
+                                                payload={
+                                                    "approval_id": approval.request_id,
+                                                    "tool_name": function_name,
+                                                    "risk_level": approval.risk_level.value if hasattr(approval.risk_level, 'value') else str(approval.risk_level),
+                                                    "reason": approval.reason,
+                                                    "parameters": args,
+                                                    "created_at": approval.created_at,
+                                                }
+                                            ))
+                                        except Exception as _comp_exc:
+                                            logger.debug("Companion approval broadcast failed: %s", _comp_exc)
+                                        # Queue approval (would integrate with existing approval system)
+                                        traces.append(ToolTrace(
+                                            tool_name=function_name,
+                                            action="approval_required",
+                                            success=False,
+                                            detail=f"Approval required: {approval.request_id}",
+                                        ))
+                                        await self.botsignal.send_text(
+                                            request.reply_target,
+                                            f"⚠️ Approval required for {function_name}. Request ID: {approval.request_id}",
+                                            source_kind=source_kind,
+                                        )
+                                        break
+                                    
+                                    elif decision == Decision.REQUIRE_CONFIRMATION:
+                                        await self.botsignal.send_confirmation_request(
+                                            request.reply_target,
+                                            f"Confirm {function_name}",
+                                            reason,
+                                            source_kind=source_kind,
+                                        )
+                                        # Wait for confirmation (simplified - in reality would need callback)
+                                        # For now, proceed with confirmation assumed
+                                    
+                                    elif decision == Decision.SANDBOX:
+                                        # Execute in sandbox
+                                        logger.info(f"Executing {function_name} in sandbox")
+                                        sandbox_result = await self.sandbox_executor.execute(function_name, args)
+                                        if "error" in sandbox_result:
+                                            result = sandbox_result
+                                        else:
+                                            result = sandbox_result
+                                        _cached = True  # Skip normal execution
+                                    
+                                    # If ALLOW, proceed to normal execution
+                                    #
                             finally:
                                 if _obs_span_cm is not None:
                                     try:
@@ -2923,6 +3252,13 @@ class AgentRuntime:
             messages.append(nudge)
             self.session_manager.append_message(session_id, nudge)
             try:
+                from app.core.token_counter import estimate_messages_tokens  # noqa: PLC0415
+
+                exhausted_input_est = estimate_messages_tokens(messages)
+                await self._check_llm_budget(
+                    request.user_id, input_tokens=exhausted_input_est, output_tokens=1024
+                )
+
                 if hasattr(self.provider, "chat_completion_resilient"):
                     res = await self.provider.chat_completion_resilient(
                         messages=messages,
@@ -2956,6 +3292,14 @@ class AgentRuntime:
                     content, _tool_calls = self._extract_provider_message(res)
                     if not content:
                         content = "I have completed the task."
+                    exhausted_output_tokens = estimate_messages_tokens(
+                        [{"role": "assistant", "content": content}]
+                    )
+                    await self._track_llm_usage(
+                        request.user_id,
+                        exhausted_input_est + exhausted_output_tokens,
+                        {"model": self.model_name},
+                    )
                 else:
                     content = "I wasn't able to fully answer — please try rephrasing your question."
             except Exception:

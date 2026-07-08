@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}BLUEPRINTS — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3" x-data="blueprintCatalog()" x-init="loadBlueprints()">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-zinc-100 text-sm tracking-wider uppercase">BLUEPRINTS</h1>
+      <p class="text-zinc-500 text-[11px]">Automation blueprint catalog · <span x-text="blueprints.length"></span> installed</p>
+    </div>
+    <button @click="showInstall = true" class="text-[11px] bg-accent text-black px-3 py-1 rounded font-medium">+ Install</button>
+  </div>
+
+  <!-- Install form -->
+  <div x-show="showInstall" x-cloak class="border rounded p-3 space-y-2" style="border-color: var(--border-color); background: var(--bg-secondary);">
+    <div class="text-zinc-500 text-[10px] uppercase">Install Blueprint</div>
+    <input x-model="installForm.name" placeholder="Blueprint name" class="w-full bg-transparent border rounded px-2 py-1 text-[12px]" style="border-color: var(--border-color); color: var(--text-primary);" />
+    <textarea x-model="installForm.content" placeholder="YAML content" class="w-full bg-transparent border rounded px-2 py-1 text-[12px] font-mono" style="border-color: var(--border-color); color: var(--text-primary);" rows="6"></textarea>
+    <div class="flex gap-2">
+      <button @click="installBlueprint()" class="text-[11px] bg-accent text-black px-3 py-1 rounded font-medium">Install</button>
+      <button @click="showInstall = false" class="text-[11px] px-3 py-1 rounded" style="color: var(--text-muted);">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Blueprint list -->
+  <div class="space-y-2">
+    <template x-for="bp in blueprints" :key="bp.name">
+      <div class="border rounded p-3" style="border-color: var(--border-color); background: var(--bg-secondary);">
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="text-sm font-medium" x-text="bp.name"></span>
+            <span class="text-zinc-500 text-[10px] ml-2" x-text="'v' + bp.version"></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] px-1.5 py-0.5 rounded" :class="bp.enabled ? 'bg-green-900 text-green-300' : 'bg-zinc-800 text-zinc-500'" x-text="bp.enabled ? 'enabled' : 'disabled'"></span>
+            <button @click="runBlueprint(bp.name)" class="text-[11px] px-2 py-0.5 rounded border" style="border-color: var(--border-color);">Run</button>
+            <button @click="toggleBlueprint(bp.name)" class="text-[11px] px-2 py-0.5 rounded border" style="border-color: var(--border-color);" x-text="bp.enabled ? 'Disable' : 'Enable'"></button>
+          </div>
+        </div>
+        <div class="text-zinc-500 text-[11px] mt-1" x-text="bp.description"></div>
+        <div class="flex gap-3 mt-1.5 text-[10px]" style="color: var(--text-muted);">
+          <span>Author: <span class="text-zinc-400" x-text="bp.author"></span></span>
+          <span>Runs: <span class="text-zinc-400" x-text="bp.run_count || 0"></span></span>
+          <span>Last: <span class="text-zinc-400" x-text="bp.last_status || 'never'"></span></span>
+        </div>
+        <!-- Run result -->
+        <div x-show="results[bp.name]" class="mt-2 text-[11px] p-2 rounded" :class="results[bp.name].success ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'">
+          <span x-text="results[bp.name].success ? 'Success' : 'Failed'"></span>
+          <span x-text="' — ' + (results[bp.name].duration_ms || 0) + 'ms'"></span>
+          <span x-show="results[bp.name].error" x-text="' — ' + results[bp.name].error"></span>
+        </div>
+      </div>
+    </template>
+    <div x-show="blueprints.length === 0" class="text-zinc-600 text-[12px] text-center py-8">No blueprints installed. Click "+ Install" to add one.</div>
+  </div>
+</section>
+
+<script>
+function blueprintCatalog() {
+  return {
+    blueprints: [],
+    results: {},
+    showInstall: false,
+    installForm: { name: '', content: '' },
+    async loadBlueprints() {
+      try {
+        const r = await fetch('/api/blueprints/list');
+        const d = await r.json();
+        this.blueprints = d.blueprints || [];
+      } catch(e) { this.blueprints = []; }
+    },
+    async installBlueprint() {
+      if (!this.installForm.name || !this.installForm.content) return;
+      try {
+        await fetch('/api/blueprints/install', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(this.installForm),
+        });
+        this.showInstall = false;
+        this.installForm = { name: '', content: '' };
+        await this.loadBlueprints();
+      } catch(e) {}
+    },
+    async runBlueprint(name) {
+      try {
+        const r = await fetch('/api/blueprints/run', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ blueprint_id: name }),
+        });
+        this.results[name] = await r.json();
+        await this.loadBlueprints();
+      } catch(e) {}
+    },
+    async toggleBlueprint(name) {
+      try {
+        const bp = this.blueprints.find(b => b.name === name);
+        const action = bp.enabled ? 'disable' : 'enable';
+        await fetch('/api/blueprints/' + action, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ blueprint_id: name }),
+        });
+        await this.loadBlueprints();
+      } catch(e) {}
+    },
+  };
+}
+</script>
+{% endblock %}

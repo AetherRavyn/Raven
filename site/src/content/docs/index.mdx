@@ -1,0 +1,62 @@
+---
+title: RAVEN
+description: Personal Intelligence System
+template: splash
+hero:
+  tagline: A sophisticated, JARVIS-class Personal AI Agent built for extreme local and remote orchestration.
+  image:
+    file: ../../assets/raven_system_architecture.jpg
+  actions:
+    - text: Initialize System
+      link: /00-overview/
+      icon: right-arrow
+      variant: primary
+    - text: System Architecture
+      link: /01-system-architecture/
+      icon: setting
+      variant: secondary
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+<br />
+
+<div style="text-align: center; margin-bottom: 2rem;">
+	<h2 style="font-size: 2.5rem; background: -webkit-linear-gradient(45deg, #ff2d2d, #ff8a00); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">System Capabilities</h2>
+	<p style="color: var(--sl-color-gray-3); font-size: 1.2rem;">RAVEN operates simultaneously across desktop, mobile, and IoT.</p>
+</div>
+
+<CardGrid stagger>
+	<Card title="Extreme Modularity" icon="puzzle">
+		Built on a deeply extensible skill registry with dynamic capabilities. Tools and agents can be added on the fly without system restarts.
+	</Card>
+	<Card title="Deep Learning Integration" icon="star">
+		Seamless ML Depth integration using local inference engines, external large models (Gemini, GPT-4, Claude), and on-device NLP processing.
+	</Card>
+	<Card title="PicoClaw & ZeroClaw" icon="rocket">
+		Scale down to low-cost IoT nodes using ESP32/Raspberry Pi Zero hardware to distribute awareness securely across physical space.
+	</Card>
+	<Card title="Voice & Personality" icon="microphone">
+		Advanced cross-channel real-time voice sessions. RAVEN adapts its personality and voice based on context, user preference, and situation.
+	</Card>
+	<Card title="Uncompromising Safety" icon="approve-check">
+		Multi-layered safety constraints utilizing semantic guards and role-based access for local and remote operations.
+	</Card>
+	<Card title="Ecosystem Orchestration" icon="laptop">
+		Connects everything from native Desktop/Companion shells to cloud servers, seamlessly migrating context across devices.
+	</Card>
+</CardGrid>
+
+<br />
+<br />
+
+## Documentation Directory
+
+Explore RAVEN's architecture, tools, deployment guides, and feature modules.
+
+<CardGrid>
+	<LinkCard title="Core Architecture" description="Understand the unified runtime loop, swarm orchestration, and message queues." href="/01-system-architecture/" />
+	<LinkCard title="Deployment & Scaling" description="Deploying the core node and extending capabilities through mesh networks." href="/08-deployment-scaling/" />
+	<LinkCard title="Tools Ecosystem" description="An expansive marketplace of utilities available to local agents." href="/04-tools-ecosystem/" />
+	<LinkCard title="Gap Analysis" description="Track the remaining gaps required to achieve true JARVIS/FRIDAY level intelligence." href="/gap_analysis_2026_06/" />
+</CardGrid>

@@ -9,6 +9,10 @@ __pycache__/
 *.so
 build/
 dist/
+
+# ── Astro documentation site build ──────────────────────────────────
+site/dist/
+site/node_modules/
 wheels/
 *.egg-info/
 *.egg

@@ -24,6 +24,8 @@ class ProfilesDashboardRouter:
         self._routes: dict[str, Callable[..., dict[str, Any]]] = {
             "GET /profiles/list": self.list_profiles,
             "GET /profiles/load": self.load_profile,
+            "POST /profiles/save": self.save_profile,
+            "POST /profiles/delete": self.delete_profile,
         }
 
     @property
@@ -61,6 +63,36 @@ class ProfilesDashboardRouter:
             }
         except Exception as exc:  # noqa: BLE001
             logger.exception("profiles load failed: %s", exc)
+            return {"ok": False, "error": str(exc)}
+
+    def save_profile(self, **kwargs: Any) -> dict[str, Any]:
+        user_id = kwargs.get("user_id", "")
+        if not user_id:
+            return {"ok": False, "error": "user_id required"}
+        try:
+            profile = self._store.load(user_id)
+            for field in ("display_name", "preferences", "facts", "projects", "pinned"):
+                if field in kwargs:
+                    setattr(profile, field, kwargs[field])
+            self._store.save(profile)
+            logger.info("Profile saved: %s", user_id)
+            return {"ok": True, "user_id": user_id}
+        except Exception as exc:
+            logger.exception("profiles save failed: %s", exc)
+            return {"ok": False, "error": str(exc)}
+
+    def delete_profile(self, *, user_id: str) -> dict[str, Any]:
+        if not user_id:
+            return {"ok": False, "error": "user_id required"}
+        try:
+            profile_path = self._store.profiles_dir / f"{user_id}.json"
+            if profile_path.exists():
+                profile_path.unlink()
+                logger.info("Profile deleted: %s", user_id)
+                return {"ok": True, "user_id": user_id, "status": "deleted"}
+            return {"ok": True, "user_id": user_id, "status": "not_found"}
+        except Exception as exc:
+            logger.exception("profiles delete failed: %s", exc)
             return {"ok": False, "error": str(exc)}
 
     # ── Dispatch ────────────────────────────────────────────────────

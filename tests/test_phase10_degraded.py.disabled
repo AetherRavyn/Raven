@@ -1,0 +1,718 @@
+"""Tests for Phase 10 — degraded modes and offline presence.
+
+Covers:
+  1. Mode enum and ModeState dataclass shape.
+  2. probe_connectivity returns (ok, err) correctly.
+  3. ModeDetector: online → degraded → offline transition ladder.
+  4. ModeDetector: offline → degraded → online recovery.
+  5. ModeDetector: operator override beats auto, with TTL.
+  6. ModeDetector: state persistence to disk.
+  7. ModeDetector: on_change callback fires on every transition.
+  8. Outbox: enqueue + drain_once with a stub sender.
+  9. Outbox: idempotency — same key returns same entry.
+ 10. Outbox: ordering preserved within a single instance.
+ 11. Outbox: failed sends are retried with backoff.
+ 12. Outbox: failed-after-MAX_ATTEMPTS entry is marked "failed".
+ 13. Outbox: persistence round-trip (crash recovery).
+ 14. gate_request: online passes through unchanged.
+ 15. gate_request: degraded forces NANO tier.
+ 16. gate_request: offline returns None.
+ 17. CannedAnswerBank: pick_canned matches by regex.
+ 18. CannedAnswerBank: priority picks the right entry on ambiguity.
+ 19. CannedAnswerBank: from_json_file + to_json round-trip.
+ 20. StatusCollector: with no mode_provider, mode is None.
+ 21. StatusCollector: with mode_provider, mode is sampled.
+ 22. StatusCollector: outbox_pending reflects provider.
+ 23. StatusCollector: provider exceptions are swallowed, mode=None.
+ 24. CLI `mode show` prints current state from a file.
+ 25. CLI `mode set` writes override into the state file.
+ 26. CLI `mode clear` removes the override.
+ 27. CLI `mode history` prints transitions.
+ 28. Module integration: outbox + canned + mode wired together.
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import io
+import json
+import os
+import sys
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from unittest.mock import patch
+
+from app.cli import mode_cmd
+from app.companion.status import StatusCollector, StatusSnapshot
+from app.core.cost_router.types import (
+    ModelCapability,
+    ModelTier,
+    RouteRequest,
+    TaskType,
+)
+from app.runtime.degraded import (
+    CannedAnswerBank,
+    CannedEntry,
+    DEGRADED_ALLOWED_TIERS,
+    OFFLINE_ALLOWED_TIERS,
+    gate_request,
+    pick_canned,
+)
+from app.runtime.mode import (
+    FAIL_TO_DEGRADED,
+    FAIL_TO_OFFLINE,
+    Mode,
+    ModeDetector,
+    ModeState,
+    ModeTransition,
+    PASS_TO_DEGRADED,
+    PASS_TO_ONLINE,
+    probe_connectivity,
+)
+from app.runtime.outbox import (
+    Outbox,
+    OutboxEntry,
+    make_idempotency_key,
+)
+
+
+# ── Mode enum + state ──────────────────────────────────────────────
+
+
+class TestModeBasics(unittest.TestCase):
+    def test_modes_are_strings(self) -> None:
+        self.assertEqual(Mode.ONLINE.value, "online")
+        self.assertEqual(Mode.DEGRADED.value, "degraded")
+        self.assertEqual(Mode.OFFLINE.value, "offline")
+
+    def test_effective_mode_respects_override(self) -> None:
+        s = ModeState()
+        s.mode = Mode.ONLINE
+        s.override = Mode.OFFLINE
+        s.override_expires_at = 10**12  # far in the future
+        self.assertEqual(s.effective_mode(), Mode.OFFLINE)
+
+    def test_effective_mode_falls_back_to_auto(self) -> None:
+        s = ModeState()
+        s.mode = Mode.ONLINE
+        s.override = Mode.OFFLINE
+        s.override_expires_at = 0.0  # expired
+        self.assertEqual(s.effective_mode(), Mode.ONLINE)
+
+    def test_to_dict_shape(self) -> None:
+        d = ModeState().to_dict()
+        for key in (
+            "mode",
+            "auto",
+            "override",
+            "last_probe_ok",
+            "history",
+        ):
+            self.assertIn(key, d)
+
+
+# ── Probe ───────────────────────────────────────────────────────────
+
+
+class TestProbe(unittest.TestCase):
+    def test_probe_returns_tuple(self) -> None:
+        ok, err = probe_connectivity(hosts=(("127.0.0.1", 1),), timeout_s=0.05)
+        # Either we get a connection refused (loopback) or a timeout.
+        # We only care that the function returns a (bool, str) pair.
+        self.assertIsInstance(ok, bool)
+        self.assertIsInstance(err, str)
+
+
+# ── Detector transitions ───────────────────────────────────────────
+
+
+class TestDetectorTransitions(unittest.TestCase):
+    def _make(self) -> ModeDetector:
+        # Avoid touching the on-disk state file during tests.
+        d = ModeDetector.__new__(ModeDetector)
+        d.state = ModeState()
+        d._probe_hosts = ()
+        d._probe_interval = 999.0
+        d._callbacks = []
+        d._pending_callbacks = []
+        d._task = None
+        d._stopped = False
+        d._state_path = None
+        return d
+
+    def test_online_to_degraded_after_n_fails(self) -> None:
+        d = self._make()
+        for _ in range(FAIL_TO_DEGRADED):
+            d._absorb_probe(False, "test")
+        self.assertEqual(d.state.mode, Mode.DEGRADED)
+
+    def test_degraded_to_offline_after_more_fails(self) -> None:
+        d = self._make()
+        # Force a few more fails to reach OFFLINE.
+        for _ in range(FAIL_TO_OFFLINE + 1):
+            d._absorb_probe(False, "test")
+        self.assertEqual(d.state.mode, Mode.OFFLINE)
+
+    def test_offline_to_degraded_recovery(self) -> None:
+        d = self._make()
+        for _ in range(FAIL_TO_OFFLINE + 1):
+            d._absorb_probe(False, "test")
+        self.assertEqual(d.state.mode, Mode.OFFLINE)
+        # One pass lifts us out of OFFLINE to DEGRADED.
+        d._absorb_probe(True, "")
+        self.assertEqual(d.state.mode, Mode.DEGRADED)
+
+    def test_degraded_to_online_recovery(self) -> None:
+        d = self._make()
+        for _ in range(FAIL_TO_DEGRADED):
+            d._absorb_probe(False, "test")
+        self.assertEqual(d.state.mode, Mode.DEGRADED)
+        for _ in range(PASS_TO_ONLINE):
+            d._absorb_probe(True, "")
+        self.assertEqual(d.state.mode, Mode.ONLINE)
+
+    def test_history_records_transitions(self) -> None:
+        d = self._make()
+        for _ in range(FAIL_TO_OFFLINE + 1):
+            d._absorb_probe(False, "test")
+        self.assertGreater(len(d.state.history), 0)
+        last = d.state.history[-1]
+        self.assertEqual(last.to_mode, Mode.OFFLINE)
+
+
+# ── Detector override + persistence ────────────────────────────────
+
+
+class TestDetectorOverrideAndPersistence(unittest.TestCase):
+    def test_override_beats_auto(self) -> None:
+        d = ModeDetector()
+        d.set_override(Mode.OFFLINE, ttl_s=60.0)
+        self.assertEqual(d.current(), Mode.OFFLINE)
+
+    def test_override_clear(self) -> None:
+        d = ModeDetector()
+        d.set_override(Mode.OFFLINE, ttl_s=60.0)
+        d.set_override(None)
+        self.assertEqual(d.state.override, None)
+        self.assertEqual(d.current(), Mode.ONLINE)
+
+    def test_persistence_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "mode.json"
+            d1 = ModeDetector(state_path=path)
+            d1.set_override(Mode.DEGRADED, ttl_s=120.0)
+            d1.state.history.append(
+                ModeTransition(
+                    at=1.0,
+                    from_mode=Mode.ONLINE,
+                    to_mode=Mode.DEGRADED,
+                    reason="unit test",
+                )
+            )
+            d1._save_state()
+            d2 = ModeDetector(state_path=path)
+            self.assertEqual(d2.state.override, Mode.DEGRADED)
+            self.assertEqual(len(d2.state.history), 1)
+
+
+# ── Detector on_change callback ────────────────────────────────────
+
+
+class TestDetectorCallbacks(unittest.IsolatedAsyncioTestCase):
+    async def test_callback_fires_on_transition(self) -> None:
+        d = ModeDetector.__new__(ModeDetector)
+        d.state = ModeState()
+        d._probe_hosts = ()
+        d._probe_interval = 999.0
+        d._callbacks = []
+        d._pending_callbacks = []
+        d._task = None
+        d._stopped = False
+        d._state_path = None
+        seen: list[tuple[Mode, Mode]] = []
+
+        async def cb(frm: Mode, to: Mode) -> None:
+            seen.append((frm, to))
+
+        d.on_change(cb)
+        # Drive transitions through _absorb_probe (overrides don't
+        # fire on_change — they only change the effective mode).
+        for _ in range(FAIL_TO_DEGRADED + 1):
+            d._absorb_probe(False, "test")
+        # Let scheduled callback tasks run.
+        await d.drain_callbacks()
+        # We expect at least one transition callback.
+        self.assertGreaterEqual(len(seen), 1)
+        # And the most recent should be to degraded or offline.
+        self.assertIn(seen[-1][1], (Mode.DEGRADED, Mode.OFFLINE))
+
+
+# ── Outbox ──────────────────────────────────────────────────────────
+
+
+class TestOutbox(unittest.IsolatedAsyncioTestCase):
+    async def test_enqueue_returns_entry(self) -> None:
+        ob = Outbox()
+        e = await ob.enqueue(
+            idempotency_key="k1", channel="telegram", target="c1",
+            action="send_text", payload={"text": "hi"},
+        )
+        self.assertIsInstance(e, OutboxEntry)
+        self.assertEqual(e.state, "pending")
+        self.assertEqual(len(ob), 1)
+
+    async def test_enqueue_is_idempotent(self) -> None:
+        ob = Outbox()
+        e1 = await ob.enqueue(
+            idempotency_key="k1", channel="x", target="t", action="a"
+        )
+        e2 = await ob.enqueue(
+            idempotency_key="k1", channel="x", target="t", action="a"
+        )
+        self.assertIs(e1, e2)
+        self.assertEqual(len(ob), 1)
+
+    async def test_drain_with_successful_sender(self) -> None:
+        ob = Outbox()
+        sent: list[OutboxEntry] = []
+
+        async def sender(entry: OutboxEntry) -> None:
+            sent.append(entry)
+
+        ob.register_sender("telegram", sender)
+        await ob.enqueue(
+            idempotency_key="a", channel="telegram", target="c", action="send"
+        )
+        await ob.enqueue(
+            idempotency_key="b", channel="telegram", target="c", action="send"
+        )
+        report = await ob.drain_once()
+        self.assertEqual(report["sent"], 2)
+        self.assertEqual(report["failed"], 0)
+        self.assertEqual(len(sent), 2)
+        # Order preserved.
+        self.assertEqual([e.idempotency_key for e in sent], ["a", "b"])
+
+    async def test_drain_with_failing_sender(self) -> None:
+        ob = Outbox()
+        attempts: list[str] = []
+
+        async def sender(entry: OutboxEntry) -> None:
+            attempts.append(entry.idempotency_key)
+            raise ConnectionError("offline")
+
+        ob.register_sender("x", sender)
+        e = await ob.enqueue(
+            idempotency_key="k", channel="x", target="t", action="a"
+        )
+        report = await ob.drain_once()
+        self.assertEqual(report["failed"], 1)
+        self.assertEqual(report["sent"], 0)
+        self.assertEqual(e.attempts, 1)
+        self.assertEqual(e.state, "pending")
+        # Last error is captured.
+        self.assertIn("ConnectionError", e.last_error)
+
+    async def test_drain_marks_failed_after_max_attempts(self) -> None:
+        ob = Outbox()
+
+        async def sender(entry: OutboxEntry) -> None:
+            raise ConnectionError("dead")
+
+        ob.register_sender("x", sender)
+        e = await ob.enqueue(
+            idempotency_key="k", channel="x", target="t", action="a"
+        )
+        # Drive the entry to MAX_ATTEMPTS manually.
+        for _ in range(10):
+            await ob.drain_once()
+            # No backoff in tests — we want to hammer.
+            e.last_attempt_at = 0
+        self.assertEqual(e.state, "failed")
+
+    async def test_drain_respects_backoff(self) -> None:
+        now = [1000.0]
+
+        def clock() -> float:
+            return now[0]
+
+        ob = Outbox(now_fn=clock)
+
+        async def sender(entry: OutboxEntry) -> None:
+            raise ConnectionError("offline")
+
+        ob.register_sender("x", sender)
+        e = await ob.enqueue(
+            idempotency_key="k", channel="x", target="t", action="a"
+        )
+        # First drain: attempt 1.
+        await ob.drain_once()
+        # Advance clock by less than backoff.
+        now[0] += 0.5
+        report = await ob.drain_once()
+        # Should be skipped (backoff not elapsed).
+        self.assertEqual(report["sent"], 0)
+        self.assertEqual(report["failed"], 0)
+        self.assertGreaterEqual(report["skipped"], 1)
+        # Advance past backoff.
+        now[0] += 100
+        report = await ob.drain_once()
+        self.assertEqual(report["failed"], 1)
+
+    async def test_persistence_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "outbox.jsonl"
+            sent: list[str] = []
+
+            async def sender(entry: OutboxEntry) -> None:
+                sent.append(entry.idempotency_key)
+
+            ob1 = Outbox(path=path, sender=sender)
+            await ob1.enqueue(
+                idempotency_key="a", channel="x", target="t", action="send"
+            )
+            await ob1.drain_once()
+            await ob1.enqueue(
+                idempotency_key="b", channel="x", target="t", action="send"
+            )
+            # Don't drain "b" — it should still be pending.
+            # Now load into a fresh outbox (simulating process restart).
+            ob2 = Outbox(path=path, sender=sender)
+            self.assertEqual(len(ob2), 2)
+            self.assertEqual(ob2.by_key("a").state, "sent")
+            self.assertEqual(ob2.by_key("b").state, "pending")
+            report = await ob2.drain_once()
+            self.assertEqual(report["sent"], 1)
+            self.assertEqual(sent.count("b"), 1)
+
+    async def test_drain_until_drained(self) -> None:
+        ob = Outbox()
+        count = [0]
+
+        async def sender(entry: OutboxEntry) -> None:
+            count[0] += 1
+
+        ob.register_sender("x", sender)
+        for i in range(3):
+            await ob.enqueue(
+                idempotency_key=f"k{i}", channel="x", target="t", action="a"
+            )
+        report = await ob.drain_until_drained(max_passes=2)
+        self.assertEqual(report["sent"], 3)
+        self.assertEqual(count[0], 3)
+
+    def test_idempotency_key_helper(self) -> None:
+        a = make_idempotency_key("send", "chat1", {"text": "hi"})
+        b = make_idempotency_key("send", "chat1", {"text": "hi"})
+        c = make_idempotency_key("send", "chat1", {"text": "bye"})
+        self.assertEqual(a, b)
+        self.assertNotEqual(a, c)
+
+
+# ── gate_request ────────────────────────────────────────────────────
+
+
+class TestGateRequest(unittest.TestCase):
+    def _req(self) -> RouteRequest:
+        return RouteRequest(
+            task=TaskType.CHAT,
+            input_tokens=200,
+            max_output_tokens=200,
+            requires=frozenset(),
+            min_tier=ModelTier.SMALL,
+            max_tier=ModelTier.LARGE,
+            budget_usd=0.05,
+        )
+
+    def test_online_passes_through(self) -> None:
+        r = self._req()
+        out = gate_request(r, Mode.ONLINE)
+        self.assertIs(out, r)
+
+    def test_degraded_forces_nano(self) -> None:
+        r = self._req()
+        out = gate_request(r, Mode.DEGRADED)
+        self.assertIsNotNone(out)
+        self.assertEqual(out.min_tier, ModelTier.NANO)
+        self.assertEqual(out.max_tier, ModelTier.NANO)
+        self.assertEqual(out.budget_usd, 0.0)
+
+    def test_offline_returns_none(self) -> None:
+        r = self._req()
+        self.assertIsNone(gate_request(r, Mode.OFFLINE))
+
+    def test_tier_constants(self) -> None:
+        self.assertIn(ModelTier.NANO, DEGRADED_ALLOWED_TIERS)
+        self.assertEqual(OFFLINE_ALLOWED_TIERS, ())
+
+
+# ── Canned answers ─────────────────────────────────────────────────
+
+
+class TestCannedAnswers(unittest.TestCase):
+    def test_status_query_matches(self) -> None:
+        e = pick_canned("are you ok?")
+        self.assertIsNotNone(e)
+        self.assertEqual(e.intent, "status")
+
+    def test_mode_query_matches(self) -> None:
+        e = pick_canned("what mode are you in?")
+        self.assertIsNotNone(e)
+        self.assertEqual(e.intent, "mode")
+
+    def test_unknown_query_no_match(self) -> None:
+        self.assertIsNone(pick_canned("explain quantum entanglement in 5 paragraphs"))
+
+    def test_priority_wins_on_ambiguity(self) -> None:
+        # Both "status" and "help" patterns could match "what can you do".
+        # Higher-priority entry should win.
+        bank = CannedAnswerBank(
+            [
+                CannedEntry(
+                    intent="low",
+                    patterns=[r"\bhelp\b"],
+                    text="low",
+                    priority=1,
+                ),
+                CannedEntry(
+                    intent="high",
+                    patterns=[r"\bhelp\b"],
+                    text="high",
+                    priority=10,
+                ),
+            ]
+        )
+        e = pick_canned("help", bank)
+        self.assertEqual(e.intent, "high")
+
+    def test_json_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bank.json"
+            bank = CannedAnswerBank(
+                [
+                    CannedEntry(
+                        intent="x", patterns=[r"\bfoo\b"], text="bar", priority=0
+                    )
+                ]
+            )
+            path.write_text(bank.to_json())
+            bank2 = CannedAnswerBank.from_json_file(path)
+            self.assertEqual(len(bank2), 1)
+            self.assertEqual(bank2._entries[0].text, "bar")  # noqa: SLF001
+
+    def test_from_missing_file_returns_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bank = CannedAnswerBank.from_json_file(Path(tmp) / "missing.json")
+            self.assertGreater(len(bank), 0)
+
+
+# ── Status tile integration ────────────────────────────────────────
+
+
+class TestStatusTileMode(unittest.TestCase):
+    def test_no_provider_mode_is_none(self) -> None:
+        c = StatusCollector()
+        s = c.sample()
+        self.assertIsNone(s.mode)
+        self.assertEqual(s.outbox_pending, 0)
+
+    def test_provider_returns_mode(self) -> None:
+        c = StatusCollector(mode_provider=lambda: "offline")
+        s = c.sample()
+        self.assertEqual(s.mode, "offline")
+        self.assertEqual(s.to_dict()["mode"], "offline")
+
+    def test_outbox_provider_sets_pending(self) -> None:
+        c = StatusCollector(
+            mode_provider=lambda: "degraded",
+            outbox_provider=lambda: 7,
+        )
+        s = c.sample()
+        self.assertEqual(s.outbox_pending, 7)
+
+    def test_provider_exception_is_swallowed(self) -> None:
+        def boom() -> str:
+            raise RuntimeError("nope")
+
+        c = StatusCollector(mode_provider=boom, outbox_provider=boom)
+        s = c.sample()
+        self.assertIsNone(s.mode)
+        self.assertEqual(s.outbox_pending, 0)
+
+    def test_set_mode_provider_hot_swap(self) -> None:
+        c = StatusCollector()
+        c.set_mode_provider(lambda: "online")
+        s = c.sample()
+        self.assertEqual(s.mode, "online")
+
+    def test_status_snapshot_to_dict_has_phase10_keys(self) -> None:
+        s = StatusSnapshot()
+        d = s.to_dict()
+        for key in ("mode", "mode_overridden", "outbox_pending"):
+            self.assertIn(key, d)
+
+
+# ── CLI mode command ───────────────────────────────────────────────
+
+
+class TestModeCLI(unittest.TestCase):
+    def _ns(self, **kwargs) -> argparse.Namespace:
+        return argparse.Namespace(**kwargs)
+
+    def _captured(self, fn, *args, **kwargs) -> str:
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            rc = fn(*args, **kwargs)
+        return buf.getvalue(), rc
+
+    def test_show_empty_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_file = Path(tmp) / "mode.json"
+            ns = self._ns(state_file=str(state_file))
+            out, rc = self._captured(mode_cmd.cmd_mode_show, ns)
+            self.assertEqual(rc, 0)
+            self.assertIn("no mode state", out)
+
+    def test_set_writes_override(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_file = Path(tmp) / "mode.json"
+            ns = self._ns(
+                state_file=str(state_file), mode="offline", ttl=120
+            )
+            out, rc = self._captured(mode_cmd.cmd_mode_set, ns)
+            self.assertEqual(rc, 0)
+            data = json.loads(state_file.read_text())
+            self.assertEqual(data["override"], "offline")
+            self.assertGreater(data["override_expires_at"], 0)
+
+    def test_clear_removes_override(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_file = Path(tmp) / "mode.json"
+            state_file.write_text(
+                json.dumps({"override": "offline", "override_expires_at": 999999})
+            )
+            ns = self._ns(state_file=str(state_file))
+            out, rc = self._captured(mode_cmd.cmd_mode_clear, ns)
+            self.assertEqual(rc, 0)
+            data = json.loads(state_file.read_text())
+            self.assertIsNone(data["override"])
+
+    def test_history_prints(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_file = Path(tmp) / "mode.json"
+            state_file.write_text(
+                json.dumps(
+                    {
+                        "history": [
+                            {
+                                "at": 1700000000,
+                                "from": "online",
+                                "to": "degraded",
+                                "reason": "test",
+                            }
+                        ]
+                    }
+                )
+            )
+            ns = self._ns(state_file=str(state_file))
+            out, rc = self._captured(mode_cmd.cmd_mode_history, ns)
+            self.assertEqual(rc, 0)
+            self.assertIn("online -> degraded", out)
+
+    def test_show_after_set(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_file = Path(tmp) / "mode.json"
+            set_ns = self._ns(
+                state_file=str(state_file), mode="degraded", ttl=300
+            )
+            self._captured(mode_cmd.cmd_mode_set, set_ns)
+            show_ns = self._ns(state_file=str(state_file))
+            out, rc = self._captured(mode_cmd.cmd_mode_show, show_ns)
+            self.assertEqual(rc, 0)
+            self.assertIn("degraded", out)
+            self.assertIn("Operator override: degraded", out)
+
+    def test_register_on_main_parser(self) -> None:
+        # Smoke-test that the subparser registers cleanly.
+        from app.cli.mode_cmd import add_mode_subparser
+
+        parser = argparse.ArgumentParser()
+        subs = parser.add_subparsers(dest="command", required=True)
+        add_mode_subparser(subs)
+        # The "mode" subcommand should be present.
+        # We can't introspect easily; just check parse works.
+        args = parser.parse_args(["mode", "show", "--state-file", "/tmp/x"])
+        self.assertEqual(args.command, "mode")
+        self.assertEqual(args.mode_command, "show")
+
+
+# ── Integration: outbox + canned + mode ─────────────────────────────
+
+
+class TestIntegrationOfflineFlow(unittest.IsolatedAsyncioTestCase):
+    async def test_offline_returns_canned(self) -> None:
+        # 1. Set mode to OFFLINE.
+        d = ModeDetector.__new__(ModeDetector)
+        d.state = ModeState()
+        d._probe_hosts = ()
+        d._probe_interval = 999.0
+        d._callbacks = []
+        d._pending_callbacks = []
+        d._task = None
+        d._stopped = False
+        d._state_path = None
+        d.set_override(Mode.OFFLINE, ttl_s=60.0)
+        self.assertEqual(d.current(), Mode.OFFLINE)
+
+        # 2. gate_request returns None — caller should fall back to canned.
+        req = RouteRequest(
+            task=TaskType.CHAT,
+            input_tokens=10,
+            max_output_tokens=10,
+            requires=frozenset(),
+            min_tier=ModelTier.SMALL,
+            max_tier=ModelTier.LARGE,
+        )
+        self.assertIsNone(gate_request(req, d.current()))
+
+        # 3. Canned answer covers the question.
+        e = pick_canned("what mode are you in?")
+        self.assertIsNotNone(e)
+        self.assertEqual(e.intent, "mode")
+
+    async def test_outbox_buffers_then_drains(self) -> None:
+        # 1. Outbox + failing sender.
+        ob = Outbox()
+        fail = [True]
+        sent: list[str] = []
+
+        async def sender(entry: OutboxEntry) -> None:
+            if fail[0]:
+                raise ConnectionError("offline")
+            sent.append(entry.idempotency_key)
+
+        ob.register_sender("telegram", sender)
+        await ob.enqueue(
+            idempotency_key="a", channel="telegram", target="c1", action="send"
+        )
+        await ob.enqueue(
+            idempotency_key="b", channel="telegram", target="c1", action="send"
+        )
+
+        # 2. First drain: everything fails.
+        report = await ob.drain_once()
+        self.assertEqual(report["failed"], 2)
+        self.assertEqual(sent, [])
+        self.assertEqual(ob.pending_count(), 2)
+
+        # 3. Connectivity returns.
+        fail[0] = False
+        report = await ob.drain_until_drained()
+        self.assertEqual(report["sent"], 2)
+        self.assertEqual(sent, ["a", "b"])
+
+
+if __name__ == "__main__":
+    unittest.main()

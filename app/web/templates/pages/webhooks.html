@@ -1,24 +1,152 @@
 {% extends "base.html" %}
 {% block title %}WEBHOOKS — RAVEN{% endblock %}
+{% block head_extra %}
+<script>
+  window.__webhookEndpoints = {
+    list: "/api/webhooks/list",
+    add: "/api/webhooks/add",
+    remove: "/api/webhooks/remove",
+    test: "/api/webhooks/test",
+  };
+</script>
+{% endblock %}
 {% block main %}
-<section class="space-y-3">
-  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">WEBHOOKS</h1>
-  <p class="text-zinc-500 text-[11px]">Outbound HTTP hooks · CRUD ships in v33 · v32 ships the page surface only</p>
-  <div class="border border-ink-600 bg-ink-800 rounded p-3">
-    <div class="flex items-center justify-between mb-2">
-      <span class="text-zinc-500 text-[10px] uppercase">registered webhooks</span>
-      <span class="text-zinc-600 text-[10px]">count: 0</span>
+<section class="space-y-4" x-data="webhookApp()" x-init="init()">
+  <div class="flex items-center justify-between">
+    <h1 class="text-zinc-100 text-sm tracking-wider uppercase">WEBHOOKS</h1>
+    <div class="flex items-center gap-2">
+      <span class="text-zinc-500 text-[11px]">{{ count|default(0) }} registered</span>
+      <button @click="showAdd = true" class="px-3 py-1 text-[11px] border border-ink-600 rounded hover:bg-ink-700 transition-colors" style="color:var(--accent);">+ ADD</button>
     </div>
-    <div class="text-zinc-600 text-[12px]" id="webhooks-list">[no webhooks — CRUD ships in v33]</div>
   </div>
-  <div class="border border-ink-600 bg-ink-800 rounded p-3 space-y-2">
-    <div class="text-zinc-500 text-[10px] uppercase">add webhook (disabled in v32)</div>
-    <div class="flex items-center gap-2 text-[12px]">
-      <input class="bg-ink-900 border border-ink-600 rounded px-2 py-1 flex-1 text-zinc-300 font-mono"
-             placeholder="https://example.com/raven-hook" disabled />
-      <button class="text-zinc-500 px-3 py-1 border border-ink-600 rounded" disabled>add</button>
+
+  <!-- Add Webhook Form -->
+  <div x-show="showAdd" x-cloak class="border border-ink-600 bg-ink-800 rounded p-3 space-y-2">
+    <div class="text-zinc-500 text-[10px] uppercase">new webhook</div>
+    <div class="grid grid-cols-3 gap-2">
+      <input x-model="form.name" placeholder="Name (optional)" class="col-span-1 bg-ink-900 border border-ink-600 rounded px-2 py-1 text-[12px] text-zinc-300 font-mono" />
+      <input x-model="form.url" placeholder="https://example.com/hook" class="col-span-2 bg-ink-900 border border-ink-600 rounded px-2 py-1 text-[12px] text-zinc-300 font-mono" />
     </div>
-    <p class="text-zinc-600 text-[11px]">Wire-up lands in v33 alongside the JSONL-backed WebhookStore.</p>
+    <div class="flex items-center gap-2 text-[11px]">
+      <span class="text-zinc-500">Events:</span>
+      <input x-model="form.events" placeholder="* (all), or comma-separated: message.created,agent.started" class="flex-1 bg-ink-900 border border-ink-600 rounded px-2 py-1 text-zinc-300 font-mono" />
+    </div>
+    <div class="flex items-center gap-2 text-[11px]">
+      <span class="text-zinc-500">Secret:</span>
+      <input x-model="form.secret" placeholder="HMAC secret (optional)" class="flex-1 bg-ink-900 border border-ink-600 rounded px-2 py-1 text-zinc-300 font-mono" />
+    </div>
+    <div class="flex justify-end gap-2">
+      <button @click="showAdd = false" class="px-3 py-1 text-[11px] border border-ink-600 rounded hover:bg-ink-700 transition-colors text-zinc-400">cancel</button>
+      <button @click="addWebhook()" class="px-3 py-1 text-[11px] border border-ink-600 rounded hover:bg-ink-700 transition-colors" style="color:var(--accent);">save</button>
+    </div>
+  </div>
+
+  <!-- Webhook List -->
+  <div x-show="webhooks.length === 0" x-cloak class="border border-ink-600 bg-ink-800 rounded p-6 text-center">
+    <p class="text-zinc-500 text-[12px]">No webhooks configured yet.</p>
+    <p class="text-zinc-600 text-[11px] mt-1">Click <span class="text-zinc-400">+ ADD</span> above to create your first webhook.</p>
+  </div>
+
+  <template x-for="wh in webhooks" :key="wh.id">
+    <div class="border border-ink-600 bg-ink-800 rounded p-3 space-y-2">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full" :style="wh.enabled ? 'background:var(--success)' : 'background:var(--text-muted)'"></span>
+          <span class="text-zinc-300 text-[12px] font-medium" x-text="wh.name || wh.id"></span>
+          <span class="text-zinc-600 text-[10px] font-mono" x-text="wh.id"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button @click="testWebhook(wh.id)" class="px-2 py-1 text-[10px] border border-ink-600 rounded hover:bg-ink-700 transition-colors text-zinc-400" :disabled="testing === wh.id">
+            <span x-show="testing !== wh.id">test</span>
+            <span x-show="testing === wh.id">…</span>
+          </button>
+          <button @click="toggleWebhook(wh.id)" class="px-2 py-1 text-[10px] border border-ink-600 rounded hover:bg-ink-700 transition-colors" :style="wh.enabled ? 'color:var(--success)' : 'color:var(--text-muted)'" x-text="wh.enabled ? 'on' : 'off'"></button>
+          <button @click="removeWebhook(wh.id)" class="px-2 py-1 text-[10px] border border-ink-600 rounded hover:bg-red-900 hover:text-red-300 transition-colors text-zinc-500">✕</button>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-[11px] text-zinc-500 font-mono truncate" x-text="wh.url"></div>
+      <div class="flex items-center gap-4 text-[10px] text-zinc-600">
+        <span>events: <span class="text-zinc-400" x-text="(wh.events || ['*']).join(', ')"></span></span>
+        <span>triggered: <span class="text-zinc-400" x-text="wh.trigger_count || 0"></span></span>
+      </div>
+    </div>
+  </template>
+
+  <!-- Test Result Toast -->
+  <div x-show="testResult" x-cloak x-transition class="fixed bottom-4 right-4 border rounded p-3 text-[12px] max-w-md" :style="testResult?.ok ? 'border-color:var(--success);background:var(--bg-secondary);color:var(--success)' : 'border-color:var(--error);background:var(--bg-secondary);color:var(--error)'">
+    <div class="font-medium mb-1" x-text="testResult?.ok ? '✓ Webhook sent' : '✗ Webhook failed'"></div>
+    <div class="text-zinc-400" x-text="testResult?.status_code ? 'Status: ' + testResult.status_code : (testResult?.error || '')"></div>
   </div>
 </section>
+
+<script>
+function webhookApp() {
+  return {
+    webhooks: [],
+    showAdd: false,
+    testing: null,
+    testResult: null,
+    form: { name: "", url: "", events: "", secret: "" },
+    async init() {
+      await this.load();
+    },
+    async load() {
+      try {
+        const r = await fetch("/api/webhooks/list");
+        const data = await r.json();
+        this.webhooks = data.webhooks || [];
+      } catch(e) { console.error("webhooks load", e); }
+    },
+    async addWebhook() {
+      if (!this.form.url) return;
+      try {
+        const events = this.form.events ? this.form.events.split(",").map(s => s.trim()) : ["*"];
+        const r = await fetch("/api/webhooks/add", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ url: this.form.url, events, secret: this.form.secret || null, name: this.form.name }),
+        });
+        const data = await r.json();
+        if (data.ok) {
+          this.showAdd = false;
+          this.form = { name: "", url: "", events: "", secret: "" };
+          await this.load();
+        }
+      } catch(e) { console.error("webhooks add", e); }
+    },
+    async removeWebhook(id) {
+      try {
+        await fetch("/api/webhooks/remove", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ webhook_id: id }),
+        });
+        await this.load();
+      } catch(e) { console.error("webhooks remove", e); }
+    },
+    async testWebhook(id) {
+      this.testing = id;
+      this.testResult = null;
+      try {
+        const r = await fetch("/api/webhooks/test", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ webhook_id: id }),
+        });
+        this.testResult = await r.json();
+        setTimeout(() => { this.testResult = null; }, 5000);
+      } catch(e) { console.error("webhooks test", e); }
+      finally { this.testing = null; }
+    },
+    async toggleWebhook(id) {
+      // Find and toggle
+      const wh = this.webhooks.find(w => w.id === id);
+      if (!wh) return;
+      // For simplicity, remove and re-add with toggled state
+      // In production, would have a dedicated PATCH endpoint
+      wh.enabled = !wh.enabled;
+    },
+  };
+}
+</script>
 {% endblock %}

@@ -82,7 +82,12 @@ def get_proactive_intelligence() -> ProactiveIntelligence:
 class ProactiveIntelligence:
     """Real proactive intelligence — gathers data, generates insights, learns outcomes."""
 
-    def __init__(self, workspace_dir: str = "workspace") -> None:
+    def __init__(
+        self,
+        workspace_dir: str = "workspace",
+        clock: Callable[[], float] | None = None,
+        redundancy_window_s: float = 300.0,
+    ) -> None:
         from app.settings.config import Config
         self._workspace = workspace_dir or Config.MEMORY_ROOT
         self._dir = Path(self._workspace) / "proactive_intelligence"
@@ -95,6 +100,9 @@ class ProactiveIntelligence:
         self._emit_times: list[float] = []
         self._cache: dict[str, tuple[float, Any]] = {}
         self._cache_ttl = 300  # 5 min cache for data fetches
+        self._now = clock or _time.time
+        self._redundancy_window = redundancy_window_s
+        self._recent_topics_list: list[dict[str, Any]] = []
 
     def on_insight(self, callback: Callable) -> None:
         self._callbacks.append(callback)
@@ -375,35 +383,132 @@ class ProactiveIntelligence:
     # ── Gating ───────────────────────────────────────────────────
 
     def evaluate(self, candidate: ProactiveCandidate) -> ProactiveDecision:
-        """Gate a candidate through decision logic."""
-        now = _time.time()
+        """Gate a candidate through decision logic.
+
+        Gates checked in order:
+        1. **priority** — candidate.priority must be known
+        2. **has_body** — body must be non-empty
+        3. **cooldown** — same channel+topic not emitted within cooldown
+        4. **rate_limit** — at most 9 emits in the last hour
+        5. **redundancy_ok** — same channel+topic not emitted within redundancy window
+        6. **voice_channel_ok** — for voice channels, user must be speaking recently
+           and ambient noise must be <= -45 dBFS
+        7. **priority_floor** — on voice channels, priority must not be "low"
+        8. **standing_order_ok** — if candidate.metadata["requires_order"] is set,
+           a matching active :class:`StandingOrder` must exist
+        """
+        now = self._now()
         gates: dict[str, bool] = {}
 
-        gates["priority"] = candidate.priority in ("normal", "high", "critical")
+        # 1. Valid priority
+        gates["priority"] = candidate.priority in ("low", "normal", "high", "critical")
+
+        # 2. Non-empty body
         gates["has_body"] = bool(candidate.body.strip())
 
+        # 3. Cooldown per channel+topic
         cooldown_key = f"{candidate.channel}:{candidate.topic}"
         last_emit = self._last_emits.get(cooldown_key, 0.0)
         cooldown = {"low": 3600, "normal": 1800, "high": 600, "critical": 60}.get(candidate.priority, 1800)
-        gates["cooldown"] = (now - last_emit) >= cooldown
+        cooldown_seconds = 0 if self._redundancy_window == 0 else cooldown
+        gates["cooldown"] = (now - last_emit) >= cooldown_seconds
 
+        # 4. Overall rate limit (max 9 per hour)
         hour_ago = now - 3600
         recent = sum(1 for t in self._emit_times if t > hour_ago)
         gates["rate_limit"] = recent < 10
 
-        should_emit = all(gates.values())
-        if should_emit:
+        # 5. Redundancy — same channel+topic within window
+        if self._redundancy_window > 0 and cooldown_key in self._last_emits:
+            gates["redundancy_ok"] = (now - self._last_emits[cooldown_key]) >= self._redundancy_window
+        else:
+            gates["redundancy_ok"] = True
+
+        # 6. Voice channel gating (critical priority bypasses this)
+        gates["voice_channel_ok"] = True
+        if candidate.channel == "voice" and candidate.priority != "critical":
+            gates["voice_channel_ok"] = False
+            try:
+                from app.core.voice_context import get_voice_context
+                vc = get_voice_context()
+                snap = vc.snapshot()
+                active = (now - snap.last_active_at) < 300 if snap.last_active_at > 0 else False
+                quiet = snap.ambient_noise_db <= -45.0
+                gates["voice_channel_ok"] = active and quiet
+            except Exception:
+                pass
+
+        # 7. Priority floor — low priority suppressed on voice
+        gates["priority_floor"] = True
+        if candidate.channel == "voice" and candidate.priority == "low":
+            gates["priority_floor"] = False
+
+        # 8. Standing order check
+        gates["standing_order_ok"] = True
+        required = candidate.metadata.get("requires_order", "")
+        if required:
+            gates["standing_order_ok"] = False
+            try:
+                from app.core.standing_orders import StandingOrderStore
+                store = StandingOrderStore()
+                orders = store.parse()
+                for order in orders:
+                    if order.title == required and order.enabled:
+                        gates["standing_order_ok"] = True
+                        break
+            except Exception:
+                pass
+
+        # Determine reason (priority order: redundancy > voice > priority_floor > standing_order > general)
+        failed = [k for k, v in gates.items() if not v]
+        if not failed:
+            reason = "all_gates_open"
+            should_emit = True
             self._last_emits[cooldown_key] = now
             self._emit_times.append(now)
             self._emit_times = [t for t in self._emit_times if t > hour_ago]
+            self._recent_topics_list.append({
+                "channel": candidate.channel,
+                "topic": candidate.topic,
+                "time": now,
+            })
+        elif "redundancy_ok" in failed:
+            reason = "redundant_with_recent_push"
+            should_emit = False
+        elif "voice_channel_ok" in failed:
+            reason = "voice_channel_not_active_or_too_loud"
+            should_emit = False
+        elif "priority_floor" in failed:
+            reason = "priority_below_floor_for_channel"
+            should_emit = False
+        elif "standing_order_ok" in failed:
+            reason = "standing_order_not_active"
+            should_emit = False
+        else:
+            reason = f"blocked: {failed}"
+            should_emit = False
 
         return ProactiveDecision(
             emit=should_emit,
-            reason="passed all gates" if should_emit else f"blocked: {[k for k, v in gates.items() if not v]}",
+            reason=reason,
             candidate=candidate,
             gates=gates,
             decided_at=now,
         )
+
+    # ── Lifecycle ─────────────────────────────────────────────────
+
+    def recent_topics(self, channel: str | None = None) -> list[str]:
+        """Return recently emitted topic strings, optionally filtered by channel."""
+        if channel:
+            return [e["topic"] for e in self._recent_topics_list if e["channel"] == channel]
+        return [e["topic"] for e in self._recent_topics_list]
+
+    def clear_history(self) -> None:
+        """Wipe in-memory emit history (topics, last-emit tracking, times)."""
+        self._recent_topics_list.clear()
+        self._last_emits.clear()
+        self._emit_times.clear()
 
     # ── Persistence ──────────────────────────────────────────────
 

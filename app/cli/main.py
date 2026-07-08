@@ -1,11 +1,15 @@
 import argparse
 import asyncio
+import json
+import os
 import shutil
+import sys
 import time
 from app.cli.cli_ui import (
     WELCOME,
     blank,
     bold,
+    box,
     cyan,
     dim,
     divider,
@@ -13,9 +17,8 @@ from app.cli.cli_ui import (
     green,
     header,
     info,
-    item,
-    red,
-    status_dot,
+    panel,
+    status_label,
     success,
     warning,
     yellow,
@@ -26,7 +29,7 @@ from app.core.task_ledger import TaskLedger
 # ── Categorized help formatter ──────────────────────────────────────
 
 _COMMAND_CATEGORIES: list[tuple[str, list[str]]] = [
-    ("System", ["run", "stop", "status", "log", "doctor", "cleanup"]),
+    ("System", ["dashboard", "run", "stop", "status", "log", "doctor", "cleanup"]),
     ("AI & Chat", ["chat", "mode", "providers", "modules"]),
     ("Knowledge", ["memory", "context", "kg", "world-model"]),
     ("Development", ["evolve", "companion", "personality", "onboard"]),
@@ -44,7 +47,16 @@ _COMMAND_ALIASES: dict[str, str] = {
 }
 
 # These descriptions are kept in sync with the add_parser() calls below.
-_COMMAND_DESCRIPTIONS: dict[str, str] = {}
+_COMMAND_DESCRIPTIONS: dict[str, str] = {
+    "dashboard": "Terminal system HUD with live status",
+}
+
+
+def _output_json(data, args: argparse.Namespace) -> None:
+    """If *--json* was given, serialise *data* to stdout and exit."""
+    if getattr(args, "json", False):
+        print(json.dumps(data, indent=2, default=str))
+        sys.exit(0)
 
 
 class _RavenHelpFormatter(argparse.RawDescriptionHelpFormatter):
@@ -88,22 +100,18 @@ class _RavenHelpFormatter(argparse.RawDescriptionHelpFormatter):
 
 def cmd_daemon(args):
     """Starts the background loops and FastAPI web server."""
-    import sys
     from pathlib import Path
-    import logging as _logging
 
-    # Ensure project root is on sys.path for `from main import _main_async`
     _project_root = str(Path(__file__).resolve().parents[2])
     if _project_root not in sys.path:
         sys.path.insert(0, _project_root)
 
     import uvicorn
     from app.settings.config import Config
-    import threading
-    from main import _main_async
-    import asyncio
+    import importlib
+    _main_mod = importlib.import_module("main")
+    _main_async = _main_mod._main_async
 
-    # Prefer explicit --port, then SERVER_PORT from config, fallback to 8090
     cli_port = getattr(args, "port", None)
     port = (
         cli_port
@@ -112,23 +120,35 @@ def cmd_daemon(args):
     )
     host = Config.SERVER_HOST if hasattr(Config, "SERVER_HOST") else "0.0.0.0"
 
-    def background_thread():
-        try:
-            asyncio.run(_main_async())
-        except Exception as exc:
-            _logging.getLogger(__name__).warning("Background services: %s", exc)
+    async def _run_all():
+        uvicorn_config = uvicorn.Config(
+            "app.api.server:app",
+            host=host,
+            port=port,
+            log_level="info",
+        )
+        server = uvicorn.Server(uvicorn_config)
+        await asyncio.gather(_main_async(), server.serve())
 
-    t = threading.Thread(target=background_thread, daemon=True)
-    t.start()
+    from app.cli.cli_ui import logo as _logo
 
-    print(WELCOME)
-    uvicorn.run("app.api.server:app", host=host, port=port, log_level="info")
+    _logo()
+    box(
+        dim("Web Dashboard → http://localhost:8090"),
+        dim("API           → http://localhost:8090/v1/chat/completions"),
+        dim(f"Chat Modes    → {yellow('raven chat')}  |  /chat on any platform"),
+        title="RAVEN is running",
+        style="success",
+    )
+    blank()
+    try:
+        asyncio.run(_run_all())
+    except KeyboardInterrupt:
+        pass
 
 
 def cmd_run(args):
     """Start Raven — shows logs by default, --pid for silent daemon."""
-    import os
-    import sys
     from pathlib import Path
 
     pid_file = Path.home() / ".raven" / "raven.pid"
@@ -182,7 +202,6 @@ def cmd_run(args):
 
 def cmd_stop(args):
     """Stop the Raven daemon."""
-    import os
     import signal
     from pathlib import Path
 
@@ -209,16 +228,45 @@ def cmd_log(args):
 
     log_file = Path.home() / ".raven" / "raven.log"
     if not log_file.exists():
+        _output_json({"error": "no logs found"}, args)
         warning("No logs found. Start Raven with: raven run")
-        return
+        return 1
 
     lines = args.lines
-    divider()
     with open(log_file) as f:
         all_lines = f.readlines()
-        for line in all_lines[-lines:]:
-            print(f"  {line}", end="")
+    tail = all_lines[-lines:]
+
+    _output_json(
+        {
+            "log_file": str(log_file),
+            "lines": len(tail),
+            "content": [line.rstrip("\n") for line in tail],
+        },
+        args,
+    )
+
+    blank()
+    box(
+        f"  {bold('RAVEN Log')}  {dim(f'(last {lines} lines)')}",
+        title="Logs",
+        style="info",
+    )
+    blank()
+    for line in tail:
+        print(f"  {line}", end="")
+    blank()
     divider()
+    return 0
+
+
+def cmd_dashboard(args):
+    """Terminal system dashboard — live HUD with system health and status."""
+    from app.cli.dashboard import dashboard_loop
+
+    interval = getattr(args, "interval", 5.0) or 5.0
+    no_color = getattr(args, "no_color", False)
+    dashboard_loop(interval=interval, no_color=no_color)
 
 
 def cmd_chat(args):
@@ -274,43 +322,63 @@ def cmd_chat(args):
 
 
 def cmd_status(args):
-    """Prints edge nodes and pending approvals."""
+    """Prints system health, pending approvals, and edge nodes."""
     from app.settings.config import Config
-    import json
+    from pathlib import Path
 
     ledger = TaskLedger(Config.MEMORY_ROOT)
     tasks = ledger.list_tasks()
     pending = [t for t in tasks if t.get("status") == "pending_approval"]
 
-    header("RAVEN Status")
-    status_dot(True, bold("System Operational"))
-    blank()
-
-    item("Pending Approvals", str(len(pending)))
-    for p in pending:
-        pid = p.get("task_id", "?")
-        title = p.get("title", "?")
-        print(f"    {yellow('●')} [{pid}] {title}")
-
-    blank()
-    header("Edge Nodes")
-    from pathlib import Path
-
+    devices: list[dict] = []
     devices_file = Path(Config.MEMORY_ROOT) / "state" / "devices.json"
     if devices_file.exists():
         try:
-            with open(devices_file, "r") as f:
+            with open(devices_file) as f:
                 devices = json.load(f)
-            if not devices:
-                info("No edge nodes registered.")
-            for device in devices:
-                st = device.get("status", "unknown")
-                dot = green("●") if st == "online" else red("○")
-                print(f"  {dot} {device.get('id', 'unknown')} ({st})")
-        except json.JSONDecodeError:
-            error("Error reading devices.json.")
+        except (json.JSONDecodeError, OSError):
+            devices = []
+
+    _output_json(
+        {
+            "status": "operational",
+            "pending_approvals": len(pending),
+            "edge_nodes": len(devices),
+        },
+        args,
+    )
+
+    blank()
+    panel(
+        "RAVEN Status",
+        [
+            f"  {status_label('System', True)}  {green('Operational')}",
+            f"  {bold('Pending Approvals')}: {yellow(str(len(pending)))}"
+            if pending
+            else f"  {status_label('Approvals', True)}  None",
+        ],
+        style="success" if not pending else "warning",
+    )
+    blank()
+
+    if pending:
+        pending_lines = []
+        for p in pending:
+            pid = p.get("task_id", "?")
+            title = p.get("title", "?")
+            pending_lines.append(f"  {yellow('●')} [{pid}] {title}")
+        panel("Pending Approvals", pending_lines, style="warning")
+        blank()
+
+    if devices:
+        device_lines = []
+        for device in devices:
+            st = device.get("status", "unknown")
+            label = status_label(st, st == "online")
+            device_lines.append(f"  {label} {device.get('id', 'unknown')}")
+        panel("Edge Nodes", device_lines)
     else:
-        info("No edge nodes registered.")
+        panel("Edge Nodes", ["  No edge nodes registered."])
     blank()
 
 
@@ -539,6 +607,11 @@ def main():
         version=f"%(prog)s {_VERSION}",
         help="Show version and exit",
     )
+    parser.add_argument("--json", action="store_true", help="Output in JSON format")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    parser.add_argument("--no-color", action="store_true", help="Disable ANSI colours")
+    parser.add_argument("--config", type=str, default=None, help="Path to custom config file")
+
     subparsers = parser.add_subparsers(dest="command", required=False)
 
     # ── System ──────────────────────────────────────────────────
@@ -554,6 +627,15 @@ def main():
         help="Dashboard port (default: 8090)",
     )
     parser_daemon.set_defaults(func=cmd_daemon)
+
+    parser_dash = subparsers.add_parser("dashboard", help="Terminal system HUD with live status")
+    parser_dash.add_argument(
+        "--interval", "-i", type=float, default=5.0, help="Refresh interval in seconds"
+    )
+    parser_dash.add_argument(
+        "--no-color", action="store_true", help="Disable ANSI colours in dashboard"
+    )
+    parser_dash.set_defaults(func=cmd_dashboard)
 
     parser_chat = subparsers.add_parser("chat", help="Interactive terminal chat with Raven")
     parser_chat.set_defaults(func=cmd_chat)
@@ -832,10 +914,21 @@ def main():
     parser_learning.add_argument("--input", "-i", default=None, help="Input file path (import)")
     parser_learning.set_defaults(func=cmd_learning)
 
+    # ── Completions ─────────────────────────────────────────────
+    parser_compgen = subparsers.add_parser(
+        "completions", help="Print shell completion script (bash/zsh/fish)"
+    )
+    parser_compgen.add_argument("shell", choices=["bash", "zsh", "fish"], help="Target shell")
+    parser_compgen.set_defaults(func=cmd_completions)
+
     args = parser.parse_args()
+    if getattr(args, "no_color", False):
+        from app.cli.cli_ui import set_color_enabled as _set_color
+
+        _set_color(False)
     if args.command is None:
         parser.print_help()
-        return
+        sys.exit(0)
     args.func(args)
 
 
@@ -856,33 +949,40 @@ def cmd_train_data(args: argparse.Namespace) -> None:
     all_examples: list[dict] = []
 
     if args.session:
-        target = [s for s in sessions if s.session_id == args.session]
+        target = [s for s in sessions if s.get("session_id") == args.session]
         if not target:
             print(f"Session {args.session} not found.")
             return
         sessions = target
 
     for sess in sessions:
-        messages = [
-            {"role": "user", "content": sess.get("user_text", "")},
-            {"role": "assistant", "content": sess.get("response_text", "")},
-        ]
+        session_id = sess.get("session_id", "")
+        if not session_id:
+            continue
+        # Load actual conversation messages from the session file
+        try:
+            messages = sm.load_session(session_id)
+        except Exception:
+            messages = []
+        if not messages:
+            continue
+
+        # Extract user/assistant message pairs
         for i, msg in enumerate(messages):
-            if (
-                msg["role"] == "user"
-                and i + 1 < len(messages)
-                and messages[i + 1]["role"] == "assistant"
-            ):
-                resp = messages[i + 1].get("content", "")
-                if resp and len(resp) > 10:
-                    all_examples.append(
-                        {
-                            "instruction": msg.get("content", ""),
-                            "input": "",
-                            "output": resp[:500],
-                            "metadata": {"session_id": sess.session_id},
-                        }
-                    )
+            if msg.get("role") == "user" and i + 1 < len(messages):
+                next_msg = messages[i + 1]
+                if next_msg.get("role") == "assistant":
+                    user_text = msg.get("content", "")
+                    assistant_text = next_msg.get("content", "")
+                    if assistant_text and len(assistant_text) > 10:
+                        all_examples.append(
+                            {
+                                "instruction": user_text,
+                                "input": "",
+                                "output": assistant_text[:500],
+                                "metadata": {"session_id": session_id},
+                            }
+                        )
 
     if args.action == "stats":
         print(f"Sessions: {len(sessions)}")
@@ -1335,7 +1435,8 @@ def cmd_doctor(args):
     """Run system diagnostics (doctor)."""
     from app.cli.doctor import run_doctor
 
-    run_doctor()
+    _output_json({"diagnostics": "run doctor --json for structured output"}, args)
+    return run_doctor()
 
 
 def cmd_onboard(args):
@@ -1427,6 +1528,81 @@ def cmd_learning(args):
     from app.cli.learning_cmd import cmd_learning as _cmd
 
     _cmd(args)
+
+
+def cmd_completions(args: argparse.Namespace) -> None:
+    """Print shell completion script."""
+    shell = args.shell
+    script = _completion_script(shell)
+    print(script)
+
+
+def _completion_script(shell: str) -> str:
+    if shell == "bash":
+        return """# Bash completion for raven — source this file or place in /etc/bash_completion.d/
+_raven() {
+    local cur="${COMP_WORDS[COMP_CWORD]}"
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W "--version --json --verbose -v --no-color --config" -- "$cur"))
+        return
+    fi
+    local words=()
+    if [[ $COMP_CWORD -eq 1 ]]; then
+        words=(daemon dashboard chat status log doctor cleanup run stop providers modules helix memory context kg world-model evolve companion personality onboard edge-node cowork train-data approve learning completions)
+    fi
+    COMPREPLY=($(compgen -W "${words[*]}" -- "$cur"))
+}
+complete -F _raven raven
+"""
+    if shell == "zsh":
+        return """#compdef raven
+_raven() {
+    local -a commands
+    commands=(
+        "daemon:Start background loops and web server"
+        "dashboard:Terminal system HUD with live status"
+        "chat:Interactive terminal chat"
+        "status:System health and pending approvals"
+        "log:Tail Raven logs"
+        "doctor:Run system diagnostics"
+        "cleanup:Remove old checkpoints and sessions"
+        "run:Start Raven daemon"
+        "stop:Stop Raven daemon"
+        "providers:Provider, model, and combo management"
+        "modules:List and manage A2A modules"
+        "helix:Manage HelixDB sidecar"
+        "memory:Memory operations"
+        "context:Query user context"
+        "kg:Knowledge graph operations"
+        "world-model:World model"
+        "evolve:Self-evolution"
+        "companion:Companion AI"
+        "personality:Adaptive personality"
+        "onboard:First-time setup wizard"
+        "edge-node:Run as edge device"
+        "cowork:Cowork sessions"
+        "train-data:Export training data"
+        "approve:Approve a pending task"
+        "learning:Learning system"
+        "completions:Print shell completion script"
+    )
+    _describe -t commands "raven command" commands
+}
+compdef _raven raven
+"""
+    if shell == "fish":
+        return """# Fish completion for raven
+complete -c raven -f
+complete -c raven -l version -d "Show version"
+complete -c raven -l json -d "Output in JSON format"
+complete -c raven -l verbose -s v -d "Verbose output"
+complete -c raven -l no-color -d "Disable ANSI colours"
+complete -c raven -l config -d "Path to custom config file" -r
+for cmd in daemon dashboard chat status log doctor cleanup run stop providers modules helix memory context kg world-model evolve companion personality onboard edge-node cowork train-data approve learning completions
+    complete -c raven -n "__fish_use_subcommand" -a "$cmd"
+end
+"""
+    return ""
 
 
 if __name__ == "__main__":

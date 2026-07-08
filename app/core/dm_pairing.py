@@ -82,6 +82,26 @@ class DMPairingManager:
         self._pending_cache: dict[str, PairingRequest] = {}
         self._load_caches()
 
+    # ── Global Toggle ────────────────────────────────────────────────
+    
+    def is_pairing_enabled(self) -> bool:
+        """Check if pairing is enabled from the admin dashboard."""
+        config_file = self._store_dir / "pairing_enabled.json"
+        if config_file.exists():
+            try:
+                import json
+                data = json.loads(config_file.read_text(encoding="utf-8"))
+                return data.get("enabled", True)
+            except Exception:
+                return True
+        return True
+        
+    def set_pairing_enabled(self, enabled: bool) -> None:
+        """Set the global DM pairing enforcement toggle."""
+        config_file = self._store_dir / "pairing_enabled.json"
+        import json
+        config_file.write_text(json.dumps({"enabled": enabled}), encoding="utf-8")
+
     # ── Public API ──────────────────────────────────────────────────
 
     def is_paired(self, user_id: str, platform: str) -> bool:

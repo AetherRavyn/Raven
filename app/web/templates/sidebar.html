@@ -1,46 +1,92 @@
 {% set nav = nav_entries() %}
-<aside class="w-56 flex flex-col overflow-y-auto" style="background: var(--bg-secondary); border-right: 1px solid var(--border-color);">
-  <div class="px-4 py-3" style="border-bottom: 1px solid var(--border-color);">
-    <a href="/" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
-      <div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm" style="background: var(--accent); color: var(--bg-primary);">R</div>
-      <div>
-        <div class="font-semibold tracking-wider text-sm" style="color: var(--accent);">RAVEN</div>
-        <div class="text-[10px] uppercase tracking-widest" style="color: var(--text-muted);">AI Agent Dashboard</div>
+{% set _page = page %}
+<aside id="raven-sidebar" class="w-56 flex flex-col overflow-y-auto shrink-0 transition-all duration-200" style="background: var(--bg-secondary); border-right: 1px solid var(--border-color);">
+  <div class="px-4 py-3 flex items-center justify-between" style="border-bottom: 1px solid var(--border-color);">
+    <a href="/" class="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0" style="background: var(--accent); color: var(--bg-primary);">R</div>
+      <div class="min-w-0 sidebar-brand">
+        <div class="font-semibold tracking-wider text-sm truncate" style="color: var(--accent);">RAVEN</div>
+        <div class="text-[10px] uppercase tracking-widest truncate" style="color: var(--text-muted);">AI Agent Dashboard</div>
       </div>
     </a>
+    <button id="sidebar-toggle" onclick="toggleSidebar()" class="md:hidden text-zinc-400 hover:text-zinc-200 transition-colors p-1 rounded hover:bg-ink-700" title="Toggle sidebar">&#9776;</button>
   </div>
-  <nav class="flex-1 py-2 text-[12px]">
+  <nav class="flex-1 py-2 text-[12px] overflow-y-auto sidebar-nav">
     <a href="/"
-       class="block px-4 py-1.5 transition-colors"
+       class="block px-4 py-1.5 transition-colors sidebar-link"
        style="color: var(--text-secondary);"
-       onmouseover="this.style.background='var(--bg-hover)'"
-       onmouseout="this.style.background='transparent'"
+       data-nav-slug="home"
        title="Dashboard home">HOME</a>
     <div class="px-3 mt-2 mb-1 text-[10px] uppercase tracking-widest" style="color: var(--text-muted);">primary</div>
     {% for entry in nav if entry.group == "primary" %}
       <a href="/{{ entry.slug }}"
-         class="block px-4 py-1.5 transition-colors"
-         style="color: {% if entry.slug == page %}var(--accent){% else %}var(--text-secondary){% endif %}; background: {% if entry.slug == page %}var(--accent-dim){% else %}transparent{% endif %};"
-         onmouseover="this.style.background='var(--bg-hover)'"
-         onmouseout="this.style.background='{% if entry.slug == page %}var(--accent-dim){% else %}transparent{% endif %}'"
-         title="{{ entry.hint }}"
-         data-nav-slug="{{ entry.slug }}">{{ entry.label }}</a>
+         class="block px-4 py-1.5 transition-colors sidebar-link"
+         style="color: {% if entry.slug == _page %}var(--accent){% else %}var(--text-secondary){% endif %}; background: {% if entry.slug == _page %}var(--accent-dim){% else %}transparent{% endif %};"
+         data-nav-slug="{{ entry.slug }}"
+         title="{{ entry.hint }}">{{ entry.label }}</a>
     {% endfor %}
     <div class="px-3 mt-3 mb-1 text-[10px] uppercase tracking-widest" style="color: var(--text-muted);">config</div>
     {% for entry in nav if entry.group == "config" %}
       <a href="/{{ entry.slug }}"
-         class="block px-4 py-1.5 transition-colors"
-         style="color: {% if entry.slug == page %}var(--accent){% else %}var(--text-secondary){% endif %}; background: {% if entry.slug == page %}var(--accent-dim){% else %}transparent{% endif %};"
-         onmouseover="this.style.background='var(--bg-hover)'"
-         onmouseout="this.style.background='{% if entry.slug == page %}var(--accent-dim){% else %}transparent{% endif %}'"
-         title="{{ entry.hint }}"
-         data-nav-slug="{{ entry.slug }}">{{ entry.label }}</a>
+         class="block px-4 py-1.5 transition-colors sidebar-link"
+         style="color: {% if entry.slug == _page %}var(--accent){% else %}var(--text-secondary){% endif %}; background: {% if entry.slug == _page %}var(--accent-dim){% else %}transparent{% endif %};"
+         data-nav-slug="{{ entry.slug }}"
+         title="{{ entry.hint }}">{{ entry.label }}</a>
     {% endfor %}
   </nav>
+  <div class="px-3 py-2 border-t sidebar-tools" style="border-color: var(--border-color);">
+    <button onclick="var r=window.__ravenDashboard; if(r&&r.focusSearch)r.focusSearch();" class="w-full text-left text-[11px] px-2 py-1.5 rounded transition-colors" style="color:var(--text-muted);background:var(--bg-primary);border:1px solid var(--border-color);" title="Search (/)">
+      <span>&#8984; Search&hellip;</span>
+    </button>
+  </div>
   <div class="px-3 py-2" style="border-top: 1px solid var(--border-color);">
     <div class="flex items-center justify-between text-[10px]" style="color: var(--text-muted);">
       <span>v40</span>
-      <span id="sidebar-online" class="w-2 h-2 rounded-full" style="background: var(--text-muted);" title="Checking…"></span>
+      <span id="sidebar-online" class="w-2 h-2 rounded-full" style="background: var(--text-muted);" title="Checking&hellip;"></span>
     </div>
   </div>
 </aside>
+
+<script>
+function toggleSidebar() {
+  var sidebar = document.getElementById('raven-sidebar');
+  var main = document.getElementById('raven-main');
+  if (!sidebar) return;
+  var collapsed = sidebar.getAttribute('data-collapsed') === 'true';
+  if (collapsed) {
+    sidebar.style.width = '14rem';
+    sidebar.style.marginLeft = '0';
+    sidebar.setAttribute('data-collapsed', 'false');
+  } else {
+    sidebar.style.width = '0';
+    sidebar.style.overflow = 'hidden';
+    sidebar.style.marginLeft = '0';
+    sidebar.style.paddingLeft = '0';
+    sidebar.style.paddingRight = '0';
+    sidebar.setAttribute('data-collapsed', 'true');
+  }
+}
+// Auto-collapse sidebar on small screens
+(function() {
+  var mq = window.matchMedia('(max-width: 768px)');
+  var sidebar = document.getElementById('raven-sidebar');
+  if (!sidebar) return;
+  function handle(widthChange) {
+    if (widthChange.matches) {
+      sidebar.style.width = '0';
+      sidebar.style.overflow = 'hidden';
+      sidebar.style.paddingLeft = '0';
+      sidebar.style.paddingRight = '0';
+      sidebar.setAttribute('data-collapsed', 'true');
+    } else {
+      sidebar.style.width = '14rem';
+      sidebar.style.overflow = '';
+      sidebar.style.paddingLeft = '';
+      sidebar.style.paddingRight = '';
+      sidebar.setAttribute('data-collapsed', 'false');
+    }
+  }
+  mq.addEventListener('change', handle);
+  if (mq.matches) handle(mq);
+})();
+</script>

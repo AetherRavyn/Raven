@@ -17,6 +17,7 @@ file, so any process that imports the detector sees the operator's
 override and any process that uses this CLI sees the detector's
 last probe.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -25,15 +26,13 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 #: Default state file.  Overridden by ``RAVEN_MODE_STATE_FILE`` env var.
-DEFAULT_STATE_PATH = os.environ.get(
-    "RAVEN_MODE_STATE_FILE", "workspace/mode_state.json"
-)
+DEFAULT_STATE_PATH = os.environ.get("RAVEN_MODE_STATE_FILE", "workspace/mode_state.json")
 
 
 def _load_state(path: Path) -> dict[str, Any]:
@@ -58,8 +57,7 @@ def _format_history(history: list[dict[str, Any]]) -> str:
         at = float(h.get("at", 0.0))
         at_s = time.strftime("%H:%M:%S", time.localtime(at))
         lines.append(
-            f"  {at_s}  {h.get('from','?')} -> {h.get('to','?')}  "
-            f"({h.get('reason','')})"
+            f"  {at_s}  {h.get('from', '?')} -> {h.get('to', '?')}  ({h.get('reason', '')})"
         )
     return "\n".join(lines)
 
@@ -139,10 +137,7 @@ def cmd_mode_history(args: argparse.Namespace) -> int:
     for h in history:
         at = float(h.get("at", 0.0))
         at_s = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(at))
-        print(
-            f"{at_s}  {h.get('from','?'):>9} -> {h.get('to','?'):<9}  "
-            f"({h.get('reason','')})"
-        )
+        print(f"{at_s}  {h.get('from', '?'):>9} -> {h.get('to', '?'):<9}  ({h.get('reason', '')})")
     return 0
 
 
@@ -150,9 +145,7 @@ def add_mode_subparser(
     subparsers: argparse._SubParsersAction,  # type: ignore[name-defined]
 ) -> None:
     """Register ``mode show|set|clear|history`` on the given subparsers."""
-    parser_mode = subparsers.add_parser(
-        "mode", help="Inspect and override the operating mode"
-    )
+    parser_mode = subparsers.add_parser("mode", help="Inspect and override the operating mode")
     parser_mode.add_argument(
         "--state-file",
         default=DEFAULT_STATE_PATH,
@@ -181,7 +174,9 @@ def add_mode_subparser(
         help="Mode to force",
     )
     p_set.add_argument(
-        "--ttl", type=int, default=300,
+        "--ttl",
+        type=int,
+        default=300,
         help="Override TTL in seconds (default: 300)",
     )
     p_set.set_defaults(func=cmd_mode_set)

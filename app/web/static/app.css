@@ -297,3 +297,253 @@ pre,
   color: var(--accent);
   border-left: 2px solid var(--accent);
 }
+
+/* ── Alpine Cloak ─────────────────────────────────────────────── */
+[x-cloak] { display: none !important; }
+
+/* ── Search Overlay ───────────────────────────────────────────── */
+#raven-search-overlay,
+#raven-help-overlay,
+#raven-onboarding-overlay {
+  font-family: Inter, system-ui, sans-serif;
+}
+
+#raven-search-results a:hover {
+  background: var(--bg-hover);
+  text-decoration: none;
+}
+
+/* ── Toast Animations ─────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#raven-toast-container > div {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ── Error Boundary ───────────────────────────────────────────── */
+.error-boundary {
+  padding: 1rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: rgba(239, 68, 68, 0.05);
+  color: var(--danger);
+  font-size: 12px;
+  text-align: center;
+}
+
+.error-boundary button {
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.error-boundary button:hover {
+  background: var(--danger);
+  color: white;
+}
+
+/* ── Loading Skeleton ─────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 25%,
+    var(--bg-hover) 50%,
+    var(--bg-tertiary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Onboarding Step Dots ─────────────────────────────────────── */
+.step-dot {
+  transition: background 0.3s ease;
+}
+
+/* ── Progress Bars ────────────────────────────────────────────── */
+.progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+.progress-bar-fill.green { background: var(--success); }
+.progress-bar-fill.yellow { background: var(--warning); }
+.progress-bar-fill.red { background: var(--danger); }
+
+/* ── Panel Styles ─────────────────────────────────────────────── */
+.panel {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-body {
+  padding: 1rem;
+}
+
+/* ── Interactive Hover Cards ──────────────────────────────────── */
+.hover-card {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.hover-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-dim);
+}
+
+/* ── Responsive: Responsive Content ──────────────────────────── */
+.responsive-content {
+  max-width: 100%;
+}
+
+.responsive-content img,
+.responsive-content video,
+.responsive-content iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Responsive tables */
+.responsive-table {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.responsive-table table {
+  min-width: 500px;
+}
+
+/* Responsive grids: stack on mobile */
+@media (max-width: 640px) {
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hide-on-mobile {
+    display: none !important;
+  }
+
+  .card {
+    padding: 0.75rem;
+  }
+
+  .panel-body {
+    padding: 0.75rem;
+  }
+
+  .btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  th,
+  td {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  #raven-search-results {
+    max-height: 60vh;
+  }
+
+  #raven-onboarding-overlay > div {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar-brand {
+    display: none;
+  }
+
+  .hide-on-tablet {
+    display: none !important;
+  }
+
+  #main {
+    padding: 0.75rem !important;
+  }
+}
+
+/* Touch-friendly targets */
+@media (pointer: coarse) {
+  .sidebar-link,
+  .btn,
+  button,
+  a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .sidebar-link {
+    min-height: 40px;
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
+
+  th,
+  td {
+    min-height: 44px;
+  }
+}
+
+/* Prevent layout shift from sidebar toggle */
+#raven-sidebar {
+  transition: width 0.2s ease, padding 0.2s ease, overflow 0.2s ease;
+}
+
+#app-shell {
+  overflow: hidden;
+  width: 100vw;
+  height: 100dvh;
+}
+
+/* Safari safe area */
+@supports (padding: env(safe-area-inset-top)) {
+  #app-shell {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  header {
+    padding-left: calc(env(safe-area-inset-left) + 0.75rem) !important;
+    padding-right: calc(env(safe-area-inset-right) + 0.75rem) !important;
+  }
+  #main {
+    padding-left: calc(env(safe-area-inset-left) + 0.75rem) !important;
+    padding-right: calc(env(safe-area-inset-right) + 0.75rem) !important;
+  }
+}

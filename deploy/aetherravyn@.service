@@ -1,14 +1,14 @@
 [Unit]
-Description=Raven Gateway Daemon
+Description=Raven Gateway Daemon (template)
 Documentation=https://github.com/swadhinbiswas/Raven
-After=network.target docker.service
-Wants=docker.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=%i
-WorkingDirectory=/home/%i/raven
-ExecStart=/home/%i/raven/.venv/bin/python -m app.cli.main daemon
+WorkingDirectory=/home/%i/SARAS
+ExecStart=/home/%i/SARAS/scripts/raven-daemon.sh --daemon
 Restart=always
 RestartSec=5
 TimeoutStopSec=15
@@ -19,7 +19,7 @@ SyslogIdentifier=raven
 # Security hardening
 NoNewPrivileges=yes
 ProtectSystem=strict
-ReadWritePaths=/home/%i/raven /home/%i/.raven
+ReadWritePaths=/home/%i/SARAS /tmp
 PrivateTmp=yes
 
 # Resource limits

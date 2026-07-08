@@ -103,7 +103,21 @@ class MemoryFacade:
         """
         store = self._get_semantic()
         try:
-            return store.save(category=category, content=content, user_id=user_id)
+            mem_id = store.save(category=category, content=content, user_id=user_id)
+            # Emit hook event after successful memory storage
+            if mem_id:
+                try:
+                    from app.core.hooks import get_hook_manager
+                    hook_mgr = get_hook_manager()
+                    hook_mgr.trigger("memory_extracted", {
+                        "memory_id": mem_id,
+                        "category": category,
+                        "user_id": user_id or "anonymous",
+                        "content_preview": content[:100],
+                    })
+                except Exception:
+                    pass
+            return mem_id
         except Exception as exc:
             logger.warning("remember failed: %s", exc)
             return ""

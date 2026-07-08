@@ -1,9 +1,12 @@
 import asyncio
 import logging
 import logging.handlers
+import os
 import signal
+import time
 from pathlib import Path
 
+from app.api.server import mark_channel_ready, set_ready
 from app.core import BotSignal, MessageOrchestrator, get_botsignal
 from app.core.executor import DaemonExecutor
 from app.core.proactive_bootstrap import register_proactive_routines
@@ -16,12 +19,19 @@ from app.core.proactive import schedule_follow_up
 
 logger = logging.getLogger(__name__)
 _SHUTDOWN_GRACE_SECONDS = 8.0
+_START_TIME = time.monotonic()
 
 
 def _setup_logging() -> None:
     """Configure rotating file handler + console handler."""
     workspace = Path("workspace")
     workspace.mkdir(exist_ok=True)
+    if not workspace.is_dir():
+        logger.warning("Workspace directory '%s' is not a directory", workspace)
+    if not os.access(str(workspace), os.W_OK):
+        logger.warning("Workspace directory '%s' is not writable", workspace)
+    else:
+        logger.info("Workspace directory '%s' validated", workspace.resolve())
     log_file = workspace / "raven.log"
 
     root = logging.getLogger()
@@ -423,6 +433,22 @@ async def _main_async() -> None:
     ambient._botsignal = botsignal
     ambient_task = asyncio.create_task(ambient.run(), name="ambient-loop")
     stop_waiter = asyncio.create_task(stop_event.wait(), name="shutdown-waiter")
+
+    # Mark channels as ready for healthcheck
+    mark_channel_ready("telegram")
+    mark_channel_ready("discord")
+    mark_channel_ready("slack")
+    mark_channel_ready("webhook")
+    mark_channel_ready("voice")
+    mark_channel_ready("mqtt")
+    mark_channel_ready("whatsapp")
+    mark_channel_ready("web")
+    mark_channel_ready("streamlit")
+    mark_channel_ready("ambient")
+    set_ready()
+
+    startup_duration = time.monotonic() - _START_TIME
+    logger.info("Startup complete in %.2f seconds", startup_duration)
 
     service_tasks = {
         telegram_task,

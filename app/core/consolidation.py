@@ -93,6 +93,20 @@ class ConsolidationEngine:
             logger.warning("Consolidation promotion failed: %s", exc)
             results["errors"].append(f"promote: {exc}")
 
+        # Emit hook event after consolidation
+        try:
+            from app.core.hooks import get_hook_manager
+            hook_mgr = get_hook_manager()
+            hook_mgr.trigger("memory_consolidated", {
+                "merges": results["merges"],
+                "deletions": results["deletions"],
+                "contradictions": len(results["contradictions"]),
+                "promotions": len(results["promotions"]),
+                "errors": len(results["errors"]),
+            })
+        except Exception:
+            pass
+
         return results
 
     def get_contradictions_report(self) -> list[dict[str, Any]]:

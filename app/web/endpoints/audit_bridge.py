@@ -15,7 +15,7 @@ singleton that the dashboard does not need to depend on).
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 

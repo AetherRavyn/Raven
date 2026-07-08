@@ -379,6 +379,20 @@ class LearningStore:
             removed["excess"] += len(ids_to_remove)
 
         self._conn.commit()
+
+        if removed["low_confidence"] > 0 or removed["excess"] > 0:
+            try:
+                from app.core.hooks import get_hook_manager
+                hook_mgr = get_hook_manager()
+                hook_mgr.trigger("memory_consolidated", {
+                    "action": "prune",
+                    "low_confidence_removed": removed["low_confidence"],
+                    "excess_removed": removed["excess"],
+                    "total_removed": removed["low_confidence"] + removed["excess"],
+                })
+            except Exception:
+                pass
+
         return removed
 
     # ── analytics ───────────────────────────────────────────────────────

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}MARKETPLACE — RAVEN{% endblock %}
+{% block main %}
+<section class="space-y-3" x-data="marketplaceApp()">
+  <h1 class="text-zinc-100 text-sm tracking-wider uppercase">SKILL MARKETPLACE</h1>
+  <p class="text-zinc-500 text-[11px]">Community sharing & remote skill discovery.</p>
+  
+  <div class="flex space-x-2">
+    <input type="text" x-model="searchQuery" placeholder="Search skills (e.g., notion, spotify)..." class="flex-1 bg-ink-800 border border-ink-600 rounded px-3 py-1.5 text-xs text-zinc-200 outline-none focus:border-accent-500" @keydown.enter="search()">
+    <button @click="search()" class="bg-accent-600 hover:bg-accent-500 text-white px-4 py-1.5 rounded text-xs transition-colors">
+      Search
+    </button>
+  </div>
+
+  <div class="border border-ink-600 bg-ink-800 rounded">
+    <table class="w-full text-[12px]">
+      <thead class="text-zinc-500 border-b border-ink-600">
+        <tr>
+          <th class="text-left px-3 py-1.5 w-1/4">Skill Name</th>
+          <th class="text-left px-3 py-1.5">Description</th>
+          <th class="text-left px-3 py-1.5 w-32">Source</th>
+          <th class="text-left px-3 py-1.5 w-24">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-if="isLoading">
+          <tr><td colspan="4" class="px-3 py-3 text-zinc-500 text-center">Searching...</td></tr>
+        </template>
+        <template x-if="!isLoading && results.length === 0">
+          <tr><td colspan="4" class="px-3 py-3 text-zinc-600 text-center">No skills found.</td></tr>
+        </template>
+        <template x-for="skill in results" :key="skill.name">
+          <tr class="border-b border-ink-700 hover:bg-ink-700">
+            <td class="px-3 py-2 font-mono text-accent-500" x-text="skill.name"></td>
+            <td class="px-3 py-2 text-zinc-300" x-text="skill.description"></td>
+            <td class="px-3 py-2 text-zinc-500 text-[10px]" x-text="skill.source"></td>
+            <td class="px-3 py-2 text-right">
+              <template x-if="skill.remote">
+                <button @click="installSkill(skill.name, skill.source)" class="text-xs bg-ink-600 hover:bg-ink-500 text-zinc-200 px-2 py-1 rounded">
+                  Install
+                </button>
+              </template>
+              <template x-if="!skill.remote">
+                <span class="text-zinc-500">Installed</span>
+              </template>
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+function marketplaceApp() {
+  return {
+    searchQuery: '',
+    results: [],
+    isLoading: false,
+    async search() {
+      if (!this.searchQuery) return;
+      this.isLoading = true;
+      this.results = [];
+      try {
+        const res = await fetch(`/api/dashboard/action/marketplace/search?query=${encodeURIComponent(this.searchQuery)}`);
+        const data = await res.json();
+        if (data.ok) {
+          this.results = data.results;
+        } else {
+          alert('Search failed: ' + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    async installSkill(name, source) {
+      if (!confirm(`Are you sure you want to install ${name}?`)) return;
+      try {
+        const res = await fetch('/api/dashboard/action/marketplace/install', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ skill_name: name, source: source })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Skill installed successfully! Reloading...');
+          this.search();
+        } else {
+          alert('Install failed: ' + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Install error: ' + e);
+      }
+    },
+    init() {
+      // initial empty state
+    }
+  }
+}
+</script>
+{% endblock %}

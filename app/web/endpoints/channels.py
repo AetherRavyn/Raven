@@ -133,7 +133,7 @@ class ChannelsDashboardRouter:
         try:
             from app.voice.call_manager import get_call_manager
             return get_call_manager()
-        except (ImportError, RuntimeError) as exc:
+        except (ImportError, RuntimeError):
             return None
 
     def call_status(self) -> dict[str, Any]:

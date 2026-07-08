@@ -10,7 +10,7 @@ the contract spec for the future Tauri (desktop) and Capacitor
 (mobile) ports.
 """
 from app.companion.cache import OfflineCache
-from app.companion.client import ClientConfig, CompanionClient, Transport
+from app.companion.client import CompanionConfig, RavenCompanionClient
 from app.companion.notifications import (
     MuteRule,
     NotificationDispatcher,

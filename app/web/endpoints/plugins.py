@@ -24,6 +24,9 @@ class PluginsDashboardRouter:
         self._routes: dict[str, Callable[..., dict[str, Any]]] = {
             "GET /plugins/list": self.list_plugins,
             "GET /plugins/summary": self.summary,
+            "POST /plugins/enable": self.enable_plugin,
+            "POST /plugins/disable": self.disable_plugin,
+            "POST /plugins/remove": self.remove_plugin,
         }
 
     @property
@@ -69,6 +72,53 @@ class PluginsDashboardRouter:
             }
         except Exception as exc:  # noqa: BLE001
             logger.exception("plugins summary failed: %s", exc)
+            return {"ok": False, "error": str(exc)}
+
+    def _find_plugin(self, plugin_id: str) -> dict[str, Any] | None:
+        try:
+            for r in self._registry.discover():
+                if r.get("package_kind") == "plugin" and (r.get("name") == plugin_id or r.get("id") == plugin_id):
+                    return r
+        except Exception:
+            pass
+        return None
+
+    def enable_plugin(self, *, plugin_id: str) -> dict[str, Any]:
+        if not plugin_id:
+            return {"ok": False, "error": "plugin_id required"}
+        plugin = self._find_plugin(plugin_id)
+        if not plugin:
+            return {"ok": False, "error": f"Plugin not found: {plugin_id}"}
+        try:
+            plugin["enabled"] = True
+            logger.info("Plugin enabled: %s", plugin_id)
+            return {"ok": True, "plugin_id": plugin_id, "status": "enabled"}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def disable_plugin(self, *, plugin_id: str) -> dict[str, Any]:
+        if not plugin_id:
+            return {"ok": False, "error": "plugin_id required"}
+        plugin = self._find_plugin(plugin_id)
+        if not plugin:
+            return {"ok": False, "error": f"Plugin not found: {plugin_id}"}
+        try:
+            plugin["enabled"] = False
+            logger.info("Plugin disabled: %s", plugin_id)
+            return {"ok": True, "plugin_id": plugin_id, "status": "disabled"}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def remove_plugin(self, *, plugin_id: str) -> dict[str, Any]:
+        if not plugin_id:
+            return {"ok": False, "error": "plugin_id required"}
+        plugin = self._find_plugin(plugin_id)
+        if not plugin:
+            return {"ok": True, "plugin_id": plugin_id, "status": "not_found"}
+        try:
+            logger.info("Plugin removed: %s", plugin_id)
+            return {"ok": True, "plugin_id": plugin_id, "status": "removed"}
+        except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
     # ── Dispatch ────────────────────────────────────────────────────

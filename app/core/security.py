@@ -465,15 +465,23 @@ class SecurityGuard:
     def check_dm_pairing(self, user_id: str, platform: str) -> tuple[bool, str]:
         """Check if a DM user is paired. Returns (is_paired, message).
 
-        If DM pairing is disabled, always returns True.
+        If DM pairing is disabled via env or dashboard, always returns True.
         """
-        dm_enabled = os.getenv("DM_PAIRING_ENABLED", "true").lower() in {
+        dm_enabled_env = os.getenv("DM_PAIRING_ENABLED", "true").lower() in {
             "1",
             "true",
             "yes",
         }
-        if not dm_enabled:
-            return True, "DM pairing disabled"
+        if not dm_enabled_env:
+            return True, "DM pairing disabled via environment"
+            
+        try:
+            from app.core.dm_pairing import get_dm_pairing_manager
+            manager = get_dm_pairing_manager()
+            if not manager.is_pairing_enabled():
+                return True, "DM pairing disabled via dashboard"
+        except Exception:
+            pass
 
         if self.is_admin(user_id):
             return True, "Admin user"

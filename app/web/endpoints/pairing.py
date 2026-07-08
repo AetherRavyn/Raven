@@ -25,6 +25,8 @@ class PairingDashboardRouter:
             "GET /pairing/list": self.list_requests,
             "POST /pairing/approve": self.approve_code,
             "POST /pairing/revoke": self.revoke_pairing,
+            "GET /pairing/status": self.get_status,
+            "POST /pairing/toggle": self.toggle_pairing,
         }
 
     @property
@@ -75,6 +77,20 @@ class PairingDashboardRouter:
             return {"ok": ok, "user_id": user_id, "platform": platform}
         except Exception as exc:  # noqa: BLE001
             logger.exception("pairing revoke failed: %s", exc)
+            return {"ok": False, "error": str(exc)}
+
+    def get_status(self) -> dict[str, Any]:
+        try:
+            enabled = self._get_manager().is_pairing_enabled()
+            return {"ok": True, "enabled": enabled}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+            
+    def toggle_pairing(self, *, enabled: bool) -> dict[str, Any]:
+        try:
+            self._get_manager().set_pairing_enabled(enabled)
+            return {"ok": True, "enabled": enabled}
+        except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
     # ── Dispatch ────────────────────────────────────────────────────

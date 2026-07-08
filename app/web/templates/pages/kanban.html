@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}KANBAN — RAVEN{% endblock %}
+{% block head_extra %}
+<style>
+  .kanban-col { min-height: 240px; }
+  .kanban-card { cursor: grab; }
+  .kanban-card:active { cursor: grabbing; }
+  .priority-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+</style>
+{% endblock %}
+{% block main %}
+<section class="space-y-3" x-data="kanbanBoard()" x-init="loadBoard()">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-zinc-100 text-sm tracking-wider uppercase">KANBAN</h1>
+      <p class="text-zinc-500 text-[11px]">Multi-agent task board · <span x-text="stats.total || 0"></span> cards · <span x-text="stats.agent_count || 0"></span> agents</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-zinc-500 text-[10px]">avg age: <span x-text="stats.avg_age_hours || 0"></span>h</span>
+      <button @click="showAdd = true" class="text-[11px] bg-accent text-black px-3 py-1 rounded font-medium">+ Add Card</button>
+    </div>
+  </div>
+
+  <!-- Summary badges -->
+  <div class="flex gap-2 text-[10px] flex-wrap">
+    <template x-for="(count, status) in stats.by_status" :key="status">
+      <span class="px-2 py-0.5 rounded border" :style="'border-color: var(--border-color); color: var(--text-muted);'">
+        <span x-text="status"></span>: <span x-text="count" class="font-medium" style="color: var(--accent);"></span>
+      </span>
+    </template>
+  </div>
+
+  <!-- Add card form -->
+  <div x-show="showAdd" x-cloak class="border rounded p-3 space-y-2" style="border-color: var(--border-color); background: var(--bg-secondary);">
+    <div class="text-zinc-500 text-[10px] uppercase">New Card</div>
+    <input x-model="newCard.title" placeholder="Title" class="w-full bg-transparent border rounded px-2 py-1 text-[12px]" style="border-color: var(--border-color); color: var(--text-primary);" />
+    <textarea x-model="newCard.description" placeholder="Description" class="w-full bg-transparent border rounded px-2 py-1 text-[12px]" style="border-color: var(--border-color); color: var(--text-primary);" rows="2"></textarea>
+    <div class="flex gap-2">
+      <input x-model="newCard.agent_id" placeholder="Agent ID" class="flex-1 bg-transparent border rounded px-2 py-1 text-[12px]" style="border-color: var(--border-color); color: var(--text-primary);" />
+      <select x-model="newCard.priority" class="bg-transparent border rounded px-2 py-1 text-[12px]" style="border-color: var(--border-color); color: var(--text-primary);">
+        <option value="0">P0</option><option value="1">P1</option><option value="2">P2</option><option value="3">P3</option><option value="4">P4</option><option value="5">P5</option>
+      </select>
+    </div>
+    <div class="flex gap-2">
+      <button @click="addCard()" class="text-[11px] bg-accent text-black px-3 py-1 rounded font-medium">Create</button>
+      <button @click="showAdd = false" class="text-[11px] px-3 py-1 rounded" style="color: var(--text-muted);">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Kanban columns -->
+  <div class="grid grid-cols-6 gap-2">
+    <template x-for="col in columns" :key="col.status">
+      <div class="border rounded kanban-col p-2" style="border-color: var(--border-color); background: var(--bg-secondary);">
+        <div class="text-[10px] uppercase tracking-wider mb-2" style="color: var(--text-muted);" x-text="col.label"></div>
+        <div class="space-y-1.5">
+          <template x-for="card in cards.filter(c => c.status === col.status)" :key="card.id">
+            <div class="border rounded p-2 kanban-card text-[11px]" style="border-color: var(--border-color); background: var(--bg-primary);"
+                 @click="selected = card" @dblclick="moveCard(card.id, col.nextStatus)">
+              <div class="flex items-center gap-1.5">
+                <span class="priority-dot" :style="'background: ' + (card.priority > 3 ? '#ef4444' : card.priority > 1 ? '#f59e0b' : '#6ee7b7')"></span>
+                <span class="font-medium truncate flex-1" x-text="card.title"></span>
+              </div>
+              <div class="text-zinc-500 text-[10px] mt-0.5" x-text="card.agent_id || 'unassigned'"></div>
+              <div class="flex gap-1 mt-1">
+                <button @click.stop="moveCard(card.id, 'backlog')" class="text-zinc-600 hover:text-zinc-300 text-[10px]" title="Move to backlog">&#171;</button>
+                <button @click.stop="moveCard(card.id, 'done')" class="text-zinc-600 hover:text-zinc-300 text-[10px] ml-auto" title="Mark done">&#10003;</button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Card detail panel -->
+  <div x-show="selected" x-cloak class="border rounded p-3" style="border-color: var(--border-color); background: var(--bg-secondary);">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-[10px] uppercase" style="color: var(--text-muted);">Card #<span x-text="selected.id"></span></span>
+      <button @click="selected = null" class="text-zinc-500 text-[11px]">&#10005;</button>
+    </div>
+    <div class="text-sm font-medium" x-text="selected.title"></div>
+    <div class="text-[12px] mt-1" style="color: var(--text-muted);" x-text="selected.description"></div>
+    <div class="flex gap-3 mt-2 text-[11px]" style="color: var(--text-muted);">
+      <span>Agent: <span class="text-zinc-300" x-text="selected.agent_id || '—'"></span></span>
+      <span>Status: <span class="text-zinc-300" x-text="selected.status"></span></span>
+      <span>Priority: <span class="text-zinc-300" x-text="selected.priority"></span></span>
+    </div>
+  </div>
+</section>
+
+<script>
+function kanbanBoard() {
+  return {
+    columns: [
+      { status: 'backlog', label: 'Backlog', nextStatus: 'ready' },
+      { status: 'ready', label: 'Ready', nextStatus: 'in_progress' },
+      { status: 'in_progress', label: 'In Progress', nextStatus: 'review' },
+      { status: 'review', label: 'Review', nextStatus: 'done' },
+      { status: 'done', label: 'Done', nextStatus: 'done' },
+      { status: 'blocked', label: 'Blocked', nextStatus: 'in_progress' },
+    ],
+    cards: [],
+    stats: {},
+    selected: null,
+    showAdd: false,
+    newCard: { title: '', description: '', agent_id: '', priority: 0 },
+    async loadBoard() {
+      await Promise.all([this.loadCards(), this.loadStats()]);
+    },
+    async loadCards() {
+      try {
+        const r = await fetch('/api/kanban/list');
+        const d = await r.json();
+        this.cards = d.cards || [];
+      } catch(e) { this.cards = []; }
+    },
+    async loadStats() {
+      try {
+        const r = await fetch('/api/kanban/summary');
+        this.stats = await r.json();
+      } catch(e) { this.stats = {}; }
+    },
+    async addCard() {
+      if (!this.newCard.title) return;
+      try {
+        const r = await fetch('/api/kanban/add', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(this.newCard),
+        });
+        await r.json();
+        this.showAdd = false;
+        this.newCard = { title: '', description: '', agent_id: '', priority: 0 };
+        await this.loadBoard();
+      } catch(e) {}
+    },
+    async moveCard(id, status) {
+      try {
+        await fetch('/api/kanban/move', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ card_id: id, status }),
+        });
+        await this.loadBoard();
+      } catch(e) {}
+    },
+  };
+}
+</script>
+{% endblock %}

@@ -135,6 +135,9 @@ from app.tools.session_search import SessionSearchTool
 from app.tools.skill_hub import SkillHubTool
 from app.tools.skill_manage import SkillManagementTool
 from app.tools.writetool import WriteTodosTool
+from app.tools.kanbantool import KanbanTool
+from app.tools.blueprinttool import BlueprintTool
+from app.tools.lsp_tool import LSPTool
 from app.core.task_scheduler import get_scheduler
 
 logger = logging.getLogger(__name__)
@@ -298,6 +301,10 @@ class MessageOrchestrator:
             DriveTool(),
             LocalMLTool(),
             AcpTool(),
+            # Gap-filling tools
+            KanbanTool(),
+            BlueprintTool(),
+            LSPTool(),
         ]
 
         # Conditional — Linear (needs LINEAR_API_KEY)
@@ -723,6 +730,44 @@ class MessageOrchestrator:
                     logger.info("VACUUM reclaimed %d bytes from learning store", reclaimed)
 
             sched.register("vacuum_learning", interval_turns=500, callback=_vacuum)
+
+            # Curator — run data curation pipeline
+            def _run_curator() -> None:
+                try:
+                    import asyncio
+                    from app.core.curator import Curator
+                    curator = Curator()
+                    stats = asyncio.run(curator.run_pipeline())
+                    if stats and stats.total_samples:
+                        push_event("curator", f"Curated {stats.total_samples} samples (after_dedup={stats.after_dedup})")
+                        logger.info("Curated %d samples", stats.total_samples)
+                except Exception as exc:
+                    logger.debug("Curator run failed: %s", exc)
+
+            sched.register("curator_pipeline", interval_turns=100, callback=_run_curator)
+
+            # Petdex — tick pet stats decay
+            def _tick_pets() -> None:
+                try:
+                    from app.core.petdex import PetdexManager
+                    pm = PetdexManager()
+                    pm.tick()
+                except Exception as exc:
+                    logger.debug("Petdex tick failed: %s", exc)
+
+            sched.register("petdex_tick", interval_turns=10, callback=_tick_pets)
+
+            # Memory sync — sync with remote stores
+            def _sync_memory() -> None:
+                try:
+                    import asyncio
+                    from app.core.memory_sync import MemorySyncManager
+                    manager = MemorySyncManager(providers=[])
+                    asyncio.run(manager.sync_all())
+                except Exception as exc:
+                    logger.debug("Memory sync failed: %s", exc)
+
+            sched.register("memory_sync", interval_turns=200, callback=_sync_memory)
         except Exception as exc:
             logger.debug("Scheduler init failed: %s", exc)
 
@@ -1702,6 +1747,122 @@ class MessageOrchestrator:
             except Exception as exc:
                 logger.debug("Calendar direct dispatch failed: %s", exc)
 
+        # Kanban routes
+        if lowered == "/kanban" or lowered.startswith("/kanban "):
+            try:
+                from app.core.kanban import KanbanBoard, TaskStatus
+
+                board = KanbanBoard()
+                tokens = text[len("/kanban") :].strip().split(maxsplit=1)
+                subcmd = tokens[0].lower() if tokens else "summary"
+                arg = tokens[1].strip() if len(tokens) > 1 else ""
+
+                if subcmd == "add":
+                    parts = arg.split("|")
+                    title = parts[0].strip() if parts else ""
+                    desc = parts[1].strip() if len(parts) > 1 else ""
+                    agent = parts[2].strip() if len(parts) > 2 else ""
+                    if not title:
+                        await self._botsignal.send_text(request.reply_target, "Usage: /kanban add <title> | <description> | <agent_id>", source_kind=source_kind)
+                        return True
+                    card = board.create_card(title=title, description=desc, agent_id=agent)
+                    await self._botsignal.send_text(request.reply_target, f"Card #{card.id} created: {card.title} [{card.status.value}]", source_kind=source_kind)
+                elif subcmd == "move":
+                    parts = arg.split(maxsplit=1)
+                    if len(parts) < 2:
+                        await self._botsignal.send_text(request.reply_target, "Usage: /kanban move <card_id> <status>", source_kind=source_kind)
+                        return True
+                    try:
+                        cid = int(parts[0])
+                        new_status = TaskStatus(parts[1].lower())
+                        if board.move_card(cid, new_status):
+                            await self._botsignal.send_text(request.reply_target, f"Card #{cid} moved to {new_status.value}", source_kind=source_kind)
+                        else:
+                            await self._botsignal.send_text(request.reply_target, f"Card {cid} not found", source_kind=source_kind)
+                    except (ValueError, KeyError):
+                        await self._botsignal.send_text(request.reply_target, "Invalid card_id or status. Valid statuses: backlog, ready, in_progress, review, done, blocked", source_kind=source_kind)
+                elif subcmd == "list":
+                    try:
+                        status_filter = TaskStatus(arg.lower()) if arg else None
+                    except ValueError:
+                        status_filter = None
+                    cards = board.list_cards(status=status_filter)
+                    if not cards:
+                        await self._botsignal.send_text(request.reply_target, "No cards found.", source_kind=source_kind)
+                    else:
+                        lines = [f"Kanban Board ({len(cards)} cards):"]
+                        for c in cards:
+                            lines.append(f"  #{c.id} [{c.status.value}] {c.title} (agent={c.agent_id or 'unassigned'}, pri={c.priority})")
+                        await self._botsignal.send_text(request.reply_target, "\n".join(lines), source_kind=source_kind)
+                elif subcmd == "delete":
+                    try:
+                        cid = int(arg)
+                        if board.delete_card(cid):
+                            await self._botsignal.send_text(request.reply_target, f"Card #{cid} deleted.", source_kind=source_kind)
+                        else:
+                            await self._botsignal.send_text(request.reply_target, f"Card {cid} not found.", source_kind=source_kind)
+                    except ValueError:
+                        await self._botsignal.send_text(request.reply_target, "Usage: /kanban delete <card_id>", source_kind=source_kind)
+                else:
+                    stats = board.get_board_summary()
+                    await self._botsignal.send_text(request.reply_target, f"Kanban: {stats.get('total', 0)} cards total — {stats.get('by_status', {})}", source_kind=source_kind)
+                return True
+            except Exception as exc:
+                logger.debug("Kanban dispatch failed: %s", exc)
+
+        # Blueprint routes
+        if lowered == "/blueprint" or lowered.startswith("/blueprint "):
+            try:
+                from app.core.blueprint_manager import BlueprintManager
+
+                bm = BlueprintManager()
+                tokens = text[len("/blueprint") :].strip().split(maxsplit=1)
+                subcmd = tokens[0].lower() if tokens else "list"
+                arg = tokens[1].strip() if len(tokens) > 1 else ""
+
+                if subcmd == "list":
+                    bps = bm.list_blueprints()
+                    if not bps:
+                        await self._botsignal.send_text(request.reply_target, "No blueprints installed.", source_kind=source_kind)
+                    else:
+                        lines = [f"Blueprints ({len(bps)}):"]
+                        for bp in bps:
+                            lines.append(f"  {bp.name} — v{bp.version} ({'enabled' if bp.enabled else 'disabled'})")
+                        await self._botsignal.send_text(request.reply_target, "\n".join(lines), source_kind=source_kind)
+                elif subcmd == "run" and arg:
+                    from app.core.blueprint_runner import BlueprintRunner
+                    runner = BlueprintRunner(manager=bm)
+                    result = runner.run(name=arg)
+                    status = result.get("status", "unknown")
+                    duration = result.get("duration", 0)
+                    error = result.get("error")
+                    sr = result.get("steps_results", [])
+                    ok = sum(1 for s in sr if s.get("status") == "success")
+                    reply = f"Blueprint '{arg}' run: {ok}/{len(sr)} steps, {duration}s ({status})"
+                    if error:
+                        reply += f" — error: {error}"
+                    await self._botsignal.send_text(request.reply_target, reply, source_kind=source_kind)
+                elif subcmd == "enable" and arg:
+                    bm.enable(arg)
+                    await self._botsignal.send_text(request.reply_target, f"Blueprint {arg} enabled.", source_kind=source_kind)
+                elif subcmd == "disable" and arg:
+                    bm.disable(arg)
+                    await self._botsignal.send_text(request.reply_target, f"Blueprint {arg} disabled.", source_kind=source_kind)
+                elif subcmd == "history" and arg:
+                    history = bm.get_run_history(arg)
+                    if not history:
+                        await self._botsignal.send_text(request.reply_target, f"No run history for {arg}.", source_kind=source_kind)
+                    else:
+                        lines = [f"Run history for {arg}:"]
+                        for h in history[-10:]:
+                            lines.append(f"  {h.get('id', '?')} — {h.get('status', '?')} at {h.get('started_at', '?')}")
+                        await self._botsignal.send_text(request.reply_target, "\n".join(lines), source_kind=source_kind)
+                else:
+                    await self._botsignal.send_text(request.reply_target, "Usage: /blueprint list | run <name> | enable <name> | disable <name> | history <name>", source_kind=source_kind)
+                return True
+            except Exception as exc:
+                logger.debug("Blueprint dispatch failed: %s", exc)
+
         return False
 
     async def _handle_internet_intel_direct(
@@ -2114,17 +2275,52 @@ class MessageOrchestrator:
         except Exception:
             pass
 
+        # Skill Auto-Invocation: check if a learned skill matches this message
+        # and inject its instructions as context for System 2.
+        _matched_skill_instructions: str = ""
+        try:
+            from app.core.skill_enhancement import get_enhanced_skill_learner
+
+            enhanced_learner = get_enhanced_skill_learner()
+            skill_matches = enhanced_learner.match_and_get_skills(request.text)
+            if skill_matches:
+                best = skill_matches[0]  # highest confidence match
+                confidence = best.get("confidence", 0)
+                if confidence >= 0.6:
+                    manifest = enhanced_learner.auto_invoker.get_skill_manifest(best["skill_id"])
+                    if manifest:
+                        _matched_skill_instructions = (
+                            f"\n[SKILL CONTEXT: {best.get('skill_name', best['skill_id'])}]\n"
+                            f"Description: {best.get('description', '')}\n"
+                            f"Instructions: {manifest.get('instructions', '')}\n"
+                            f"Triggered by pattern: {best.get('trigger_pattern', '')}\n"
+                            f"Confidence: {confidence:.0%}\n"
+                            f"[/SKILL CONTEXT]\n"
+                        )
+                        logger.info(
+                            "Skill auto-invoked: %s (confidence=%.0f%%)",
+                            best["skill_id"],
+                            confidence * 100,
+                        )
+        except Exception as exc:
+            logger.debug("Skill auto-invocation check failed: %s", exc)
+
         # System 2: Deep provider-backed response with fallback (AgentRuntime with full tool access).
+        # If a skill matched, inject its instructions into the request context.
+        if _matched_skill_instructions:
+            request.metadata = getattr(request, "metadata", {}) or {}
+            request.metadata["skill_instructions"] = _matched_skill_instructions
         turn_result = await self._agent_runtime.execute_turn(request)
         # Phase 0.2 — feed execution trace to SkillLearner so it can
         # actually write learned skills. Failure must be silent (warned).
         try:
             from app.core.skill_learner import (
                 ExecutionTrace,
-                get_skill_learner,
             )
+            from app.core.skill_enhancement import get_enhanced_skill_learner
 
-            learner = get_skill_learner()
+            enhanced_learner = get_enhanced_skill_learner()
+            learner = enhanced_learner.base_learner
             tool_calls = (turn_result or {}).get("tool_calls") or []
             # Only attempt to learn if the turn actually used tools —
             # simple Q&A isn't worth a skill.

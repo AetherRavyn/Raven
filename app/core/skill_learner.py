@@ -522,6 +522,33 @@ class SkillLearner:
             "skills": skills,
         }
 
+    def consolidate_skills(self) -> None:
+        """Periodic maintenance: prune low-performing skills and consolidate."""
+        import shutil
+        pruned_count = 0
+        for skill_dir in self._learned_dir.iterdir():
+            if not skill_dir.is_dir():
+                continue
+            manifest_path = skill_dir / "module.yaml"
+            if not manifest_path.exists():
+                continue
+            try:
+                data = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+                success_rate = data.get("success_rate", 1.0)
+                invocations = data.get("invocation_count", 0)
+                
+                # Prune if invoked multiple times but consistently fails
+                if invocations >= 3 and success_rate < 0.4:
+                    logger.info(f"Pruning learned skill {skill_dir.name} due to low success rate ({success_rate})")
+                    shutil.rmtree(skill_dir)
+                    pruned_count += 1
+            except Exception as e:
+                logger.warning(f"Error consolidating skill {skill_dir.name}: {e}")
+        
+        if pruned_count > 0:
+            logger.info(f"Consolidated skills: pruned {pruned_count} underperforming skills.")
+
+
 
 # ── Stop words for slug generation ──────────────────────────────────
 

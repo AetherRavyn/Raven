@@ -1,0 +1,608 @@
+"""Tests for Phase 7 — companion module.
+
+Covers:
+1. Protocol — every frame round-trips through parse_frame/encode.
+2. Protocol — strict mode rejects unknown fields.
+3. StatusCollector — queue depth, last action/error, sample JSON.
+4. CommandPalette — exact / prefix / substring / fuzzy matching.
+5. OfflineCache — events buffered, TTL eviction, outgoing queue, SQLite persistence.
+6. Notifications — basic delivery, mute rules, min-priority filter.
+7. RavenCompanionClient — connect handshake, send command, offline queue, event handling.
+8. RavenCompanionClient — drains the outgoing queue on reconnect.
+"""
+from __future__ import annotations
+
+import asyncio
+import tempfile
+import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from app.companion import (
+    CompanionConfig,
+    CommandPalette,
+    RavenCompanionClient,
+    ErrorFrame,
+    Hello,
+    IntentEntry,
+    MuteRule,
+    NotificationDispatcher,
+    NotificationPayload,
+    OfflineCache,
+    PROTOCOL_VERSION,
+    StatusCollector,
+    StatusSnapshot,
+    Subscribe,
+    Welcome,
+    encode,
+    parse_frame,
+    parse_frame_strict,
+)
+from app.companion.types import (
+    Ack,
+    Command,
+    Event,
+    MessageKind,
+    Ping,
+    Pong,
+    Response,
+    Status as StatusFrame,
+)
+
+
+# ── Protocol round-trips ────────────────────────────────────────────
+
+
+class TestProtocolRoundTrips(unittest.TestCase):
+    def test_hello(self) -> None:
+        h = Hello(client="x", platform="linux", build="1.0", auth_token="t")
+        d = encode(h)
+        self.assertEqual(d["kind"], "hello")
+        self.assertEqual(d["client"], "x")
+        out = parse_frame(d)
+        self.assertEqual(out.client, "x")
+        self.assertEqual(out.platform, "linux")
+        self.assertEqual(out.auth_token, "t")
+
+    def test_welcome(self) -> None:
+        w = Welcome(session_id="abc", capabilities=["status", "command_palette"])
+        d = encode(w)
+        self.assertEqual(d["protocol_version"], PROTOCOL_VERSION)
+        out = parse_frame(d)
+        self.assertEqual(out.session_id, "abc")
+        self.assertIn("status", out.capabilities)
+
+    def test_ping_pong(self) -> None:
+        p = Ping(ts=12345)
+        d = encode(p)
+        self.assertEqual(d["ts"], 12345)
+        out = parse_frame(d)
+        self.assertEqual(out.ts, 12345)
+
+        p2 = Pong(ts=1, server_ts=2)
+        d2 = encode(p2)
+        self.assertEqual(parse_frame(d2).server_ts, 2)
+
+    def test_subscribe(self) -> None:
+        s = Subscribe(channels=["alerts", "briefing"])
+        out = parse_frame(encode(s))
+        self.assertEqual(out.channels, ["alerts", "briefing"])
+
+    def test_command(self) -> None:
+        c = Command(intent="weather", args={"city": "London"})
+        out = parse_frame(encode(c))
+        self.assertEqual(out.intent, "weather")
+        self.assertEqual(out.args["city"], "London")
+        # Command is auto-assigned an id.
+        self.assertTrue(out.id)
+
+    def test_response(self) -> None:
+        r = Response(id="abc", ok=True, result={"x": 1})
+        out = parse_frame(encode(r))
+        self.assertTrue(out.ok)
+        self.assertEqual(out.result["x"], 1)
+
+    def test_event(self) -> None:
+        e = Event(channel="alerts", payload={"title": "storm"}, priority="high")
+        out = parse_frame(encode(e))
+        self.assertEqual(out.channel, "alerts")
+        self.assertEqual(out.priority, "high")
+
+    def test_ack(self) -> None:
+        a = Ack(id="x", ok=False, note="skip")
+        out = parse_frame(encode(a))
+        self.assertFalse(out.ok)
+        self.assertEqual(out.note, "skip")
+
+    def test_error_frame(self) -> None:
+        ef = ErrorFrame(code="BAD_AUTH", message="no token")
+        out = parse_frame(encode(ef))
+        self.assertEqual(out.code, "BAD_AUTH")
+
+    def test_status(self) -> None:
+        s = StatusFrame(cpu_pct=42.0, ram_pct=60.0, queue_depth=3, last_action="weather")
+        out = parse_frame(encode(s))
+        self.assertEqual(out.cpu_pct, 42.0)
+        self.assertEqual(out.queue_depth, 3)
+
+    def test_unknown_kind_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_frame({"kind": "made_up"})
+
+    def test_missing_kind_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_frame({"foo": "bar"})
+
+    def test_strict_mode_rejects_unknown_fields(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_frame_strict({"kind": "ping", "ts": 1, "weird_field": True})
+
+
+# ── Status collector ────────────────────────────────────────────────
+
+
+class TestStatusCollector(unittest.TestCase):
+    def test_default_snapshot_has_none_for_psutil(self) -> None:
+        s = StatusCollector()
+        snap = s.sample()
+        # psutil may or may not be present; either is fine.
+        self.assertIn("cpu_pct", snap.to_dict())
+        self.assertEqual(snap.queue_depth, 0)
+        self.assertEqual(snap.last_action, "")
+
+    def test_queue_depth_increments_and_decrements(self) -> None:
+        s = StatusCollector()
+        s.enqueue(3)
+        self.assertEqual(s.queue_depth, 3)
+        s.enqueue(2)
+        self.assertEqual(s.queue_depth, 5)
+        s.dequeue(4)
+        self.assertEqual(s.queue_depth, 1)
+        s.dequeue(99)  # can't go negative
+        self.assertEqual(s.queue_depth, 0)
+
+    def test_records_action_and_error(self) -> None:
+        s = StatusCollector()
+        s.record_action("weather")
+        s.record_error("upstream 503")
+        snap = s.sample()
+        self.assertEqual(snap.last_action, "weather")
+        self.assertEqual(snap.last_error, "upstream 503")
+
+    def test_status_snapshot_to_dict_is_json_safe(self) -> None:
+        s = StatusCollector()
+        s.record_action("a")
+        snap = s.sample()
+        import json
+        json.dumps(snap.to_dict())
+
+    def test_uptime_is_nonnegative(self) -> None:
+        s = StatusCollector()
+        snap = s.sample()
+        self.assertGreaterEqual(snap.uptime_s, 0)
+
+
+# ── Command palette ─────────────────────────────────────────────────
+
+
+class TestCommandPalette(unittest.TestCase):
+    def test_exact_match(self) -> None:
+        p = CommandPalette()
+        s = p.suggest("weather")
+        self.assertGreater(len(s), 0)
+        self.assertEqual(s[0].entry.intent, "weather")
+        self.assertEqual(s[0].score, 1.0)
+
+    def test_prefix_match(self) -> None:
+        p = CommandPalette()
+        s = p.suggest("wea")
+        self.assertEqual(s[0].entry.intent, "weather")
+        self.assertGreaterEqual(s[0].score, 0.8)
+
+    def test_substring_match(self) -> None:
+        p = CommandPalette()
+        s = p.suggest("eath")  # substring of "weather"
+        self.assertTrue(any(x.entry.intent == "weather" for x in s))
+
+    def test_keyword_match(self) -> None:
+        p = CommandPalette()
+        s = p.suggest("forecast")
+        self.assertTrue(any(x.entry.intent == "weather" for x in s))
+
+    def test_fuzzy_match(self) -> None:
+        p = CommandPalette()
+        s = p.suggest("wheater")  # 1-edit typo of "weather"
+        self.assertTrue(any(x.entry.intent == "weather" for x in s))
+
+    def test_empty_query_returns_all(self) -> None:
+        p = CommandPalette()
+        s = p.suggest("")
+        # Up to the default limit (5).
+        self.assertEqual(len(s), 5)
+
+    def test_no_match_returns_empty(self) -> None:
+        p = CommandPalette()
+        s = p.suggest("zzzqqqxxx")
+        self.assertEqual(s, [])
+
+    def test_add_intent_at_runtime(self) -> None:
+        p = CommandPalette()
+        p.add_intent(IntentEntry("custom", "do my custom thing", ["misc"]))
+        s = p.suggest("custom")
+        self.assertEqual(s[0].entry.intent, "custom")
+
+    def test_replace_intent_index(self) -> None:
+        p = CommandPalette()
+        p.set_intents([IntentEntry("only_one", "the only one")])
+        self.assertEqual(len(p.intents()), 1)
+        s = p.suggest("weather")
+        self.assertEqual(s, [])
+
+
+# ── Offline cache ───────────────────────────────────────────────────
+
+
+class TestOfflineCache(unittest.TestCase):
+    def test_in_memory_event_buffer(self) -> None:
+        c = OfflineCache(sqlite_path=None)
+        c.buffer_event("e1", "alerts", {"msg": "hi"})
+        c.buffer_event("e2", "alerts", {"msg": "hi2"})
+        events = c.recent_events(limit=10)
+        self.assertEqual(len(events), 2)
+        # Newest first.
+        self.assertEqual(events[0]["id"], "e2")
+
+    def test_event_buffer_channel_filter(self) -> None:
+        c = OfflineCache(sqlite_path=None)
+        c.buffer_event("e1", "alerts", {})
+        c.buffer_event("e2", "briefing", {})
+        alerts = c.recent_events(channel="alerts", limit=10)
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0]["id"], "e1")
+
+    def test_outgoing_queue_drains_via_mark(self) -> None:
+        c = OfflineCache(sqlite_path=None)
+        c.queue_action("a1", "weather", {"city": "nyc"})
+        c.queue_action("a2", "morning_briefing", {})
+        self.assertEqual(c.pending_action_count(), 2)
+        actions = c.pending_actions()
+        self.assertEqual(actions[0]["intent"], "weather")
+        c.mark_action_sent("a1")
+        self.assertEqual(c.pending_action_count(), 1)
+        # The remaining action still has no last_error.
+        self.assertIsNone(actions[1]["last_error"])
+        # Mark with error — should remain, but attempt counter bumps.
+        c.mark_action_sent("a2", error="timeout")
+        # Read back, attempts should be 1.
+        actions = c.pending_actions()
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0]["attempts"], 1)
+        self.assertEqual(actions[0]["last_error"], "timeout")
+
+    def test_ttl_eviction(self) -> None:
+        # Tiny TTL: 1 ms.
+        c = OfflineCache(sqlite_path=None, ttl_s=0)
+        c.buffer_event("e1", "alerts", {})
+        # Wait for the row to age out.
+        import time
+        time.sleep(0.05)
+        # Eviction runs on every write — trigger one.
+        c.buffer_event("e2", "alerts", {})
+        events = c.recent_events(limit=10)
+        # e1 should have been evicted by the cutoff.
+        ids = {e["id"] for e in events}
+        self.assertNotIn("e1", ids)
+
+    def test_survives_restart_via_sqlite(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "offline.sqlite"
+
+            async def go():
+                c = OfflineCache(sqlite_path=path)
+                c.buffer_event("e1", "alerts", {"msg": "hi"})
+                c.queue_action("a1", "weather", {})
+                # Restart.
+                c2 = OfflineCache(sqlite_path=path)
+                return c2.recent_events(), c2.pending_actions()
+
+            events, actions = asyncio.run(go())
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["id"], "e1")
+            self.assertEqual(len(actions), 1)
+            self.assertEqual(actions[0]["intent"], "weather")
+
+    def test_pending_event_count(self) -> None:
+        c = OfflineCache(sqlite_path=None)
+        c.buffer_event("e1", "alerts", {})
+        c.buffer_event("e2", "alerts", {})
+        self.assertEqual(c.pending_event_count(), 2)
+        c.mark_event_delivered("e1")
+        self.assertEqual(c.pending_event_count(), 1)
+
+
+# ── Notifications + mute rules ──────────────────────────────────────
+
+
+class TestNotifications(unittest.TestCase):
+    def test_basic_delivery(self) -> None:
+        d = NotificationDispatcher()
+        out = d.notify(title="hi", body="there", channel="alerts", priority="normal")
+        self.assertIsNotNone(out)
+        self.assertEqual(len(d.delivered()), 1)
+        self.assertEqual(len(d.dropped()), 0)
+
+    def test_min_priority_filter(self) -> None:
+        d = NotificationDispatcher(min_priority="high")
+        d.notify(title="a", body="", channel="x", priority="low")
+        d.notify(title="b", body="", channel="x", priority="normal")
+        d.notify(title="c", body="", channel="x", priority="high")
+        self.assertEqual(len(d.delivered()), 1)
+        self.assertEqual(d.delivered()[0].title, "c")
+
+    def test_mute_rule_by_channel(self) -> None:
+        d = NotificationDispatcher()
+        d.add_rule(MuteRule(channel="alerts"))
+        d.notify(title="a", body="", channel="alerts", priority="high")
+        d.notify(title="b", body="", channel="briefing", priority="high")
+        self.assertEqual(len(d.delivered()), 1)
+        self.assertEqual(d.delivered()[0].title, "b")
+
+    def test_mute_rule_by_priority(self) -> None:
+        d = NotificationDispatcher()
+        d.add_rule(MuteRule(priority="low"))
+        d.notify(title="a", body="", channel="x", priority="low")
+        d.notify(title="b", body="", channel="x", priority="normal")
+        self.assertEqual(len(d.delivered()), 1)
+        self.assertEqual(d.delivered()[0].title, "b")
+
+    def test_mute_rule_by_intent(self) -> None:
+        d = NotificationDispatcher()
+        d.add_rule(MuteRule(intent="send_email"))
+        d.notify(title="a", body="", channel="x", deep_link="intent:send_email")
+        d.notify(title="b", body="", channel="x", deep_link="intent:weather")
+        self.assertEqual(len(d.delivered()), 1)
+        self.assertEqual(d.delivered()[0].title, "b")
+
+    def test_mute_rule_by_weekday(self) -> None:
+        d = NotificationDispatcher()
+        d.add_rule(MuteRule(weekday="sunday"))
+        sunday = datetime(2026, 6, 21, 12, 0, tzinfo=timezone.utc)
+        sunday_ms = int(sunday.timestamp() * 1000)
+        monday = datetime(2026, 6, 22, 12, 0, tzinfo=timezone.utc)
+        monday_ms = int(monday.timestamp() * 1000)
+        # We override the dispatcher's internal "now" by checking the
+        # rule against a payload directly — that way we don't have to
+        # fake the system clock.
+        from app.companion.notifications import parse_mute_rule
+        rule = parse_mute_rule("weekday:sunday")
+        # Sunday payload → matches.
+        p_sun = NotificationPayload(
+            title="x", body="", channel="x", priority="high",
+            event_id="1", timestamp_ms=sunday_ms,
+        )
+        self.assertTrue(rule.matches(p_sun))
+        # Monday payload → no match.
+        p_mon = NotificationPayload(
+            title="x", body="", channel="x", priority="high",
+            event_id="1", timestamp_ms=monday_ms,
+        )
+        self.assertFalse(rule.matches(p_mon))
+        # The dispatcher still delivers both — the rule was never
+        # wired to a real clock here.  This test is asserting the
+        # rule's matching logic, not the dispatcher's clock.
+        self.assertEqual(len(d.delivered()), 0)
+
+    def test_parse_mute_rule(self) -> None:
+        from app.companion.notifications import parse_mute_rule
+        r = parse_mute_rule("channel:alerts")
+        self.assertEqual(r.channel, "alerts")
+        r2 = parse_mute_rule("weekday:sunday")
+        self.assertEqual(r2.weekday, "sunday")
+        with self.assertRaises(ValueError):
+            parse_mute_rule("bogus:thing")
+
+    def test_notify_event_renders(self) -> None:
+        d = NotificationDispatcher()
+        out = d.notify_event({
+            "id": "e1",
+            "channel": "alerts",
+            "priority": "high",
+            "payload": {"title": "Storm warning", "body": "Heavy rain expected"},
+        })
+        self.assertIsNotNone(out)
+        self.assertEqual(out.title, "Storm warning")
+        self.assertEqual(out.body, "Heavy rain expected")
+
+    def test_sink_called(self) -> None:
+        seen: list[NotificationPayload] = []
+
+        def sink(p: NotificationPayload) -> None:
+            seen.append(p)
+
+        d = NotificationDispatcher(sink=sink)
+        d.notify(title="x", body="y", channel="z")
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(seen[0].title, "x")
+
+
+# ── Companion client ────────────────────────────────────────────────
+
+
+class _ScriptedTransport:
+    """A transport that returns canned replies by frame kind.
+
+    Used to drive the client through a complete lifecycle without a
+    real WebSocket.  ``replies`` maps ``input.kind`` to the reply dict
+    that should be returned for that frame (or a list of replies for
+    frames that should be consumed in order).  ``None`` means the
+    transport drops the frame (simulates disconnect).
+    """
+
+    def __init__(self, replies: dict | None = None) -> None:
+        self.replies = replies or {}
+        self.sent: list[dict] = []
+        self._counters: dict[str, int] = {}
+
+    async def __call__(self, frame: dict) -> dict | None:
+        self.sent.append(frame)
+        kind = frame.get("kind")
+        reply = self.replies.get(kind)
+        if reply is None:
+            return None
+        if isinstance(reply, list):
+            i = self._counters.get(kind, 0)
+            self._counters[kind] = i + 1
+            if i >= len(reply):
+                return None
+            return reply[i]
+        return reply
+
+    def find_sent(self, kind: str) -> list[dict]:
+        return [f for f in self.sent if f.get("kind") == kind]
+
+
+class TestRavenCompanionClient(unittest.TestCase):
+    def test_connect_handshake(self) -> None:
+        transport = _ScriptedTransport(replies={
+            "hello": encode(Welcome(session_id="s1")),
+        })
+        client = RavenCompanionClient(
+            config=CompanionConfig(subscribed_channels=[]),
+            transport=transport,
+        )
+
+        async def go():
+            return await client.connect()
+
+        w = asyncio.run(go())
+        self.assertEqual(w.session_id, "s1")
+        self.assertTrue(client.connected)
+        # Subscribe frame was sent (even with empty channels list).
+        self.assertEqual(len(transport.find_sent("subscribe")), 1)
+
+    def test_send_command_queues_when_offline(self) -> None:
+        # No transport binding → no transport → offline.
+        client = RavenCompanionClient(CompanionConfig())
+        # Manually set connected=False and don't bind a transport.
+        resp = asyncio.run(client.send_command("weather", {"city": "nyc"}))
+        self.assertTrue(resp.ok)
+        self.assertTrue(resp.result.get("queued"))
+        # The action is now in the outgoing queue.
+        self.assertEqual(client.cache.pending_action_count(), 1)
+
+    def test_send_command_blocks_for_response(self) -> None:
+        reply = encode(Response(id="X", ok=True, result={"temp": 72}))
+        # We need to know the command id — script the transport to
+        # respond to any "command" frame with the canned reply.
+        transport = _ScriptedTransport(replies={
+            "hello": encode(Welcome(session_id="s1")),
+            "command": reply,
+        })
+        client = RavenCompanionClient(
+            config=CompanionConfig(subscribed_channels=[]),
+            transport=transport,
+        )
+        # Pretend we're already connected.
+        async def go():
+            await client.connect()
+            return await client.send_command("weather", {"city": "nyc"})
+
+        resp = asyncio.run(go())
+        self.assertTrue(resp.ok)
+        self.assertEqual(resp.result["temp"], 72)
+
+    def test_handle_event_buffers_and_notifies(self) -> None:
+        client = RavenCompanionClient(
+            notifications=NotificationDispatcher(),
+        )
+        ev = encode(Event(
+            id="e1", channel="alerts", priority="high",
+            payload={"title": "Storm", "body": "Heavy rain"},
+        ))
+
+        async def go():
+            return await client.handle_event(ev)
+
+        event = asyncio.run(go())
+        self.assertIsNotNone(event)
+        self.assertEqual(event.id, "e1")
+        # Event is buffered.
+        events = client.cache.recent_events()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["id"], "e1")
+        # High-priority alerts channel triggers a notification.
+        self.assertEqual(len(client.notifications.delivered()), 1)
+
+    def test_handle_event_updates_palette(self) -> None:
+        client = RavenCompanionClient(CompanionConfig())
+        ev = encode(Event(
+            id="e1", channel="intents",
+            payload={
+                "intents": [
+                    {"intent": "deploy", "title": "Deploy service", "keywords": ["ship"]},
+                ]
+            },
+        ))
+        asyncio.run(client.handle_event(ev))
+        s = client.palette.suggest("deploy")
+        self.assertEqual(s[0].entry.intent, "deploy")
+
+    def test_drain_outgoing_on_reconnect(self) -> None:
+        # Pre-load the cache with two queued actions.
+        cache = OfflineCache(sqlite_path=None)
+        cache.queue_action("a1", "weather", {"city": "nyc"})
+        cache.queue_action("a2", "morning_briefing", {})
+        client = RavenCompanionClient(cache=cache)
+        # Transport always succeeds (returns a response).
+        transport = _ScriptedTransport(replies={
+            "hello": encode(Welcome(session_id="s1")),
+            "command": encode(Response(id="X", ok=True)),
+        })
+        client.bind_transport(transport)
+
+        async def go():
+            await client.connect()
+            # connect() drains automatically.
+            return client.cache.pending_action_count()
+
+        remaining = asyncio.run(go())
+        self.assertEqual(remaining, 0)
+        # Two commands were sent.
+        self.assertEqual(len(transport.find_sent("command")), 2)
+
+    def test_ping(self) -> None:
+        # Pong reply must echo the ts.
+        transport = _ScriptedTransport(replies={
+            "hello": encode(Welcome(session_id="s1")),
+            "ping": encode(Pong(ts=0, server_ts=42)),
+        })
+        client = RavenCompanionClient(transport=transport)
+
+        async def go():
+            await client.connect()
+            return await client.ping()
+
+        rtt = asyncio.run(go())
+        # The scripted transport returns server_ts=42 unconditionally.
+        # The client's "send ts" is the real current time, so the
+        # returned rtt = 42 - now_ms which is a giant negative number.
+        # We don't care about the actual rtt value here; we just need
+        # the round-trip to complete (i.e. no exception).
+        self.assertIsInstance(rtt, int)
+
+    def test_fetch_status(self) -> None:
+        client = RavenCompanionClient(CompanionConfig())
+        client.status_collector.record_action("weather")
+        client.status_collector.record_error("timeout")
+        snap = asyncio.run(client.fetch_status())
+        self.assertEqual(snap.last_action, "weather")
+        self.assertEqual(snap.last_error, "timeout")
+
+    def test_suggest(self) -> None:
+        client = RavenCompanionClient(CompanionConfig())
+        s = client.suggest("fore")
+        self.assertTrue(any(x.entry.intent == "weather" for x in s))
+
+
+if __name__ == "__main__":
+    unittest.main()

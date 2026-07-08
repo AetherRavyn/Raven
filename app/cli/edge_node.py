@@ -87,27 +87,20 @@ def run_edge_node(name, server, capabilities, location, sensors):
                         logger.warning(f"Received malformed task: {task}")
                         continue
 
-                    logger.info(
-                        f"Received task {task_id}. Executing payload:\n{payload}"
-                    )
+                    logger.info(f"Received task {task_id}. Executing payload:\n{payload}")
 
                     # Execute payload (isolated system — no shell=True)
                     import shlex
+
                     cmd_parts = shlex.split(payload)
-                    process = subprocess.run(
-                        cmd_parts, capture_output=True, text=True, timeout=60
-                    )
+                    process = subprocess.run(cmd_parts, capture_output=True, text=True, timeout=60)
 
                     success = process.returncode == 0
                     result_output = (
-                        process.stdout
-                        if success
-                        else (process.stderr or process.stdout)
+                        process.stdout if success else (process.stderr or process.stdout)
                     )
 
-                    logger.info(
-                        f"Task {task_id} execution completed. Success: {success}"
-                    )
+                    logger.info(f"Task {task_id} execution completed. Success: {success}")
 
                     # Send completion status
                     complete_url = f"{server}/api/v1/edge/tasks/{task_id}/complete"
@@ -121,14 +114,10 @@ def run_edge_node(name, server, capabilities, location, sensors):
                                 complete_url, json=complete_payload, timeout=10
                             )
                             comp_resp.raise_for_status()
-                            logger.info(
-                                f"Successfully reported completion for task {task_id}."
-                            )
+                            logger.info(f"Successfully reported completion for task {task_id}.")
                             break
                         except requests.exceptions.RequestException as e:
-                            logger.error(
-                                f"Failed to report completion for task {task_id}: {e}"
-                            )
+                            logger.error(f"Failed to report completion for task {task_id}: {e}")
                             logger.info(
                                 f"Retrying reporting completion in {report_backoff} seconds..."
                             )
@@ -139,9 +128,7 @@ def run_edge_node(name, server, capabilities, location, sensors):
                 # No tasks available
                 time.sleep(5)
             else:
-                logger.debug(
-                    f"Polling returned unexpected status {response.status_code}"
-                )
+                logger.debug(f"Polling returned unexpected status {response.status_code}")
                 time.sleep(5)
 
         except requests.exceptions.RequestException as e:

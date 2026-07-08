@@ -105,6 +105,8 @@ class AmbientLoop:
         self._last_companion_discovery = 0.0
         self._last_training_data_export = 0.0
         self._last_agent_heartbeat = 0.0
+        # Cached multimodal context from last tick
+        self._last_multimodal_context: dict | None = None
         self._tick_count = 0
         self._start_time = 0.0
         # Decisions emitted by ProactiveIntelligence — exposed for
@@ -248,6 +250,7 @@ class AmbientLoop:
         if now - self._last_predictive_schedule >= _PREDICTIVE_SCHEDULE_INTERVAL:
             self._last_predictive_schedule = now
             await self._tick_predictive_schedule()
+
 
         # ── 6o. Forecast update ──────────────────────────────────
         if now - self._last_forecast >= _FORECAST_INTERVAL:
@@ -727,6 +730,51 @@ class AmbientLoop:
                 )
                 if decision.emit:
                     await self._dispatch_emitted(decision.candidate)
+
+        # Prediction-based proactive insights
+        try:
+            from app.core.prediction.orchestrator import get_prediction_orchestrator
+
+            pred_orch = get_prediction_orchestrator()
+            # Quick forecast to detect anomalies or opportunities
+            forecast = await pred_orch.comprehensive_forecast(horizon_hours=6)
+            if forecast and forecast.get("status") == "success":
+                components = forecast.get("components", {})
+                # Check for anomalies in schedule
+                schedule_forecast = components.get("schedule", {})
+                if schedule_forecast and schedule_forecast.get("anomalies"):
+                    for anomaly in schedule_forecast["anomalies"][:2]:
+                        candidate = ProactiveCandidate(
+                            channel="proactive",
+                            topic="prediction_anomaly",
+                            body=f"**Schedule Anomaly Detected**\n{anomaly}",
+                            priority="normal",
+                        )
+                        decision = engine.evaluate(candidate)
+                        if decision.emit:
+                            await self._dispatch_emitted(decision.candidate)
+                # Check for high-impact scenarios
+                scenario = await pred_orch.run_scenario_analysis(
+                    event="Next 6 hours"
+                )
+                if scenario and scenario.get("status") == "success":
+                    scenarios = scenario.get("scenarios", [])
+                    high_impact = [
+                        s for s in scenarios
+                        if s.get("impact_score", 0) > 0.7
+                    ]
+                    for s in high_impact[:1]:
+                        candidate = ProactiveCandidate(
+                            channel="proactive",
+                            topic="prediction_scenario",
+                            body=f"**High Impact Scenario**\n{s.get('name', 'Unknown')}: {s.get('description', '')}",
+                            priority="high",
+                        )
+                        decision = engine.evaluate(candidate)
+                        if decision.emit:
+                            await self._dispatch_emitted(decision.candidate)
+        except Exception as exc:
+            logger.debug("AmbientLoop: prediction insights skipped — %s", exc)
 
     async def _dispatch_emitted(self, candidate: Any) -> None:
         """Send an emitted candidate to the production sink.
@@ -1231,28 +1279,52 @@ class AmbientLoop:
     # ── Forecast update ─────────────────────────────────────────────
 
     async def _tick_forecast(self) -> None:
-        """Update predictive forecasts."""
+        """Update predictive forecasts using the full prediction orchestrator."""
         try:
-            from app.core.forecast import ForecastEngine
+            from app.core.prediction.orchestrator import get_prediction_orchestrator
 
-            fe = ForecastEngine()
-            if hasattr(fe, "update"):
-                fe.update()
-            logger.debug("AmbientLoop: forecast update done")
+            orchestrator = get_prediction_orchestrator()
+            # Run a lightweight 12-hour forecast every tick
+            result = await orchestrator.comprehensive_forecast(horizon_hours=12)
+            if result and result.get("status") == "success":
+                forecasts = result.get("components", {})
+                n_forecasts = sum(1 for v in forecasts.values() if v)
+                logger.debug(
+                    "AmbientLoop: prediction orchestrator forecast — %d components generated",
+                    n_forecasts,
+                )
+            else:
+                logger.debug("AmbientLoop: prediction forecast returned status=%s", result.get("status", "unknown"))
         except Exception as exc:
-            logger.debug("AmbientLoop: forecast update skipped — %s", exc)
+            logger.debug("AmbientLoop: prediction forecast skipped — %s", exc)
 
     # ── Perception scan ─────────────────────────────────────────────
 
     async def _tick_perception(self) -> None:
-        """Scan environment for new patterns and evidence."""
+        """Scan environment for new patterns and evidence, then store findings."""
         try:
             from app.core.perception import PerceptionEngine
+            from app.core.learning_db import get_learning_store
 
             pe = PerceptionEngine()
             if hasattr(pe, "scan"):
-                pe.scan()
-            logger.debug("AmbientLoop: perception scan done")
+                results = pe.scan()
+                # Store perception results in learning DB for later use
+                if results:
+                    store = get_learning_store()
+                    for item in (results if isinstance(results, list) else [results]):
+                        if isinstance(item, dict):
+                            store.add_event(
+                                kind="perception",
+                                payload=item,
+                                source="ambient_loop",
+                            )
+                    logger.debug(
+                        "AmbientLoop: perception scan stored %d findings",
+                        len(results) if isinstance(results, list) else 1,
+                    )
+            else:
+                logger.debug("AmbientLoop: perception engine has no scan method")
         except Exception as exc:
             logger.debug("AmbientLoop: perception scan skipped — %s", exc)
 
@@ -1315,33 +1387,77 @@ class AmbientLoop:
             logger.debug("AmbientLoop: environmental sensors skipped — %s", exc)
 
     async def _tick_multimodal(self) -> None:
-        """Process multimodal inputs."""
+        """Process multimodal inputs and cache the context for the next turn."""
         try:
             from app.core.multimodal_retrieval import MultimodalRetriever
             from app.core.multimodal_understanding import MultiModalProcessor
+            from app.core.unified_multimodal import get_unified_context_builder
 
-            _mr = MultimodalRetriever()
-            _mp = MultiModalProcessor()
-            logger.debug("AmbientLoop: multimodal processing done")
+            mr = MultimodalRetriever()
+            mp = MultiModalProcessor()
+            # Build a unified context snapshot from all modalities
+            builder = get_unified_context_builder()
+            context_snapshot = builder.build()
+            if context_snapshot:
+                # Cache the snapshot so the next turn can use it
+                self._last_multimodal_context = context_snapshot
+                logger.debug(
+                    "AmbientLoop: multimodal context cached — tokens=%d",
+                    context_snapshot.get("total_tokens", 0),
+                )
+            else:
+                logger.debug("AmbientLoop: multimodal processing done (no context)")
         except Exception as exc:
             logger.debug("AmbientLoop: multimodal processing skipped — %s", exc)
 
     async def _tick_event_digest(self) -> None:
-        """Aggregate events into digest."""
+        """Aggregate events from all sources into a digest and store it."""
         try:
             from app.core.event_digest import EventDigest
+            from app.core.learning_db import get_learning_store
 
             ed = EventDigest()
             if hasattr(ed, "flush"):
                 ed.flush()
-            logger.debug("AmbientLoop: event digest done")
+            # Also aggregate recent learning events into a digest
+            store = get_learning_store()
+            recent_events = store.get_recent_events(limit=50) if hasattr(store, "get_recent_events") else []
+            if recent_events:
+                # Group by kind and count
+                kind_counts: dict[str, int] = {}
+                for ev in recent_events:
+                    kind = ev.get("kind", "unknown") if isinstance(ev, dict) else "unknown"
+                    kind_counts[kind] = kind_counts.get(kind, 0) + 1
+                # Store the digest summary
+                store.add_event(
+                    kind="event_digest",
+                    payload={
+                        "total_events": len(recent_events),
+                        "by_kind": kind_counts,
+                        "period": "since_last_tick",
+                    },
+                    source="ambient_loop",
+                )
+                logger.debug(
+                    "AmbientLoop: event digest aggregated %d events across %d kinds",
+                    len(recent_events),
+                    len(kind_counts),
+                )
+            else:
+                logger.debug("AmbientLoop: event digest done (no recent events)")
         except Exception as exc:
             logger.debug("AmbientLoop: event digest skipped — %s", exc)
 
     async def _tick_self_evolution(self) -> None:
-        """Run self-evolution: compute adjustments, auto-generate goals, log report."""
+        """Run self-evolution: compute adjustments, auto-generate goals, consolidate skills, log report."""
         try:
             from app.core.self_evolution import get_self_evolution
+            from app.core.skill_learner import get_skill_learner
+            
+            # Prune and consolidate learned skills
+            learner = get_skill_learner()
+            if learner:
+                learner.consolidate_skills()
 
             se = get_self_evolution()
             adjustments = se.compute_adjustments()
