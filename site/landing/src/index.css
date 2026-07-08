@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #050505;
+  --blood: #8b0000;
+  --blood-bright: #c8102e;
+  --bone: #f4f1ea;
+  --ash: #9a9690;
+  --glow: rgba(200, 16, 46, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: auto; /* Lenis handles smoothness */
+}
+
+html,
+body {
+  background: var(--ink);
+  color: var(--bone);
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+body {
+  cursor: none;
+}
+
+@media (pointer: coarse) {
+  body {
+    cursor: auto;
+  }
+}
+
+::selection {
+  background: rgba(200, 16, 46, 0.3);
+  color: var(--bone);
+}
+
+/* Volumetric fog vignette over everything */
+.fog-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(200, 16, 46, 0.08), transparent 60%),
+    radial-gradient(ellipse 100% 80% at 50% 110%, rgba(0, 0, 0, 0.9), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 50% 50%, transparent 40%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+/* Blood-red soft glow text */
+.text-glow {
+  text-shadow: 0 0 30px var(--glow), 0 0 60px rgba(200, 16, 46, 0.2);
+}
+
+.glow-line {
+  box-shadow: 0 0 20px var(--glow);
+}
+
+/* Thin grain to avoid banding on the matte black */
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.cursor-ring.cursor--active {
+  width: 64px;
+  height: 64px;
+  border-color: rgba(200, 16, 46, 0.9);
+  background: rgba(200, 16, 46, 0.08);
+}
+
+/* Heading editorial serif */
+.serif {
+  font-family: "Cormorant Garamond", Georgia, serif;
+}
+
+.eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--ash);
+}
+
+/* Reusable section padding */
+.section-pad {
+  padding-left: clamp(1.5rem, 6vw, 8rem);
+  padding-right: clamp(1.5rem, 6vw, 8rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
